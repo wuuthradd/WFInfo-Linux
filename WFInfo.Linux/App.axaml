@@ -1,0 +1,28 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="WFInfo.Linux.App"
+             RequestedThemeVariant="Dark">
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://WFInfo.Linux/Styles/AppStyles.axaml" />
+    </Application.Styles>
+
+    <TrayIcon.Icons>
+        <TrayIcons>
+            <TrayIcon Icon="avares://WFInfo.Linux/Resources/WFLogo.png"
+                      ToolTipText="WFInfo"
+                      Clicked="TrayShow_Click">
+                <TrayIcon.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="Show" Click="TrayShow_Click" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Wiki" Click="TrayWiki_Click" />
+                        <NativeMenuItem Header="Bugs" Click="TrayBugs_Click" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Close" Click="TrayClose_Click" />
+                    </NativeMenu>
+                </TrayIcon.Menu>
+            </TrayIcon>
+        </TrayIcons>
+    </TrayIcon.Icons>
+</Application>

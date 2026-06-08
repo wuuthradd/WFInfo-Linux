@@ -1,0 +1,191 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WFInfo.Linux.Views.MainWindow"
+        Title="WFInfo" Height="110" Width="334"
+        CanResize="False"
+        SystemDecorations="None"
+        TransparencyLevelHint="None"
+        Background="#FF1B1B1B"
+        Icon="avares://WFInfo.Linux/Resources/WFLogo.png">
+
+    <!-- Sidebar icon hover image swap -->
+    <Window.Styles>
+        <!-- Default: hover image hidden -->
+        <Style Selector="Button.iconBtn Image.hover">
+            <Setter Property="Opacity" Value="0" />
+        </Style>
+        <!-- On hover: hide normal image, show hover image -->
+        <Style Selector="Button.iconBtn:pointerover Image.normal">
+            <Setter Property="Opacity" Value="0" />
+        </Style>
+        <Style Selector="Button.iconBtn:pointerover Image.hover">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <!-- Remove Fluent theme hover background on icon buttons -->
+        <Style Selector="Button.iconBtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+    </Window.Styles>
+
+    <Border BorderBrush="#FF707070" BorderThickness="1">
+    <Grid PointerPressed="OnPointerPressed">
+
+        <Rectangle Fill="#FF0F0F0F" Stroke="#FF646464" Height="22" VerticalAlignment="Top" />
+        <Rectangle Stroke="#FF646464" />
+        <!-- Bottom status bar background -->
+        <Rectangle Fill="#FF0F0F0F" Stroke="#FF646464" Margin="0,0,42,0" Height="34" VerticalAlignment="Bottom" />
+        <!-- Right sidebar -->
+        <Rectangle Stroke="#FF646464" Margin="0,21,0,0" HorizontalAlignment="Right" Width="43" />
+        <!-- Sidebar vertical divider -->
+        <Rectangle Fill="#FF646464" Width="1" Margin="0,22,42,0" HorizontalAlignment="Right" />
+        <!-- Horizontal separator: bottom of title bar -->
+        <Rectangle Fill="#FF646464" Height="1" Margin="0,22,0,0" VerticalAlignment="Top" />
+        <!-- Horizontal separator: top of status bar -->
+        <Rectangle Fill="#FF646464" Height="1" Margin="0,0,42,34" VerticalAlignment="Bottom" />
+
+        <Image Margin="1,0,0,0" Source="avares://WFInfo.Linux/Resources/WFLogo.png"
+               Height="23" VerticalAlignment="Top" HorizontalAlignment="Left" Width="19" />
+        <TextBlock Text="WFInfo" Margin="25,1,0,0" HorizontalAlignment="Left"
+                   VerticalAlignment="Top" FontSize="16" FontWeight="Bold"
+                   FontFamily="{StaticResource RobotoBlack}" />
+        <TextBlock x:Name="Version" Text="vX.X.X" HorizontalAlignment="Left"
+                   VerticalAlignment="Top" Margin="80,4,0,0" FontSize="11" FontWeight="Bold" />
+
+        <Button x:Name="MinimiseBtn" Click="Minimise" Content="_" Classes="linkButton"
+                Margin="0,0,21,0" Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" Width="22"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+        <Button x:Name="ExitBtn" Click="Exit" Content="x" Classes="linkButton"
+                Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" Width="22"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+
+        <!-- Sidebar icon buttons -->
+        <Button x:Name="DiscordBtn" Classes="iconBtn" ToolTip.Tip="Opens WFinfo Discord" Click="WebsiteClick"
+                Margin="0,22,1,0" Padding="1" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Width="20"
+                Background="Transparent" BorderThickness="0">
+            <Panel>
+                <Image Classes="normal" Source="avares://WFInfo.Linux/Resources/discord.png" Stretch="Uniform" />
+                <Image Classes="hover" Source="avares://WFInfo.Linux/Resources/discord_h.png" Stretch="Uniform" />
+            </Panel>
+        </Button>
+        <Button x:Name="RelicsBtn" Classes="iconBtn" ToolTip.Tip="Relics - search for what relic to use" Click="RelicsClick"
+                Margin="0,22,22,0" Padding="3" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Width="20"
+                Background="Transparent" BorderThickness="0">
+            <Panel>
+                <Image Classes="normal" Source="avares://WFInfo.Linux/Resources/Relic.png" Stretch="Uniform" />
+                <Image Classes="hover" Source="avares://WFInfo.Linux/Resources/Relic_h.png" Stretch="Uniform" />
+            </Panel>
+        </Button>
+        <Button x:Name="GearBtn" Classes="iconBtn" ToolTip.Tip="Equipment - see which items you own" Click="EquipmentClick"
+                Margin="0,42,22,0" Padding="3" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Width="20"
+                Background="Transparent" BorderThickness="0">
+            <Panel>
+                <Image Classes="normal" Source="avares://WFInfo.Linux/Resources/gear.png" Stretch="Uniform" />
+                <Image Classes="hover" Source="avares://WFInfo.Linux/Resources/gear_h.png" Stretch="Uniform" />
+            </Panel>
+        </Button>
+        <Button x:Name="SettingsBtn" Classes="iconBtn" ToolTip.Tip="Settings" Click="SettingsClick"
+                Margin="0,42,1,0" Padding="3" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Width="20"
+                Background="Transparent" BorderThickness="0">
+            <Panel>
+                <Image Classes="normal" Source="avares://WFInfo.Linux/Resources/Settings.png" Stretch="Uniform" />
+                <Image Classes="hover" Source="avares://WFInfo.Linux/Resources/Settings_h.png" Stretch="Uniform" />
+            </Panel>
+        </Button>
+        <Button x:Name="ReloadBtn" Classes="iconBtn" ToolTip.Tip="Reloads market and prime data" Click="ReloadDataClick"
+                Margin="6,26,0,0" Padding="3" Height="22" VerticalAlignment="Top" HorizontalAlignment="Left" Width="20"
+                Background="Transparent" BorderThickness="0">
+            <Panel>
+                <Image Classes="normal" Source="avares://WFInfo.Linux/Resources/Reload.png" Stretch="Uniform" />
+                <Image Classes="hover" Source="avares://WFInfo.Linux/Resources/Reload_h.png" Stretch="Uniform" />
+            </Panel>
+        </Button>
+
+        <TextBlock Text=" Market Data:" FontSize="16" Margin="26,28,0,0"
+                   VerticalAlignment="Top" HorizontalAlignment="Left" />
+        <TextBlock x:Name="MarketData" Text="Loading..." FontSize="16" Margin="132,28,43,0"
+                   VerticalAlignment="Top" HorizontalAlignment="Left" />
+        <TextBlock Text=" Prime Data:" FontSize="16" Margin="26,54,0,0"
+                   VerticalAlignment="Top" HorizontalAlignment="Left" />
+        <TextBlock x:Name="DropData" Text="Loading..." FontSize="16" Margin="132,54,43,0"
+                   VerticalAlignment="Top" HorizontalAlignment="Left" />
+
+        <!-- Status bar -->
+        <TextBlock Text=" Status:" FontSize="13" Margin="1,0,0,1" FontWeight="Bold"
+                   FontFamily="{StaticResource RobotoCondensedBold}"
+                   Height="32" VerticalAlignment="Bottom" HorizontalAlignment="Left" Width="43" />
+        <TextBlock x:Name="Status" Text="Loading..." TextWrapping="Wrap" FontSize="13"
+                   FontFamily="{StaticResource RobotoCondensed}"
+                   Margin="44,0,43,1" Height="32" VerticalAlignment="Bottom"
+                   ToolTip.Tip="Click to open data folder"
+                   PointerPressed="OpenAppDataFolder" />
+
+        <!-- Title bar login/status area rect, widened for Avalonia ComboBox chrome -->
+        <Rectangle Stroke="#FF646464" Margin="204,0,42,0" Height="22" VerticalAlignment="Top" />
+        <Button x:Name="LoginBtn" IsEnabled="False" Content="Login to WFM"
+                HorizontalAlignment="Left" Margin="205,1,0,0" VerticalAlignment="Top"
+                Width="86" Height="20" Padding="2,0" FontSize="12"
+                Background="Transparent" Foreground="#FFB1D0D9"
+                BorderThickness="0" Click="SpawnLogin" />
+        <!-- WFM status ComboBox (hidden until logged in, fills title bar slot) -->
+        <ComboBox x:Name="StatusCombo" IsVisible="False"
+                  HorizontalAlignment="Left" VerticalAlignment="Top"
+                  Margin="204,0,0,0" Width="88"
+                  Height="22" MinHeight="0"
+                  Background="#FF0F0F0F" Foreground="#FFAFD0D9"
+                  BorderThickness="0" Padding="4,0,0,0"
+                  FontSize="12"
+                  SelectionChanged="StatusComboChanged">
+            <ComboBox.Styles>
+                <Style Selector="ComboBox /template/ Border#Background">
+                    <Setter Property="Background" Value="#FF0F0F0F" />
+                    <Setter Property="BorderThickness" Value="0" />
+                    <Setter Property="CornerRadius" Value="0" />
+                    <Setter Property="MinHeight" Value="0" />
+                </Style>
+                <Style Selector="ComboBox:pointerover /template/ Border#Background">
+                    <Setter Property="Background" Value="#FF1B1B1B" />
+                    <Setter Property="BorderThickness" Value="0" />
+                </Style>
+            </ComboBox.Styles>
+            <ComboBoxItem Content="Ingame" />
+            <ComboBoxItem Content="Online" />
+            <ComboBoxItem Content="Invisible" />
+            <ComboBoxItem Content="Log out" />
+        </ComboBox>
+
+        <!-- CreateListing button (visible after login) -->
+        <Button x:Name="CreateListingBtn" Classes="iconBtn" IsVisible="False"
+                ToolTip.Tip="Create listings from previous rewards" Click="CreateListing_Click"
+                Margin="0,62,22,0" Padding="3" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Width="20"
+                Background="Transparent" BorderThickness="0">
+            <Panel>
+                <Image Classes="normal" Source="avares://WFInfo.Linux/Resources/tressure.png" Stretch="Uniform" />
+                <Image Classes="hover" Source="avares://WFInfo.Linux/Resources/tressure_h.png" Stretch="Uniform" />
+            </Panel>
+        </Button>
+
+        <!-- SearchIt button (visible after login, right sidebar) -->
+        <Button x:Name="SearchItBtn" Classes="iconBtn" IsVisible="False"
+                ToolTip.Tip="Launch Search-It" Click="SearchIt_Click"
+                Margin="0,62,1,0" Padding="3" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Width="20"
+                Background="Transparent" BorderThickness="0">
+            <Panel>
+                <Image Classes="normal" Source="avares://WFInfo.Linux/Resources/SearchIcon.png" Stretch="Uniform" />
+                <Image Classes="hover" Source="avares://WFInfo.Linux/Resources/SearchIcon_h.png" Stretch="Uniform" />
+            </Panel>
+        </Button>
+
+        <!-- PlusOne button (visible after login) -->
+        <Button x:Name="PlusOneBtn" Classes="iconBtn" IsVisible="False"
+                ToolTip.Tip="Post a review for the developers" Click="PlusOne_Click"
+                Margin="0,82,22,0" Padding="3" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Width="20"
+                Background="Transparent" BorderThickness="0">
+            <Panel>
+                <Image Classes="normal" Source="avares://WFInfo.Linux/Resources/plusone.png" Stretch="Uniform" />
+                <Image Classes="hover" Source="avares://WFInfo.Linux/Resources/plusone_h.png" Stretch="Uniform" />
+            </Panel>
+        </Button>
+
+    </Grid>
+    </Border>
+</Window>

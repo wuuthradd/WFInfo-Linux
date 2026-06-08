@@ -1,0 +1,127 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:WFInfo.Linux.Views"
+        x:Class="WFInfo.Linux.Views.ThemeAdjusterWindow"
+        Title="Theme Adjuster"
+        Width="800" Height="634"
+        Background="#FF1B1B1B"
+        FontSize="16"
+        CanResize="True"
+        SystemDecorations="None"
+        MinWidth="800" MinHeight="300">
+
+    <Border BorderBrush="#FF707070" BorderThickness="1">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="26"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title bar (PointerPressed here only, not on outer Grid, so sliders/textboxes work) -->
+        <Grid Grid.Row="0" Background="#FF0F0F0F" PointerPressed="TitleBar_PointerPressed">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0,0,0">
+                <Image Source="avares://WFInfo.Linux/Resources/WFLogo.png" Height="20" Width="20" Margin="0,0,4,0"/>
+                <TextBlock Text="Theme Adjuster" FontSize="16" FontWeight="Bold" FontFamily="{StaticResource RobotoBlack}" Foreground="#FFB1D0D9" VerticalAlignment="Center"/>
+            </StackPanel>
+            <Button Content="x" Click="Close_Click" Classes="linkButton"
+                    HorizontalAlignment="Right" Width="26" Height="26"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+        </Grid>
+
+        <!-- Main content -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="6*"/>
+                <ColumnDefinition Width="3*" MaxWidth="400"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Preview panel -->
+            <Border Grid.Column="0" BorderBrush="#FF646464" BorderThickness="1" Padding="3">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition/>
+                        <RowDefinition Height="60"/>
+                    </Grid.RowDefinitions>
+                    <Image x:Name="PreviewImage" Grid.Row="0" Stretch="Uniform"/>
+                    <TextBlock Grid.Row="1" Margin="5" TextWrapping="Wrap" Foreground="#FFB1D0D9"
+                               Text="Adjust and apply filter(s) until item names are black. Try to reduce how much else is black, especially near the text"/>
+                </Grid>
+            </Border>
+
+            <!-- Controls panel -->
+            <ScrollViewer Grid.Column="1">
+                <Border BorderBrush="#FF646464" BorderThickness="1" Padding="0">
+                    <StackPanel Spacing="2">
+                        <local:FilterSectionControl x:Name="PrimaryHslFilter"
+                            Header="Primary HSL Filter"
+                            HeaderTooltip="Use(and reveal) primary filter based on HSL colour values"
+                            Prefix="Primary" Param1Name="Hue" Param2Name="Saturation" Param3Name="Brightness"
+                            Range1="360" Range2="1" Range3="1"
+                            ValuesChanged="OnFilterValuesChanged" EnabledChanged="OnFilterEnabledChanged"/>
+
+                        <local:FilterSectionControl x:Name="PrimaryRgbFilter"
+                            Header="Primary RGB Filter"
+                            HeaderTooltip="Use(and reveal) primary filter based on RGB colour values"
+                            Prefix="Primary" Param1Name="Red" Param2Name="Green" Param3Name="Blue"
+                            Range1="255" Range2="255" Range3="255"
+                            ValuesChanged="OnFilterValuesChanged" EnabledChanged="OnFilterEnabledChanged"/>
+
+                        <local:FilterSectionControl x:Name="SecondaryHslFilter"
+                            Header="Secondary HSL Filter"
+                            HeaderTooltip="Use(and reveal) secondary filter based on HSL colour values"
+                            Prefix="Secondary" Param1Name="Hue" Param2Name="Saturation" Param3Name="Brightness"
+                            Range1="360" Range2="1" Range3="1"
+                            ValuesChanged="OnFilterValuesChanged" EnabledChanged="OnFilterEnabledChanged"/>
+
+                        <local:FilterSectionControl x:Name="SecondaryRgbFilter"
+                            Header="Secondary RGB Filter"
+                            HeaderTooltip="Use(and reveal) secondary filter based on RGB colour values"
+                            Prefix="Secondary" Param1Name="Red" Param2Name="Green" Param3Name="Blue"
+                            Range1="255" Range2="255" Range3="255"
+                            ValuesChanged="OnFilterValuesChanged" EnabledChanged="OnFilterEnabledChanged"/>
+
+                        <!-- Action buttons (WPF uses Label with Label_Button style, flat text with border) -->
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                            <Button Grid.Column="0" Grid.Row="0" Content="Load Last Use" Click="LoadLatest_Click"
+                                    Classes="labelButton"
+                                    ToolTip.Tip="Loads test image from your last attempted activation of any scanning functionality"
+                                    HorizontalAlignment="Stretch"/>
+                            <Button Grid.Column="1" Grid.Row="0" Content="Show Unfiltered" Click="ShowUnfiltered_Click"
+                                    Classes="labelButton"
+                                    ToolTip.Tip="Shows your test image in the preview area"
+                                    HorizontalAlignment="Stretch"/>
+                            <Button Grid.Column="0" Grid.Row="1" Content="Load From File" Click="LoadFromFile_Click"
+                                    Classes="labelButton"
+                                    ToolTip.Tip="Choose a file to load as test image"
+                                    HorizontalAlignment="Stretch"/>
+                            <Button Grid.Column="1" Grid.Row="1" Content="Apply Filter" Click="ApplyFilter_Click"
+                                    Classes="labelButton"
+                                    ToolTip.Tip="Applies the custom filter to your test image and displays it"
+                                    HorizontalAlignment="Stretch"/>
+                            <TextBox x:Name="FilterTextBox" Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="2"
+                                     MinHeight="50" AcceptsReturn="True" AcceptsTab="True"
+                                     ToolTip.Tip="Field for importing/exporting custom filters. Used with the buttons below"
+                                     Text=""/>
+                            <Button Grid.Column="0" Grid.Row="3" Content="Import Filter" Click="ImportFilter_Click"
+                                    Classes="labelButton"
+                                    ToolTip.Tip="Attempts to import filter data from the text box above"
+                                    HorizontalAlignment="Stretch"/>
+                            <Button Grid.Column="1" Grid.Row="3" Content="Export Filter" Click="ExportFilter_Click"
+                                    Classes="labelButton"
+                                    ToolTip.Tip="Exports your custom filter to the text box above"
+                                    HorizontalAlignment="Stretch"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </ScrollViewer>
+        </Grid>
+        <!-- Resize grip (bottom-right) -->
+        <Panel Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+               Width="14" Height="14" Margin="0,0,1,1" Cursor="BottomRightCorner"
+               PointerPressed="ResizeGrip_PointerPressed" Background="Transparent">
+            <Path Stroke="White" StrokeThickness="1.5"
+                  Data="M 4,14 L 14,4 M 8,14 L 14,8 M 12,14 L 14,12"/>
+        </Panel>
+    </Grid>
+    </Border>
+</Window>

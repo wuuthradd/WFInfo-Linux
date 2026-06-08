@@ -1,0 +1,118 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwayland-dev \
+            libcairo2-dev \
+            libpango1.0-dev \
+            libfontconfig1-dev \
+            libx11-dev \
+            libx11-xcb-dev \
+            libxcb1-dev \
+            libxfixes-dev \
+            libxrender-dev \
+            libxext-dev \
+            libxi-dev \
+            libxrandr-dev \
+            pkg-config \
+            libfuse2
+
+      - name: Publish .NET app
+        run: |
+          dotnet publish WFInfo.Linux/WFInfo.Linux.csproj \
+            -c Release \
+            -r linux-x64 \
+            --self-contained true \
+            -p:PublishTrimmed=true \
+            -p:TrimMode=partial \
+            -o publish/
+
+      - name: Build native overlay
+        run: make -C WFInfo.Linux/NativeOverlay
+
+      - name: Build DBMON bridge
+        run: |
+          if [ -f WFInfo.Linux/DBMon/dbmon.c ]; then
+            make -C WFInfo.Linux/DBMon
+          fi
+
+      - name: Package tarball
+        run: |
+          mkdir -p WFInfo-linux-x64/lib
+          cp -r publish/* WFInfo-linux-x64/lib/
+          cp WFInfo.Linux/NativeOverlay/wfinfo-overlay WFInfo-linux-x64/lib/
+          cp WFInfo.Linux/DBMon/WFInfo.DbMon.exe WFInfo-linux-x64/lib/ 2>/dev/null || true
+          chmod +x WFInfo-linux-x64/lib/WFInfo.Linux WFInfo-linux-x64/lib/wfinfo-overlay WFInfo-linux-x64/lib/wfinfo-setup-input.sh
+
+          printf '#!/bin/bash\nDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"\nexport LD_LIBRARY_PATH="$DIR/lib:$LD_LIBRARY_PATH"\nexec "$DIR/lib/WFInfo.Linux" "$@"\n' > WFInfo-linux-x64/WFInfo
+          chmod +x WFInfo-linux-x64/WFInfo
+
+          tar czf WFInfo-linux-x64.tar.gz WFInfo-linux-x64/
+
+      - name: Package AppImage
+        run: |
+          APPDIR=AppDir
+          mkdir -p $APPDIR/usr/bin $APPDIR/usr/share/icons/hicolor/256x256/apps
+
+          cp -r publish/* $APPDIR/usr/bin/
+          cp WFInfo.Linux/NativeOverlay/wfinfo-overlay $APPDIR/usr/bin/
+          cp WFInfo.Linux/DBMon/WFInfo.DbMon.exe $APPDIR/usr/bin/ 2>/dev/null || true
+
+          cp WFInfo.Linux/AppImage/AppRun $APPDIR/AppRun
+          chmod +x $APPDIR/AppRun
+          cp WFInfo.Linux/AppImage/wfinfo-setup-input.sh $APPDIR/usr/bin/
+          chmod +x $APPDIR/usr/bin/wfinfo-setup-input.sh
+          cp WFInfo.Linux/AppImage/WFInfo.desktop $APPDIR/WFInfo.desktop
+
+          if [ -f WFInfo.Linux/Resources/WFLogo.png ]; then
+            cp WFInfo.Linux/Resources/WFLogo.png $APPDIR/WFInfo.png
+            cp WFInfo.Linux/Resources/WFLogo.png $APPDIR/usr/share/icons/hicolor/256x256/apps/WFInfo.png
+          fi
+
+          wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
+          chmod +x appimagetool
+          ARCH=x86_64 ./appimagetool $APPDIR WFInfo.AppImage
+
+      - name: Extract release notes from CHANGELOG
+        id: changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NOTES=$(awk "/^## ${VERSION//./\\.}[[:space:]]/{found=1; next} /^## /{if(found) exit} found{print}" CHANGELOG.md)
+          echo "notes<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$NOTES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            WFInfo.AppImage
+            WFInfo-linux-x64.tar.gz
+          body: ${{ steps.changelog.outputs.notes }}

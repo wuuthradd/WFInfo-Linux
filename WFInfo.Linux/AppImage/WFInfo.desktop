@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=WFInfo
+Comment=Warframe relic reward prices via OCR
+Exec=WFInfo
+Icon=WFInfo
+Type=Application
+Categories=Game;Utility;
+Terminal=false
+StartupWMClass=WFInfo

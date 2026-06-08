@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Version>9.8.1.0</Version>
+    <AssemblyVersion>9.8.1.0</AssemblyVersion>
+    <FileVersion>9.8.1.0</FileVersion>
+    <RootNamespace>WFInfo.Linux</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationIcon>Resources/WFLogo.ico</ApplicationIcon>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.17" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.17" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.17" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.17" />
+
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.17" Condition="'$(Configuration)' == 'Debug'" />
+    <PackageReference Include="SkiaSharp" Version="2.88.9" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.9" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WFInfo.Core\WFInfo.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Resources\**" />
+    <AvaloniaResource Include="Styles\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\achievment_03.wav" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="AppImage\wfinfo-setup-input.sh" CopyToOutputDirectory="PreserveNewest" Link="wfinfo-setup-input.sh" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,184 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Font family resources -->
+    <Styles.Resources>
+        <FontFamily x:Key="Roboto">avares://WFInfo.Linux/Resources/Roboto/Roboto-Regular.ttf#Roboto</FontFamily>
+        <FontFamily x:Key="RobotoBlack">avares://WFInfo.Linux/Resources/Roboto/Roboto-Black.ttf#Roboto Black</FontFamily>
+        <FontFamily x:Key="RobotoMedium">avares://WFInfo.Linux/Resources/Roboto/Roboto-Medium.ttf#Roboto Medium</FontFamily>
+        <FontFamily x:Key="RobotoCondensed">avares://WFInfo.Linux/Resources/RobotoCondensed/RobotoCondensed-Regular.ttf#Roboto Condensed</FontFamily>
+        <FontFamily x:Key="RobotoCondensedBold">avares://WFInfo.Linux/Resources/RobotoCondensed/RobotoCondensed-Bold.ttf#Roboto Condensed</FontFamily>
+        <FontFamily x:Key="RobotoMono">avares://WFInfo.Linux/Resources/RobotoMono/RobotoMono-Regular.ttf#Roboto Mono</FontFamily>
+    </Styles.Resources>
+
+    <!-- Base text style matching WFInfo dark theme (FontSize="12" = WPF default) -->
+    <Style Selector="TextBlock">
+        <Setter Property="Foreground" Value="#FFB1D0D9" />
+        <Setter Property="FontFamily" Value="{StaticResource Roboto}" />
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <Style Selector="Window">
+        <Setter Property="Background" Value="#FF1B1F23" />
+    </Style>
+
+    <!-- Label-as-button style -->
+    <Style Selector="Button.linkButton">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="#FFB1D0D9" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.linkButton /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.linkButton:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#30FFFFFF" />
+        <Setter Property="Foreground" Value="#FFEEEEEE" />
+    </Style>
+    <Style Selector="Button.linkButton:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="#50FFFFFF" />
+    </Style>
+
+    <!-- WPF Label_Button equivalent: transparent bg, gray border, hover border turns blue -->
+    <Style Selector="Button.labelButton">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="#FF646464" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Foreground" Value="#FFB1D0D9" />
+        <Setter Property="Padding" Value="5" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.labelButton /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="#FF646464" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Button.labelButton:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="#FF7EB4EA" />
+    </Style>
+    <Style Selector="Button.labelButton:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="#15FFFFFF" />
+        <Setter Property="BorderBrush" Value="#FF7EB4EA" />
+    </Style>
+
+    <!-- Dark ComboBox style -->
+    <Style Selector="ComboBox">
+        <Setter Property="Background" Value="#FF2B2F33" />
+        <Setter Property="Foreground" Value="#FFB1D0D9" />
+        <Setter Property="BorderBrush" Value="#FF3B3F43" />
+        <Setter Property="Padding" Value="4,0" />
+    </Style>
+    <!-- Ensure ComboBox dropdown popup is wide enough for content -->
+    <Style Selector="ComboBox /template/ Popup#PART_Popup">
+        <Setter Property="MinWidth" Value="88" />
+    </Style>
+
+    <!-- Dark TextBox style -->
+    <Style Selector="TextBox">
+        <Setter Property="Background" Value="#FF2B2F33" />
+        <Setter Property="Foreground" Value="#FFB1D0D9" />
+        <Setter Property="BorderBrush" Value="#FF3B3F43" />
+        <Setter Property="CaretBrush" Value="#FFB1D0D9" />
+    </Style>
+
+    <!-- CheckBox style -->
+    <Style Selector="CheckBox">
+        <Setter Property="Foreground" Value="#FFB1D0D9" />
+    </Style>
+
+    <!-- TreeViewItem: stretch to full width + transparent selection -->
+    <Style Selector="TreeViewItem">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+    <Style Selector="TreeViewItem /template/ ContentPresenter#PART_HeaderPresenter">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <!-- Remove blue selection highlight on TreeViewItems -->
+    <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <!-- Non-expanding vertical ScrollBar, custom template to override Fluent theme expansion on hover -->
+    <Style Selector="ScrollBar:vertical">
+        <Setter Property="Width" Value="12" />
+        <Setter Property="MinWidth" Value="12" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Border Background="Transparent" Width="12">
+                        <Track Minimum="{TemplateBinding Minimum}"
+                               Maximum="{TemplateBinding Maximum}"
+                               Value="{TemplateBinding Value, Mode=TwoWay}"
+                               ViewportSize="{TemplateBinding ViewportSize}"
+                               Orientation="Vertical"
+                               IsDirectionReversed="True">
+                            <Track.Thumb>
+                                <Thumb>
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border x:Name="ThumbBorder"
+                                                    Background="#FF4B4F53"
+                                                    CornerRadius="4"
+                                                    Width="8"
+                                                    MinHeight="16"
+                                                    HorizontalAlignment="Center" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Non-expanding horizontal ScrollBar -->
+    <Style Selector="ScrollBar:horizontal">
+        <Setter Property="Height" Value="12" />
+        <Setter Property="MinHeight" Value="12" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Border Background="Transparent" Height="12">
+                        <Track Minimum="{TemplateBinding Minimum}"
+                               Maximum="{TemplateBinding Maximum}"
+                               Value="{TemplateBinding Value, Mode=TwoWay}"
+                               ViewportSize="{TemplateBinding ViewportSize}"
+                               Orientation="Horizontal">
+                            <Track.Thumb>
+                                <Thumb>
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border x:Name="ThumbBorder"
+                                                    Background="#FF4B4F53"
+                                                    CornerRadius="4"
+                                                    Height="8"
+                                                    MinWidth="16"
+                                                    VerticalAlignment="Center" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Thumb hover feedback -->
+    <Style Selector="ScrollBar Thumb:pointerover /template/ Border#ThumbBorder">
+        <Setter Property="Background" Value="#FF6B6F73" />
+    </Style>
+</Styles>

@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/tests/" />
+  <Folder Name="/tests/core/">
+    <Project Path="tests/core/CoreOcrTests.csproj" />
+  </Folder>
+  <Project Path="WFInfo.Core/WFInfo.Core.csproj" />
+  <Project Path="WFInfo.Linux/WFInfo.Linux.csproj" />
+</Solution>

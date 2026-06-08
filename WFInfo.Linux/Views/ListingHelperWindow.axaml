@@ -1,0 +1,104 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WFInfo.Linux.Views.ListingHelperWindow"
+        Title="WFInfo - Auto List"
+        Width="380" Height="340"
+        MinWidth="380" MinHeight="300"
+        WindowStartupLocation="CenterScreen"
+        SystemDecorations="None"
+        Background="#FF1B1B1B">
+
+    <Border BorderBrush="#FF707070" BorderThickness="1">
+    <Grid RowDefinitions="22,Auto,Auto,*,Auto,Auto" PointerPressed="OnPointerPressed">
+        <!-- Title bar -->
+        <Grid Grid.Row="0">
+            <Rectangle Fill="#FF0F0F0F" Stroke="#FF646464" />
+            <Image Margin="2,0,0,0" Source="avares://WFInfo.Linux/Resources/WFLogo.png"
+                   Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Width="18" />
+            <TextBlock Text="Auto List" Margin="24,1,0,0" FontSize="14" FontWeight="Bold"
+                       FontFamily="{StaticResource RobotoBlack}"
+                       VerticalAlignment="Center" />
+            <Button Content="_" Click="Minimize_Click" Classes="linkButton"
+                    Height="22" HorizontalAlignment="Right" Width="44"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Margin="0,0,22,0" />
+            <Button Content="x" Click="Close_Click" Classes="linkButton"
+                    Height="22" HorizontalAlignment="Right" Width="22"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+        </Grid>
+
+        <!-- Reward selection -->
+        <Grid Grid.Row="1" Margin="8,6,8,0" ColumnDefinitions="*,Auto">
+            <ComboBox x:Name="RewardCombo" HorizontalAlignment="Stretch"
+                      Background="#FF333333" Foreground="#FFB1D0D9"
+                      SelectionChanged="RewardCombo_Changed" />
+            <TextBlock x:Name="StatusText" Grid.Column="1" VerticalAlignment="Center"
+                       Margin="8,0,0,0" FontSize="11" Foreground="#FF888888" />
+        </Grid>
+
+        <!-- Top listings header -->
+        <TextBlock Grid.Row="2" Text="Top Listings" Foreground="#FFB1D0D9"
+                   FontWeight="Bold" FontSize="12" Margin="8,8,8,2" />
+
+        <!-- Listings table -->
+        <Border x:Name="ListingsBorder" Grid.Row="3" Background="#FF222222" CornerRadius="4" Margin="8,0" Padding="4">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+                <!-- Header -->
+                <Grid Grid.Row="0" ColumnDefinitions="*,*,*" Margin="0,0,0,4">
+                    <TextBlock Text="Platinum" Foreground="#FF888888" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="Amount" Foreground="#FF888888" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="Reputation" Foreground="#FF888888" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" />
+                </Grid>
+                <Grid Grid.Row="1" ColumnDefinitions="*,*,*">
+                    <TextBlock x:Name="Plat0" Foreground="#FFB1D0D9" FontSize="12" HorizontalAlignment="Center" />
+                    <TextBlock x:Name="Amt0" Grid.Column="1" Foreground="#FFB1D0D9" FontSize="12" HorizontalAlignment="Center" />
+                    <TextBlock x:Name="Rep0" Grid.Column="2" Foreground="#FFB1D0D9" FontSize="12" HorizontalAlignment="Center" />
+                </Grid>
+                <Grid Grid.Row="2" ColumnDefinitions="*,*,*">
+                    <TextBlock x:Name="Plat1" Foreground="#FFB1D0D9" FontSize="12" HorizontalAlignment="Center" />
+                    <TextBlock x:Name="Amt1" Grid.Column="1" Foreground="#FFB1D0D9" FontSize="12" HorizontalAlignment="Center" />
+                    <TextBlock x:Name="Rep1" Grid.Column="2" Foreground="#FFB1D0D9" FontSize="12" HorizontalAlignment="Center" />
+                </Grid>
+                <Grid Grid.Row="3" ColumnDefinitions="*,*,*">
+                    <TextBlock x:Name="Plat2" Foreground="#FFB1D0D9" FontSize="12" HorizontalAlignment="Center" />
+                    <TextBlock x:Name="Amt2" Grid.Column="1" Foreground="#FFB1D0D9" FontSize="12" HorizontalAlignment="Center" />
+                    <TextBlock x:Name="Rep2" Grid.Column="2" Foreground="#FFB1D0D9" FontSize="12" HorizontalAlignment="Center" />
+                </Grid>
+                <Grid Grid.Row="4" ColumnDefinitions="*,*,*">
+                    <TextBlock x:Name="Plat3" Foreground="#FFB1D0D9" FontSize="12" HorizontalAlignment="Center" />
+                    <TextBlock x:Name="Amt3" Grid.Column="1" Foreground="#FFB1D0D9" FontSize="12" HorizontalAlignment="Center" />
+                    <TextBlock x:Name="Rep3" Grid.Column="2" Foreground="#FFB1D0D9" FontSize="12" HorizontalAlignment="Center" />
+                </Grid>
+                <Grid Grid.Row="5" ColumnDefinitions="*,*,*">
+                    <TextBlock x:Name="Plat4" Foreground="#FFB1D0D9" FontSize="12" HorizontalAlignment="Center" />
+                    <TextBlock x:Name="Amt4" Grid.Column="1" Foreground="#FFB1D0D9" FontSize="12" HorizontalAlignment="Center" />
+                    <TextBlock x:Name="Rep4" Grid.Column="2" Foreground="#FFB1D0D9" FontSize="12" HorizontalAlignment="Center" />
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Price input + confirm -->
+        <Grid Grid.Row="4" Margin="8,6,8,4" ColumnDefinitions="Auto,*,Auto">
+            <TextBlock Text="Your Price:" Foreground="#FFB1D0D9" VerticalAlignment="Center"
+                       Margin="0,0,8,0" />
+            <TextBox x:Name="PriceBox" Grid.Column="1" Background="#FF333333"
+                     Foreground="#FFB1D0D9" Padding="4,2"
+                     TextChanged="PriceBox_TextChanged" />
+            <Button x:Name="ConfirmButton" Grid.Column="2" Content="Confirm Listing"
+                    Click="Confirm_Click" Background="#FF2D5A2D" Foreground="#FFB1D0D9"
+                    Padding="10,4" Margin="8,0,0,0" />
+        </Grid>
+
+        <!-- Navigation -->
+        <Grid Grid.Row="5" Margin="8,0,8,8" ColumnDefinitions="Auto,Auto,*,Auto">
+            <Button x:Name="BackButton" Content="Back" Click="Back_Click"
+                    Background="#FF333333" Foreground="#FFB1D0D9" Padding="12,4" />
+            <Button x:Name="CancelButton" Grid.Column="1" Content="Cancel" Click="Cancel_Click"
+                    Background="#FF5A2D2D" Foreground="#FFB1D0D9" Padding="12,4" Margin="4,0,0,0" />
+            <TextBlock x:Name="PageText" Grid.Column="2" Text="1 / 1" Foreground="#FF888888"
+                       FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <Button x:Name="NextButton" Grid.Column="3" Content="Next" Click="Next_Click"
+                    Background="#FF333333" Foreground="#FFB1D0D9" Padding="12,4" />
+        </Grid>
+    </Grid>
+    </Border>
+</Window>

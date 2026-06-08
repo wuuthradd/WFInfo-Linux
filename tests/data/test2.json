@@ -1,0 +1,13 @@
+{
+  "description": "Korean fissure reward screen",
+  "resolution": "1920x1080",
+  "scaling": 125,
+  "theme": "lotus",
+  "language": "korean",
+  "parts": {
+    "0": "Bo Prime Blueprint"
+  },
+  "category": "reward",
+  "hdr": false,
+  "filters": []
+}

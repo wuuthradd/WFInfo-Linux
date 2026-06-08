@@ -1,0 +1,34 @@
+name: Bug Report
+description: Report a bug or issue with WFInfo Linux
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **General feature requests belong in the upstream [WFCD/WFInfo](https://github.com/WFCD/WFInfo) repo.** Only Linux-specific requests (Wayland, packaging, input, etc.) belong here.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug clearly. What did you expect vs what actually happened?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we trigger this?
+      placeholder: |
+        1. Launch WFInfo
+        2. Open a relic in Warframe
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: debug-zip
+    attributes:
+      label: Debug zip
+      description: |
+        Create one from WFInfo Settings → "Create debug zip". Attach it here (drag and drop) or upload to a file sharing service and paste the link. If the zip is too large for GitHub (25 MB limit), remove the large FullScreenShot PNGs from it or use an external link.
+    validations:
+      required: false

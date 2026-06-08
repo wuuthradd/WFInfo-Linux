@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WFInfo.Linux.Views.ErrorDialogue"
+        Title="errorDialogue" Height="130" Width="300"
+        CanResize="False" SystemDecorations="None"
+        Background="#FF1B1B1B"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid PointerPressed="OnPointerPressed">
+        <!-- Border outline -->
+        <Rectangle Stroke="#FF707070" />
+        <!-- Title bar -->
+        <Rectangle Fill="#FF0F0F0F" Stroke="#FF646464" Height="25" VerticalAlignment="Top" />
+        <Image Source="avares://WFInfo.Linux/Resources/WFLogo.png"
+               Height="23" Width="24" VerticalAlignment="Top" HorizontalAlignment="Left"
+               Margin="1,1,0,0" />
+        <TextBlock Text="WFinfo" Margin="26,3,0,0" FontSize="16" FontWeight="Bold"
+                   FontFamily="{StaticResource RobotoBlack}"
+                   VerticalAlignment="Top" HorizontalAlignment="Left" />
+
+        <!-- Custom error text -->
+        <TextBlock x:Name="ErrorText" Text="Something Unexpected Happened"
+                   Margin="1,23,0,0" FontSize="18" Height="32"
+                   HorizontalAlignment="Left" VerticalAlignment="Top"
+                   TextAlignment="Center" Width="298" />
+
+        <!-- Explanatory text -->
+        <TextBlock Margin="15,52,15,0" TextWrapping="Wrap" TextAlignment="Center"
+                   VerticalAlignment="Top" Height="53"
+                   Text="Would you like to create a zip containing debug info for the developers?&#x0a;Please send it to them on discord" />
+
+        <!-- Yes / No buttons -->
+        <Button Content="Yes" HorizontalAlignment="Left" Margin="75,102,0,0"
+                VerticalAlignment="Top" Width="55" Background="#FF0F0F0F"
+                Click="YesClick" />
+        <Button Content="No" Margin="170,102,75,0" VerticalAlignment="Top"
+                Background="#FF0F0F0F" Click="NoClick" />
+    </Grid>
+</Window>

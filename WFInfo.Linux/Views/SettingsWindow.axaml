@@ -1,0 +1,344 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WFInfo.Linux.Views.SettingsWindow"
+        Title="WFInfo Settings" Height="634" Width="334"
+        CanResize="True"
+        MinWidth="334" MaxWidth="334" MinHeight="400"
+        SystemDecorations="None"
+        Background="#FF1B1B1B"
+        WindowStartupLocation="Manual">
+
+    <Window.Styles>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#FF0F0F0F" />
+            <Setter Property="BorderBrush" Value="#FFB1D0D9" />
+            <Setter Property="Foreground" Value="#FFB1D0D9" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="4,2" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="#FFB1D0D9" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+        <Style Selector="RadioButton">
+            <Setter Property="Foreground" Value="#FFB1D0D9" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+        <Style Selector="Border.section">
+            <Setter Property="BorderBrush" Value="#FF646464" />
+            <Setter Property="BorderThickness" Value="0,1,0,0" />
+            <Setter Property="Padding" Value="15,5,25,5" />
+        </Style>
+    </Window.Styles>
+
+    <Border BorderBrush="#FF707070" BorderThickness="1">
+    <Grid PointerPressed="OnPointerPressed" RowDefinitions="22,*">
+        <Grid Grid.Row="0">
+            <Rectangle Fill="#FF0F0F0F" Stroke="#FF646464" />
+            <Image Margin="1,0,0,0" Source="avares://WFInfo.Linux/Resources/WFLogo.png"
+                   Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Width="18" />
+            <TextBlock Text="Settings" Margin="22,1,0,0" FontSize="14" FontWeight="Bold"
+                       FontFamily="{StaticResource RobotoBlack}"
+                       VerticalAlignment="Center" />
+            <Button Content="x" Click="Close_Click" Classes="linkButton"
+                    Height="22" HorizontalAlignment="Right" Width="22"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+        </Grid>
+
+        <!-- Scrollable settings content -->
+        <ScrollViewer Grid.Row="1" Margin="0,2,0,0">
+            <StackPanel>
+                <!-- Rewards Display -->
+                <Border Classes="section">
+                    <StackPanel>
+                        <TextBlock Text="Rewards display" HorizontalAlignment="Center"
+                                   FontSize="13" Margin="0,0,0,4" />
+                        <StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Center">
+                            <RadioButton x:Name="LightRadio" Content="Light" GroupName="DisplayMode"
+                                         ToolTip.Tip="Do not display any window at all"
+                                         Checked="LightChecked" />
+                            <RadioButton x:Name="WindowRadio" Content="Window" GroupName="DisplayMode"
+                                         ToolTip.Tip="Display rewards in a separate window"
+                                         Checked="WindowChecked" />
+                            <RadioButton x:Name="OverlayRadio" Content="Overlay" GroupName="DisplayMode"
+                                         ToolTip.Tip="Display rewards on top of Warframe"
+                                         IsChecked="True" Checked="OverlayChecked" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Display time + Highlight + High Contrast -->
+                <Border Classes="section">
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                        <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="Display time" VerticalAlignment="Center" FontSize="13" />
+                        </StackPanel>
+                        <TextBox x:Name="DisplayTimeBox" Grid.Row="0" Grid.Column="1"
+                                 ToolTip.Tip="The time in milliseconds the overlays will be displayed on screen"
+                                 Width="80" HorizontalAlignment="Right" Margin="0,2"
+                                 LostFocus="OnTextBoxLostFocus" />
+                        <CheckBox x:Name="HighlightCheckbox" Content="Highlight" Grid.Row="1" Grid.Column="0"
+                                  ToolTip.Tip="Highlight the best rewards on the overlay"
+                                  IsCheckedChanged="OnCheckChanged" />
+                        <CheckBox x:Name="HighContrastCheckbox" Content="High contrast" Grid.Row="1" Grid.Column="1"
+                                  ToolTip.Tip="Enable high contrast for the overlay"
+                                  IsCheckedChanged="OnCheckChanged" />
+                    </Grid>
+                </Border>
+
+                <!-- Overlay Offset (visibility toggled by display mode) -->
+                <Border x:Name="OverlayOffsetSection" Classes="section">
+                    <StackPanel>
+                        <TextBlock Text="Overlay Offset" HorizontalAlignment="Center"
+                                   FontSize="13" Margin="0,0,0,4" />
+                        <Grid ColumnDefinitions="Auto,*,20,Auto,*">
+                            <TextBlock Text="X" Grid.Column="0" VerticalAlignment="Center"
+                                       FontSize="13" Margin="0,0,4,0"
+                                       ToolTip.Tip="The X Offset of the overlay. Positive values shift the overlay to the right." />
+                            <TextBox x:Name="OverlayXBox" Grid.Column="1" Margin="0,2"
+                                     ToolTip.Tip="The X Offset of the overlay. Positive values shift the overlay to the right."
+                                     LostFocus="OnTextBoxLostFocus" />
+                            <TextBlock Text="Y" Grid.Column="3" VerticalAlignment="Center"
+                                       FontSize="13" Margin="0,0,4,0"
+                                       ToolTip.Tip="The Y Offset of the overlay. Positive values shift the overlay towards the top." />
+                            <TextBox x:Name="OverlayYBox" Grid.Column="4" Margin="0,2"
+                                     ToolTip.Tip="The Y Offset of the overlay. Positive values shift the overlay towards the top."
+                                     LostFocus="OnTextBoxLostFocus" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Snap-It overlay width -->
+                <Border Classes="section">
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                        <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="Min Width (snap)" VerticalAlignment="Center" FontSize="13" />
+                        </StackPanel>
+                        <TextBox x:Name="MinWidthBox" Grid.Row="0" Grid.Column="1"
+                                 ToolTip.Tip="The minimum width in pixels snap-it overlays will be displayed on screen"
+                                 Width="60" HorizontalAlignment="Right" Margin="0,2"
+                                 LostFocus="OnTextBoxLostFocus" />
+                        <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="Max Width (snap)" VerticalAlignment="Center" FontSize="13" />
+                        </StackPanel>
+                        <TextBox x:Name="MaxWidthBox" Grid.Row="1" Grid.Column="1"
+                                 ToolTip.Tip="The maximum width in pixels snap-it overlays will be displayed on screen"
+                                 Width="60" HorizontalAlignment="Right" Margin="0,2"
+                                 LostFocus="OnTextBoxLostFocus" />
+                    </Grid>
+                </Border>
+
+                <!-- Snap-It display time, count, multithread -->
+                <Border Classes="section">
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto">
+                        <TextBlock Text="Display time (snap)" Grid.Row="0" Grid.Column="0"
+                                   VerticalAlignment="Center" FontSize="13" />
+                        <TextBox x:Name="SnapItDelayBox" Grid.Row="0" Grid.Column="1"
+                                 ToolTip.Tip="The time in milliseconds the overlays will be displayed on screen"
+                                 Width="80" HorizontalAlignment="Right" Margin="0,2"
+                                 LostFocus="OnTextBoxLostFocus" />
+                        <CheckBox x:Name="SnapItCountCheckbox" Content="Count Item"
+                                  ToolTip.Tip="Scan for item amount using Snap-It"
+                                  Grid.Row="1" Grid.Column="0" IsCheckedChanged="OnCheckChanged" />
+                        <CheckBox x:Name="SnapMultiThreadCheckbox" Content="Multithread Snap"
+                                  ToolTip.Tip="Speed up snap-it using multithreading"
+                                  Grid.Row="1" Grid.Column="1" IsCheckedChanged="OnCheckChanged" />
+                    </Grid>
+                </Border>
+
+                <!-- Key bindings (visible when evdev available) -->
+                <Border x:Name="KeyBindingsSection" Classes="section">
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                        <TextBlock Text="Activation key" Grid.Row="0" Grid.Column="0"
+                                   VerticalAlignment="Center" FontSize="13" />
+                        <Button x:Name="ActivationKeyBtn" Content="Snapshot" Grid.Row="0" Grid.Column="1"
+                                ToolTip.Tip="Key to activate the processing. Use modifiers below to achieve other actions"
+                                FontSize="13" Foreground="#FF88AABB" Background="#FF2B2F33"
+                                BorderBrush="#FF3B3F43" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center" Padding="4,2"
+                                Click="ActivationKey_Click" PointerPressed="OnActivationPointerPressed" />
+                        <TextBlock Text="Search it modifier" Grid.Row="1" Grid.Column="0"
+                                   VerticalAlignment="Center" FontSize="13" />
+                        <Button x:Name="SearchItKeyBtn" Grid.Row="1" Grid.Column="1"
+                                ToolTip.Tip="Modifier to hold down to start Search It"
+                                FontSize="13" Foreground="#FF88AABB" Background="#FF2B2F33"
+                                BorderBrush="#FF3B3F43" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center" Padding="4,2"
+                                Click="SearchItKey_Click" />
+                        <TextBlock Text="Snap it modifier" Grid.Row="2" Grid.Column="0"
+                                   VerticalAlignment="Center" FontSize="13" />
+                        <Button x:Name="SnapItKeyBtn" Grid.Row="2" Grid.Column="1"
+                                ToolTip.Tip="Modifier to hold down to start Snap It"
+                                FontSize="13" Foreground="#FF88AABB" Background="#FF2B2F33"
+                                BorderBrush="#FF3B3F43" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center" Padding="4,2"
+                                Click="SnapItKey_Click" />
+                        <TextBlock Text="Master it modifier" Grid.Row="3" Grid.Column="0"
+                                   VerticalAlignment="Center" FontSize="13" />
+                        <Button x:Name="MasterItKeyBtn" Grid.Row="3" Grid.Column="1"
+                                ToolTip.Tip="Modifier to hold down to start Master It"
+                                FontSize="13" Foreground="#FF88AABB" Background="#FF2B2F33"
+                                BorderBrush="#FF3B3F43" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center" Padding="4,2"
+                                Click="MasterItKey_Click" />
+                    </Grid>
+                </Border>
+
+                <!-- Socket shortcut info (visible when evdev unavailable) -->
+                <Border x:Name="SocketInfoSection" Classes="section" IsVisible="False">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Global hotkeys require input setup"
+                                   Foreground="#FFFF8800" FontSize="13" FontWeight="Bold"
+                                   TextWrapping="Wrap" />
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                            <TextBlock x:Name="SetupCmdText" Grid.Column="0"
+                                       Foreground="#FFB1D0D9" FontSize="13"
+                                       FontFamily="Monospace" VerticalAlignment="Center"
+                                       TextWrapping="Wrap" />
+                            <Button Content="Copy" Grid.Column="1" Click="CopySetupCmd_Click"
+                                    FontSize="12" Foreground="#FF88AABB" Background="#FF2B2F33"
+                                    BorderBrush="#FF3B3F43" Padding="8,2" Margin="6,0,0,0"
+                                    VerticalAlignment="Center" />
+                        </Grid>
+                        <TextBlock Text="Or bind a desktop shortcut to a socket command:"
+                                   Foreground="#FFB1D0D9" FontSize="13"
+                                   TextWrapping="Wrap" Margin="0,4,0,0" />
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                            <ComboBox x:Name="SocketCmdCombo" Grid.Column="0"
+                                      FontSize="13" Foreground="#FFB1D0D9"
+                                      Background="#FF0F0F0F" BorderBrush="#FFB1D0D9"
+                                      HorizontalAlignment="Stretch" Padding="4,2"
+                                      SelectionChanged="SocketCmdCombo_Changed">
+                                <ComboBoxItem Content="activate" IsSelected="True" />
+                                <ComboBoxItem Content="snapit" />
+                                <ComboBoxItem Content="searchit" />
+                                <ComboBoxItem Content="masterit" />
+                            </ComboBox>
+                            <Button Content="Copy" Grid.Column="1" Click="CopySocketCmd_Click"
+                                    FontSize="12" Foreground="#FF88AABB" Background="#FF2B2F33"
+                                    BorderBrush="#FF3B3F43" Padding="8,2" Margin="6,0,0,0" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Efficiency -->
+                <Border Classes="section">
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                        <TextBlock Text="Efficiency min" Grid.Row="0" Grid.Column="0"
+                                   VerticalAlignment="Center" FontSize="13" />
+                        <TextBox x:Name="EfficiencyMinBox" Grid.Row="0" Grid.Column="1"
+                                 ToolTip.Tip="Anything below this efficiency will be marked as red in snap-it"
+                                 Width="60" HorizontalAlignment="Right" Margin="0,2"
+                                 LostFocus="OnTextBoxLostFocus" />
+                        <TextBlock Text="Efficiency max" Grid.Row="1" Grid.Column="0"
+                                   VerticalAlignment="Center" FontSize="13" />
+                        <TextBox x:Name="EfficiencyMaxBox" Grid.Row="1" Grid.Column="1"
+                                 ToolTip.Tip="Anything above this efficiency will be marked as green in snap-it"
+                                 Width="60" HorizontalAlignment="Right" Margin="0,2"
+                                 LostFocus="OnTextBoxLostFocus" />
+                    </Grid>
+                </Border>
+
+                <!-- Market Status -->
+                <Border Classes="section">
+                    <CheckBox x:Name="ManualMarketCheckbox" Content="Manual market status"
+                              ToolTip.Tip="Lock the current warframe.market status. When enabled, the status you selected in the main window persists across restarts."
+                              IsCheckedChanged="OnManualMarketChanged" />
+                </Border>
+
+                <!-- Theme -->
+                <Border Classes="section">
+                    <Grid ColumnDefinitions="3*,Auto,6*" RowDefinitions="Auto">
+                        <TextBlock Text="Theme" Grid.Column="0" VerticalAlignment="Center" FontSize="13" />
+                        <Button x:Name="ConfigureThemeBtn" Grid.Column="1" Classes="iconBtn"
+                                Width="20" Height="20" Padding="3"
+                                Margin="0,0,5,0" VerticalAlignment="Center"
+                                ToolTip.Tip="Configure Custom Theme"
+                                Click="ConfigureTheme_Click"
+                                Background="Transparent" BorderThickness="0">
+                            <Panel>
+                                <Image Source="avares://WFInfo.Linux/Resources/Settings.png"
+                                       Stretch="Uniform" Classes="normal" />
+                                <Image Source="avares://WFInfo.Linux/Resources/Settings_h.png"
+                                       Stretch="Uniform" Classes="hover" Opacity="0" />
+                            </Panel>
+                        </Button>
+                        <ComboBox x:Name="ThemeCombo" Grid.Column="2" HorizontalAlignment="Stretch"
+                                  FontSize="13" Background="#FF1B1B1B"
+                                  SelectionChanged="OnThemeChanged" />
+                    </Grid>
+                </Border>
+
+                <!-- Locale + Clipboard + Auto + Debug zip -->
+                <Border BorderBrush="#FF646464" BorderThickness="0,1,0,1" Padding="0">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0">
+                            <Border BorderBrush="#FF646464" BorderThickness="0,0,0,0" Padding="5,2">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Text="Locale" Grid.Column="0" VerticalAlignment="Center" FontSize="13"
+                                               Margin="0,0,10,0" />
+                                    <ComboBox x:Name="LocaleCombo" Grid.Column="1" HorizontalAlignment="Stretch" FontSize="13"
+                                              SelectionChanged="OnLocaleChanged">
+                                        <ComboBoxItem Tag="en" Content="English" />
+                                        <ComboBoxItem Tag="fr" Content="Français" />
+                                        <ComboBoxItem Tag="it" Content="Italiano" />
+                                        <ComboBoxItem Tag="de" Content="Deutsch" />
+                                        <ComboBoxItem Tag="es" Content="Español" />
+                                        <ComboBoxItem Tag="pt" Content="Português-Br" />
+                                        <ComboBoxItem Tag="ru" Content="Русский" />
+                                        <ComboBoxItem Tag="pl" Content="Polski" />
+                                        <ComboBoxItem Tag="uk" Content="Українська" />
+                                        <ComboBoxItem Tag="zh-hans" Content="简体中文" />
+                                        <ComboBoxItem Tag="zh-hant" Content="繁體中文" />
+                                        <ComboBoxItem Tag="ko" Content="한국어" />
+                                    </ComboBox>
+                                </Grid>
+                            </Border>
+                            <Border BorderBrush="#FF646464" BorderThickness="0,1,0,0" Padding="5,2">
+                                <CheckBox x:Name="ClipboardCheckbox" Content="Clipboard"
+                                          ToolTip.Tip="Copy the results from the OCR over to the clipboard for easy pasting into chat"
+                                          IsCheckedChanged="OnCheckChanged" />
+                            </Border>
+                            <Border BorderBrush="#FF646464" BorderThickness="0,1,0,0" Padding="5,2">
+                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                                    <CheckBox x:Name="AutoCheckbox" Content="Auto" Grid.Row="0" Grid.Column="0"
+                                              ToolTip.Tip="Automatically detects when the relic screen is visible"
+                                              IsCheckedChanged="OnAutoChanged" />
+                                    <CheckBox x:Name="AutoListCheckbox" Content="Auto List" Grid.Row="0" Grid.Column="1"
+                                              ToolTip.Tip="Spawns a listing dialogue whenever the end of mission is detected, requires auto"
+                                              IsCheckedChanged="OnCheckChanged" />
+                                    <CheckBox x:Name="AutoCSVCheckbox" Content="Auto CSV" Grid.Row="1" Grid.Column="0"
+                                              ToolTip.Tip="Save reward options and choice to CSV file in application directory"
+                                              IsCheckedChanged="OnCheckChanged" />
+                                    <CheckBox x:Name="AutoAddCheckbox" Content="Auto Add" Grid.Row="1" Grid.Column="1"
+                                              ToolTip.Tip="Spawns a dialogue for increasing owned item count whenever the end of mission is detected, requires auto"
+                                              IsCheckedChanged="OnCheckChanged" />
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                        <Border Grid.Column="1" BorderBrush="#FF646464" BorderThickness="1,0,0,0">
+                            <Button Content="Create debug zip"
+                                    VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                                    VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                                    FontSize="12" Foreground="#FFB1D0D9" Background="Transparent"
+                                    BorderThickness="0" Padding="8,2" Margin="0,0,12,0"
+                                    Click="CreateDebugZip_Click" />
+                        </Border>
+                    </Grid>
+                </Border>
+
+
+            </StackPanel>
+        </ScrollViewer>
+        <!-- Resize grip (bottom-right) -->
+        <Panel Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+               Width="14" Height="14" Margin="0,0,1,1" Cursor="BottomSide"
+               PointerPressed="ResizeGrip_PointerPressed" Background="Transparent">
+            <Path Stroke="White" StrokeThickness="1.5"
+                  Data="M 4,14 L 14,4 M 8,14 L 14,8 M 12,14 L 14,12"/>
+        </Panel>
+    </Grid>
+    </Border>
+</Window>

@@ -1,0 +1,15 @@
+name: Feature Request (Linux-specific only)
+description: Request a Linux-specific feature (Wayland, packaging, input, etc.)
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This is for Linux-specific requests only.** General WFInfo feature requests belong in the upstream [WFCD/WFInfo](https://github.com/WFCD/WFInfo) repo.
+  - type: textarea
+    id: description
+    attributes:
+      label: What would you like?
+      description: Describe the feature and why it's Linux-specific.
+    validations:
+      required: true

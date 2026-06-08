@@ -1,0 +1,77 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WFInfo.Linux.Views.PlusOneWindow"
+        Title="PlusOne" Height="325" Width="408"
+        CanResize="False" SystemDecorations="None"
+        Background="#FF1B1B1B"
+        Icon="avares://WFInfo.Linux/Resources/WFLogo.png"
+        WindowStartupLocation="Manual">
+
+    <Border BorderBrush="#FF707070" BorderThickness="1">
+    <Grid>
+        <Rectangle Stroke="#FF646464" />
+        <!-- Title bar (PointerPressed here only, not on outer Grid, so sliders/textbox work) -->
+        <Grid Height="27" VerticalAlignment="Top" ZIndex="500" PointerPressed="OnPointerPressed">
+            <Rectangle Fill="#FF0F0F0F" Height="27" Stroke="#FF646464" VerticalAlignment="Top" />
+            <Image HorizontalAlignment="Left" Height="26" VerticalAlignment="Top" Width="24"
+                   Source="avares://WFInfo.Linux/Resources/WFLogo.png" Margin="1,0,0,0" />
+            <TextBlock Text="Thank you for using WFinfo" Margin="31,4,0,0"
+                       HorizontalAlignment="Left" VerticalAlignment="Top"
+                       FontSize="16" FontWeight="Bold"
+                       FontFamily="{StaticResource RobotoBlack}" Width="204" />
+            <Button Content="x" Click="Close_Click" Classes="linkButton"
+                    HorizontalAlignment="Right" Width="27" Height="27" VerticalAlignment="Top"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+            <Button Content="_" Click="Minimize_Click" Classes="linkButton"
+                    HorizontalAlignment="Right" Width="27" Height="27" VerticalAlignment="Top"
+                    Margin="0,0,27,0"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+        </Grid>
+
+        <!-- Thank you message (matches WPF: Height="190", Width="388") -->
+        <TextBlock Margin="10,32,0,0" TextWrapping="Wrap" HorizontalAlignment="Left"
+                   VerticalAlignment="Top" Height="190" Width="388">
+            <Run Text="Thank you for using WFinfo" /><LineBreak /><LineBreak />
+            <Run Text="Without you this program would have never continued development." /><LineBreak />
+            <Run Text="We currently do not have a patreon or similar set up for this project as we do not feel right receiving money for something that doesn't cost us." /><LineBreak /><LineBreak />
+            <Run Text="However, if you do still wish to support us you can do so in a few ways!" /><LineBreak />
+            <Run Text="* Tell your friends about us" /><LineBreak />
+            <Run Text="* Use clipboard when running public fissures" /><LineBreak />
+            <Run Text="* Join the discord" /><LineBreak />
+            <Run Text="* Leave a review on warframe.market" /><LineBreak /><LineBreak />
+            <Run Text="If you want you can leave a review right here!" />
+        </TextBlock>
+
+        <!-- Post review button (matches WPF Margin="313,199,11,0") -->
+        <Button x:Name="PostButton" Content="Post review" Click="Post_Click"
+                Margin="313,199,11,0" VerticalAlignment="Top" HorizontalAlignment="Left"
+                Width="86" Height="22" Padding="0"
+                Background="Transparent" Foreground="#FFB1D0D9"
+                BorderBrush="#FF646464" BorderThickness="1"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+
+        <!-- Comment box (matches WPF: Text placeholder, GotFocus clears, Margin="10,227,0,0") -->
+        <TextBox x:Name="CommentBox" HorizontalAlignment="Left" Height="89"
+                 Margin="10,227,0,0" VerticalAlignment="Top" Width="388"
+                 TextWrapping="Wrap" Text="Optional comment field"
+                 BorderBrush="#FF646464"
+                 GotFocus="CommentBox_GotFocus"
+                 TextChanged="CommentBox_TextChanged" />
+
+        <!-- Easter egg: hidden below normal window height (325), revealed when window grows -->
+        <TextBlock HorizontalAlignment="Left" Margin="10,329,0,0" TextWrapping="Wrap"
+                   Text="Welcom to the slider easter egg, these don't really do anything"
+                   VerticalAlignment="Top" Width="387" />
+        <Slider HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,348,0,0" Width="388" />
+        <Slider HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,388,0,0" Width="388" />
+        <Slider HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,428,0,0" Width="388" />
+        <Slider HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,468,0,0" Width="388" />
+        <Slider HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,508,0,0" Width="388" />
+        <Slider HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,548,0,0" Width="388" />
+        <Slider HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,588,0,0" Width="388" />
+        <Slider HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,628,0,0" Width="388" />
+        <Slider HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,668,0,0" Width="388" />
+        <Slider HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,708,0,0" Width="388" />
+    </Grid>
+    </Border>
+</Window>

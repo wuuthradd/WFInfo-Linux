@@ -1,0 +1,175 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:WFInfo.Linux.Views"
+        x:Class="WFInfo.Linux.Views.EquipmentWindow"
+        Title="WFInfo Equipment" Height="500" Width="520"
+        CanResize="True"
+        SystemDecorations="None"
+        Background="#FF1B1B1B"
+        WindowStartupLocation="CenterScreen"
+        MinHeight="300" MinWidth="520" MaxWidth="520">
+
+    <Border BorderBrush="#FF707070" BorderThickness="1">
+    <Grid PointerPressed="OnPointerPressed" RowDefinitions="22,Auto,Auto,*">
+        <Rectangle Grid.Row="0" Fill="#FF0F0F0F" Stroke="#FF646464" />
+        <Image Grid.Row="0" Margin="2,0,0,0" Source="avares://WFInfo.Linux/Resources/WFLogo.png"
+               Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Width="20" />
+        <TextBlock Grid.Row="0" Text="Equipment" Margin="28,1,0,0" FontSize="14" FontWeight="Bold"
+                   FontFamily="{StaticResource RobotoBlack}"
+                   VerticalAlignment="Center" />
+        <Button Grid.Row="0" Content="x" Click="Close_Click" Classes="linkButton"
+                Height="22" HorizontalAlignment="Right" Width="22"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+
+        <!-- Filter row: expand/collapse, hide vaulted, search -->
+        <Grid Grid.Row="1" Margin="5,3,5,3" ColumnDefinitions="Auto,Auto,Auto,*">
+            <Button Content="＋" Click="ExpandAll_Click" ToolTip.Tip="Expand All"
+                    Width="22" Height="22" FontSize="13" Margin="0,0,2,0"
+                    Background="Transparent" Foreground="#FFB1D0D9" Padding="0"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+            <Button Grid.Column="1" Content="－" Click="CollapseAll_Click" ToolTip.Tip="Collapse All"
+                    Width="22" Height="22" FontSize="13" Margin="0,0,8,0"
+                    Background="Transparent" Foreground="#FFB1D0D9" Padding="0"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+            <CheckBox x:Name="VaultedCheckBox" Grid.Column="2" Content="Hide Vaulted"
+                      IsChecked="True" Margin="0,0,8,0"
+                      Click="VaultedClick" VerticalAlignment="Center" />
+            <TextBox x:Name="SearchBox" Grid.Column="3" Watermark="Filter Terms" Height="24"
+                     TextChanged="SearchBox_TextChanged" />
+        </Grid>
+
+        <!-- Sort row: type toggle, sort combobox -->
+        <Grid Grid.Row="2" Margin="5,0,5,3" ColumnDefinitions="Auto,*,Auto,Auto">
+            <Button x:Name="EqmtModeButton" Content="Equipment Types" Click="ToggleShowAllEqmt"
+                    Height="22" FontSize="11" Margin="0,0,8,0"
+                    Background="#FF2B2F33" Foreground="#FFB1D0D9" Padding="6,2" />
+            <TextBlock Grid.Column="2" Text="Sort by:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12" />
+            <ComboBox x:Name="SortBox" Grid.Column="3" SelectedIndex="0" Width="160" Height="24"
+                      FontSize="11" SelectionChanged="SortBoxChanged">
+                <ComboBoxItem Content="Name" />
+                <ComboBoxItem Content="Cost" />
+                <ComboBoxItem Content="Unowned" />
+                <ComboBoxItem Content="Owned" />
+                <ComboBoxItem Content="Owned Value (Plat)" />
+                <ComboBoxItem Content="Owned Value (Ducats)" />
+            </ComboBox>
+        </Grid>
+
+        <!-- Virtualized flat list (replaces TreeView for performance) -->
+        <ListBox x:Name="EquipmentTree" Grid.Row="3" Margin="5,0,5,5"
+                 Background="#FF1B1B1B"
+                 SelectionMode="Single"
+                 SelectionChanged="SingleClickExpand">
+            <ListBox.Styles>
+                <Style Selector="ListBoxItem">
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="MinHeight" Value="0" />
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                </Style>
+                <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+                    <Setter Property="Background" Value="Transparent" />
+                </Style>
+                <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                    <Setter Property="Background" Value="Transparent" />
+                </Style>
+                <!-- Suppress Fluent theme hover chrome on inline buttons -->
+                <Style Selector="Button.eqmt-btn">
+                    <Setter Property="MinWidth" Value="0" />
+                    <Setter Property="MinHeight" Value="0" />
+                </Style>
+                <Style Selector="Button.eqmt-btn /template/ ContentPresenter#PART_ContentPresenter">
+                    <Setter Property="Background" Value="Transparent" />
+                </Style>
+                <Style Selector="Button.eqmt-btn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                    <Setter Property="Background" Value="Transparent" />
+                </Style>
+                <Style Selector="Button.eqmt-btn:pressed /template/ ContentPresenter#PART_ContentPresenter">
+                    <Setter Property="Background" Value="Transparent" />
+                </Style>
+            </ListBox.Styles>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Border Background="{Binding Background_Color}"
+                            Padding="{Binding Depth, Converter={x:Static local:DepthToPaddingConverter.Instance}}"
+                            PointerEntered="RowBorder_PointerEntered"
+                            PointerExited="RowBorder_PointerExited"
+                            Loaded="RowBorder_Loaded">
+                        <Grid ColumnDefinitions="16,*,100,70">
+                            <TextBlock Grid.Column="0" Text="{Binding ExpandIndicator}"
+                                       FontSize="12" Foreground="#FFB1D0D9"
+                                       VerticalAlignment="Center" />
+                            <StackPanel Orientation="Horizontal" Grid.Column="1">
+                                <TextBlock Text="{Binding Name}" FontSize="14"
+                                           Foreground="{Binding NameColorHex}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Vaulted}" FontSize="12"
+                                           Foreground="#506464" Margin="5,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Col 1: ✓ and ＋/text/⎻ overlapping in col 0 -->
+                            <Grid Grid.Column="2" Margin="5,0,5,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Button Grid.Column="0" Content="✓" FontSize="16" Padding="0" Margin="-4,-2,0,0"
+                                        Foreground="#FFCCCCCC" Background="Transparent" BorderThickness="0"
+                                        Classes="hover-btn-check eqmt-btn" Opacity="0" IsHitTestVisible="False"
+                                        VerticalAlignment="Center"
+                                        Command="{Binding MarkComplete}" />
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
+                                    <Button Content="＋" FontSize="14" Padding="0" Margin="0,-4,0,0"
+                                            Foreground="#FFCCCCCC" Background="Transparent" BorderThickness="0"
+                                            Classes="hover-btn eqmt-btn" Opacity="0" IsHitTestVisible="False"
+                                            VerticalAlignment="Center"
+                                            Command="{Binding IncrementPart}" />
+                                    <TextBlock Text="{Binding Col1_Text1}" FontSize="13"
+                                               Foreground="{Binding NameColorHex}" VerticalAlignment="Center" />
+                                    <Button Content="－" FontSize="14" Padding="0" Margin="0,-4,0,0"
+                                            Foreground="#FFCCCCCC" Background="Transparent" BorderThickness="0"
+                                            Classes="hover-btn eqmt-btn" Opacity="0" IsHitTestVisible="False"
+                                            VerticalAlignment="Center"
+                                            Command="{Binding DecrementPart}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <TextBlock Text="{Binding Col1_Text2}" FontSize="13"
+                                               Foreground="{Binding NameColorHex}" VerticalAlignment="Center" />
+                                    <Image Width="16" Margin="3,0,0,0" Source="avares://WFInfo.Linux/Resources/plat.png"
+                                           IsVisible="{Binding IsCol1Img1Visible}" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Grid.Column="3" Margin="5,0,5,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding Col2_Text1}" FontSize="13"
+                                           Foreground="{Binding NameColorHex}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{Binding Col2_Text2}" FontSize="13"
+                                           Foreground="{Binding NameColorHex}" VerticalAlignment="Center"
+                                           HorizontalAlignment="Right" Margin="0,0,5,0" />
+                                <TextBlock Grid.Column="2" Text="{Binding Col2_Text3}" FontSize="13"
+                                           Foreground="{Binding NameColorHex}" VerticalAlignment="Center"
+                                           HorizontalAlignment="Right" />
+                                <Image Grid.Column="3" Width="16" Margin="3,0,0,0" HorizontalAlignment="Right"
+                                       Source="avares://WFInfo.Linux/Resources/ducat_w.png"
+                                       IsVisible="{Binding IsCol2Img1Visible}" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <!-- Resize grip (bottom-right) -->
+        <Panel Grid.Row="3" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+               Width="30" Height="10" Margin="0,0,0,1" Cursor="BottomSide"
+               PointerPressed="ResizeGrip_PointerPressed" Background="Transparent">
+            <Path Stroke="White" StrokeThickness="1.5"
+                  Data="M 4,5 L 26,5 M 4,8 L 26,8"/>
+        </Panel>
+    </Grid>
+    </Border>
+</Window>

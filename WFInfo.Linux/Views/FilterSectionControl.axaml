@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="WFInfo.Linux.Views.FilterSectionControl">
+    <StackPanel Spacing="2">
+        <CheckBox x:Name="EnableCheck" Foreground="#FFB1D0D9"
+                  Margin="5,5" IsChecked="False" Click="EnableCheck_Click"/>
+        <Border BorderBrush="#FF646464" BorderThickness="1" Padding="25,5">
+            <StackPanel x:Name="ContentPanel" IsVisible="False" Spacing="2">
+                <TextBlock x:Name="Label1Max" Foreground="#FFB1D0D9"/>
+                <Grid ColumnDefinitions="3*,7*">
+                    <TextBox Background="#FF0F0F0F" BorderBrush="#FFB1D0D9" HorizontalContentAlignment="Center"
+                             VerticalContentAlignment="Center" Margin="0,2" Padding="0,1,0,2"
+                             TextChanged="ValueTextChanged"/>
+                    <Slider x:Name="Slider1Max" Grid.Column="1" Minimum="0"
+                            Margin="10,10" VerticalAlignment="Center" ValueChanged="SliderValueChanged"/>
+                </Grid>
+                <TextBlock x:Name="Label1Min" Foreground="#FFB1D0D9"/>
+                <Grid ColumnDefinitions="3*,7*">
+                    <TextBox Background="#FF0F0F0F" BorderBrush="#FFB1D0D9" HorizontalContentAlignment="Center"
+                             VerticalContentAlignment="Center" Margin="0,2" Padding="0,1,0,2"
+                             TextChanged="ValueTextChanged"/>
+                    <Slider x:Name="Slider1Min" Grid.Column="1" Minimum="0"
+                            Margin="10,10" VerticalAlignment="Center" ValueChanged="SliderValueChanged"/>
+                </Grid>
+                <TextBlock x:Name="Label2Max" Foreground="#FFB1D0D9"/>
+                <Grid ColumnDefinitions="3*,7*">
+                    <TextBox Background="#FF0F0F0F" BorderBrush="#FFB1D0D9" HorizontalContentAlignment="Center"
+                             VerticalContentAlignment="Center" Margin="0,2" Padding="0,1,0,2"
+                             TextChanged="ValueTextChanged"/>
+                    <Slider x:Name="Slider2Max" Grid.Column="1" Minimum="0"
+                            Margin="10,10" VerticalAlignment="Center" ValueChanged="SliderValueChanged"/>
+                </Grid>
+                <TextBlock x:Name="Label2Min" Foreground="#FFB1D0D9"/>
+                <Grid ColumnDefinitions="3*,7*">
+                    <TextBox Background="#FF0F0F0F" BorderBrush="#FFB1D0D9" HorizontalContentAlignment="Center"
+                             VerticalContentAlignment="Center" Margin="0,2" Padding="0,1,0,2"
+                             TextChanged="ValueTextChanged"/>
+                    <Slider x:Name="Slider2Min" Grid.Column="1" Minimum="0"
+                            Margin="10,10" VerticalAlignment="Center" ValueChanged="SliderValueChanged"/>
+                </Grid>
+                <TextBlock x:Name="Label3Max" Foreground="#FFB1D0D9"/>
+                <Grid ColumnDefinitions="3*,7*">
+                    <TextBox Background="#FF0F0F0F" BorderBrush="#FFB1D0D9" HorizontalContentAlignment="Center"
+                             VerticalContentAlignment="Center" Margin="0,2" Padding="0,1,0,2"
+                             TextChanged="ValueTextChanged"/>
+                    <Slider x:Name="Slider3Max" Grid.Column="1" Minimum="0"
+                            Margin="10,10" VerticalAlignment="Center" ValueChanged="SliderValueChanged"/>
+                </Grid>
+                <TextBlock x:Name="Label3Min" Foreground="#FFB1D0D9"/>
+                <Grid ColumnDefinitions="3*,7*">
+                    <TextBox Background="#FF0F0F0F" BorderBrush="#FFB1D0D9" HorizontalContentAlignment="Center"
+                             VerticalContentAlignment="Center" Margin="0,2" Padding="0,1,0,2"
+                             TextChanged="ValueTextChanged"/>
+                    <Slider x:Name="Slider3Min" Grid.Column="1" Minimum="0"
+                            Margin="10,10" VerticalAlignment="Center" ValueChanged="SliderValueChanged"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

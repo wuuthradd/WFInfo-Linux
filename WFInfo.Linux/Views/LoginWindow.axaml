@@ -1,0 +1,55 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WFInfo.Linux.Views.LoginWindow"
+        Title="WebBrowser" Height="165" Width="300"
+        CanResize="False"
+        SystemDecorations="None"
+        Background="#FF1B1B1B"
+        WindowStartupLocation="Manual">
+
+    <Border BorderBrush="#FF707070" BorderThickness="1">
+    <Grid PointerPressed="OnPointerPressed">
+        <!-- Title bar -->
+        <Rectangle Fill="#FF0F0F0F" Height="26" VerticalAlignment="Top" />
+        <Rectangle Stroke="#FF646464" Margin="0,25,0,0" />
+        <Rectangle Fill="#FF646464" Height="1" Margin="0,25,0,0" VerticalAlignment="Top" />
+        <Image Margin="1,0,0,0" Source="avares://WFInfo.Linux/Resources/WFLogo.png"
+               Height="24" VerticalAlignment="Top" HorizontalAlignment="Left" Width="24" />
+        <TextBlock Text="Warframe.Market login" Margin="30,4,0,0" FontSize="16" FontWeight="Bold"
+                   FontFamily="{StaticResource RobotoBlack}"
+                   VerticalAlignment="Top" HorizontalAlignment="Left" />
+        <Button Content="x" Click="Close_Click" Classes="linkButton"
+                Height="26" VerticalAlignment="Top" HorizontalAlignment="Right" Width="29"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+
+        <!-- Email row -->
+        <TextBlock Text="Email:" Margin="20,43,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" />
+        <TextBox x:Name="EmailBox" Watermark="Email" Margin="93,34,20,0"
+                 VerticalAlignment="Top" VerticalContentAlignment="Center"
+                 BorderBrush="#FF646464" FontSize="12" Padding="2,2" />
+
+        <!-- Password row -->
+        <TextBlock Text="Password:" Margin="20,81,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" />
+        <TextBox x:Name="PasswordBox" PasswordChar="●" Margin="93,72,20,0"
+                 VerticalAlignment="Top" VerticalContentAlignment="Center"
+                 BorderBrush="#FF646464" FontSize="12" Padding="2,2" />
+
+        <!-- Bottom row: Login + Remember me in same container for alignment -->
+        <Grid VerticalAlignment="Bottom" Margin="20,0,20,10">
+            <Button x:Name="LoginBtn" Content="Login" Click="Login_Click"
+                    Classes="labelButton" Height="26" Width="100" Padding="0"
+                    FontSize="16" FontWeight="Bold"
+                    HorizontalAlignment="Left" />
+            <CheckBox x:Name="RememberCheckbox" Content="Remember me" FontSize="16"
+                      HorizontalAlignment="Right" VerticalAlignment="Center" />
+        </Grid>
+
+        <!-- Error display (hidden, expands window) -->
+        <TextBlock x:Name="ErrorText" Text="" Foreground="#FFFF4444" FontSize="13"
+                   FontFamily="{StaticResource RobotoCondensed}"
+                   TextWrapping="Wrap" HorizontalAlignment="Center"
+                   Margin="20,0,20,45" Height="18" VerticalAlignment="Bottom"
+                   IsVisible="False" />
+    </Grid>
+    </Border>
+</Window>

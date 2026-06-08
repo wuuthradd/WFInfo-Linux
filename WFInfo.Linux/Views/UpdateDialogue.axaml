@@ -1,0 +1,69 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WFInfo.Linux.Views.UpdateDialogue"
+        Title="New Update Found" Height="320" Width="420"
+        CanResize="False" SystemDecorations="None"
+        Background="#FF1B1B1B"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid PointerPressed="OnPointerPressed">
+        <Border BorderBrush="#FF707070" BorderThickness="1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="26"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Title bar -->
+                <Grid Background="#FF0F0F0F">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0,0,0">
+                        <Image Source="avares://WFInfo.Linux/Resources/WFLogo.png" Height="20" Width="20" Margin="0,0,4,0"/>
+                        <TextBlock Text="New Update Available" FontSize="14" FontWeight="Bold"
+                                   FontFamily="{StaticResource RobotoBlack}" Foreground="#FFB1D0D9"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Button Content="x" Click="CloseClick"
+                            HorizontalAlignment="Right" VerticalAlignment="Center"
+                            Background="Transparent" Foreground="#FFB1D0D9"
+                            Width="29" Height="26" FontSize="14"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+                </Grid>
+
+                <!-- Content -->
+                <StackPanel Grid.Row="1" Margin="17,10,17,10">
+                    <TextBlock x:Name="NewVersionText" Text="WFInfo version X.X.X has been released!"
+                               FontWeight="Bold" FontFamily="{StaticResource RobotoBlack}"
+                               Foreground="#FFB1D0D9"/>
+                    <TextBlock x:Name="OldVersionText" Text="You have version X.X.X installed."
+                               Foreground="#FFB1D0D9" Margin="0,4,0,0"/>
+
+                    <TextBlock Text="Release Notes:" FontWeight="Bold"
+                               FontFamily="{StaticResource RobotoBlack}"
+                               Foreground="#FFB1D0D9" Margin="0,14,0,4"/>
+
+                    <Border BorderBrush="#FF646464" BorderThickness="1" Height="160">
+                        <ScrollViewer Padding="5">
+                            <StackPanel x:Name="ReleaseNotes"/>
+                        </ScrollViewer>
+                    </Border>
+
+                    <Grid Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Button Content="Download" Click="DownloadClick"
+                                Background="#FF0F0F0F" Foreground="#FFB1D0D9"
+                                HorizontalAlignment="Left" Width="100" Height="26"
+                                HorizontalContentAlignment="Center"/>
+                        <Button Content="Skip" Click="SkipClick" Grid.Column="1"
+                                Background="#FF0F0F0F" Foreground="#FFB1D0D9"
+                                HorizontalAlignment="Right" Width="100" Height="26"
+                                HorizontalContentAlignment="Center"
+                                ToolTip.Tip="Stop prompts until a newer version is released"/>
+                    </Grid>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

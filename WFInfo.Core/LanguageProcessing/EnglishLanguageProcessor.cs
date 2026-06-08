@@ -1,0 +1,102 @@
+using System;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using WFInfo.Settings;
+
+namespace WFInfo.LanguageProcessing
+{
+    /// <summary>
+    /// English language processor for OCR text processing
+    /// Handles standard English text with basic normalization
+    /// </summary>
+    public class EnglishLanguageProcessor : LanguageProcessor
+    {
+        public EnglishLanguageProcessor(IReadOnlyApplicationSettings settings) : base(settings)
+        {
+        }
+
+        public override string Locale => "en";
+
+        public override string[] BlueprintRemovals => new[] { "Blueprint" };
+
+        private static readonly IReadOnlyDictionary<string, string> _ignoredItemNames = new Dictionary<string, string>
+        {
+            ["Forma Blueprint"] = "Forma Blueprint",
+            ["Exilus Weapon Adapter Blueprint"] = "Exilus Weapon Adapter Blueprint",
+            ["Kuva"] = "Kuva",
+            ["Riven Sliver"] = "Riven Sliver",
+            ["Ayatan Amber Star"] = "Ayatan Amber Star",
+            ["Ayatan Cyan Star"] = "Ayatan Cyan Star",
+            ["Galariak Prime Blueprint"] = "Galariak Prime Blueprint",
+            ["Galariak Prime Blade"] = "Galariak Prime Blade",
+            ["Galariak Prime Handle"] = "Galariak Prime Handle",
+            ["Sagek Prime Blueprint"] = "Sagek Prime Blueprint",
+            ["Sagek Prime Barrel"] = "Sagek Prime Barrel",
+            ["Sagek Prime Receiver"] = "Sagek Prime Receiver"
+        };
+
+        public override IReadOnlyDictionary<string, string> IgnoredItemNames => _ignoredItemNames;
+
+        public override string CharacterWhitelist => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ";
+
+        public override int CalculateLevenshteinDistance(string s, string t)
+        {
+            // Use the minimum of raw (with spaces) and space-free comparison.
+            // Space-free fixes concatenated words (e.g. "HydroidPrime Neuroptics" →
+            // "hydroidprimeneuroptics" matches "hydroidprimeneuroptics" better than
+            // "hydroidprime" + "blueprint" since both sides lose spaces equally).
+            // Raw handles cases like garbled "BIueorlnt" which is closer to "blueprint"
+            // with spaces preserved.
+            // No "Blueprint" stripping: it creates asymmetry when OCR garbles "Blueprint"
+            // into something unrecognizable - stripping removes it from keys but not OCR,
+            // letting the garbled fragment falsely match another key's suffix.
+            int raw = DefaultLevenshteinDistance(s, t);
+            int noSpaces = DefaultLevenshteinDistance(Regex.Replace(s, @"\s", ""), Regex.Replace(t, @"\s", ""));
+            return Math.Min(raw, noSpaces);
+        }
+
+        public override string NormalizeForPatternMatching(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return input;
+
+            // Basic cleanup for English
+            string normalized = input.ToLower(_culture).Trim();
+
+            // Add spaces around "Prime" to match database format better
+            normalized = normalized.Replace("prime", " prime ");
+
+            // Remove extra spaces
+            var parts = normalized.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            return string.Join(" ", parts);
+        }
+
+        public override bool IsPartNameValid(string partName)
+        {
+            // English requires minimum length of 13 characters
+            return !string.IsNullOrEmpty(partName) && partName.Length >= 13;
+        }
+
+        public override bool ShouldFilterWord(string word)
+        {
+            // English filters very short words (less than 2 characters)
+            return !string.IsNullOrEmpty(word) && word.Length < 2;
+        }
+
+        public override string RemoveBlueprintTerms(string localizedName)
+        {
+            if (string.IsNullOrEmpty(localizedName))
+                return localizedName;
+
+            // Apply generic BlueprintRemovals first (handles "Blueprint" suffix/standalone)
+            string result = base.RemoveBlueprintTerms(localizedName);
+
+            // Extra aggressive patterns for English OCR edge cases like concatenation
+            // Handles "nameBlueprint" (no space) from merged OCR text
+            result = Regex.Replace(result, "\\s*Blueprint\\s*$", "", RegexOptions.IgnoreCase);
+            result = Regex.Replace(result, "\\s*Blueprint\\s+", " ", RegexOptions.IgnoreCase);
+            result = Regex.Replace(result, "^Blueprint\\s*[:\\-–—]?\\s*", "", RegexOptions.IgnoreCase);
+
+            return result.Trim();
+        }
+    }
+}

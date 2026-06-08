@@ -1,0 +1,14 @@
+{
+  "description": "Japanese fissure reward screen",
+  "resolution": "1920x1080",
+  "scaling": 100,
+  "theme": "tenno",
+  "language": "japanese",
+  "parts": {
+    "0": "Volt Prime Blueprint",
+    "1": "Saryn Prime Blueprint"
+  },
+  "category": "reward",
+  "hdr": false,
+  "filters": ["colorblind"]
+}

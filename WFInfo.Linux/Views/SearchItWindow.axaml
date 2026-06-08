@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WFInfo.Linux.Views.SearchItWindow"
+        Title="WFInfo - Search" Height="55" Width="350"
+        CanResize="False"
+        SystemDecorations="None"
+        Background="#FF1B1B1B"
+        WindowStartupLocation="CenterScreen"
+        Topmost="True"
+        ShowInTaskbar="False">
+
+    <Border BorderBrush="#FF707070" BorderThickness="1">
+    <Grid>
+        <!-- Title bar -->
+        <Rectangle Fill="#FF0F0F0F" Stroke="#FF646464" Height="22" VerticalAlignment="Top" />
+        <Rectangle Stroke="#FF646464" />
+        <TextBlock Text="WFInfo - Search" Margin="5,1,0,0" FontSize="14" FontWeight="Bold"
+                   FontFamily="{StaticResource RobotoBlack}"
+                   VerticalAlignment="Top" />
+        <Button Content="x" Click="Close_Click" Classes="linkButton"
+                Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" Width="22"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+
+        <!-- Search input -->
+        <TextBox x:Name="SearchField" Margin="5,25,5,5"
+                 Watermark="Search for warframe.market items"
+                 Height="25" FontSize="13"
+                 VerticalContentAlignment="Center"
+                 KeyDown="SearchField_KeyDown" />
+    </Grid>
+    </Border>
+</Window>

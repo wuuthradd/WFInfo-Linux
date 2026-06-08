@@ -1,0 +1,57 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WFInfo.Linux.Views.WelcomeDialogue"
+        Title="Welcome to WFInfo"
+        Width="390" Height="330"
+        SystemDecorations="None"
+        Background="#FF1B1B1B"
+        CanResize="False"
+        WindowStartupLocation="Manual">
+    <Grid PointerPressed="Grid_PointerPressed">
+        <Border BorderBrush="#FF707070" BorderThickness="1">
+            <StackPanel>
+                <!-- Title bar -->
+                <Grid Height="26" Background="#FF0F0F0F">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0,0,0">
+                        <Image Source="avares://WFInfo.Linux/Resources/WFLogo.png" Height="20" Width="20" Margin="0,0,4,0"/>
+                        <TextBlock Text="WFInfo" FontSize="14" FontWeight="Bold" FontFamily="{StaticResource RobotoBlack}" Foreground="#FFB1D0D9" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Button Content="x" Click="Exit_Click"
+                            HorizontalAlignment="Right" VerticalAlignment="Center"
+                            Background="Transparent" Foreground="#FFB1D0D9"
+                            Width="29" Height="26" FontSize="14"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+                </Grid>
+
+                <!-- Welcome text -->
+                <TextBlock Text="Welcome to WFInfo!" FontSize="18"
+                           Foreground="#FFB1D0D9" HorizontalAlignment="Center"
+                           Margin="0,8,0,0"/>
+
+                <!-- Guide text -->
+                <TextBlock TextWrapping="Wrap" Foreground="#FFB1D0D9" FontSize="13"
+                           Margin="20,10,20,0" LineHeight="18">
+Here's a quick guide on how to get started
+
+First go into Settings and verify the following:
+  • Overlay will overlay the results on top of Warframe
+  • Window will make it display elsewhere, like a 2nd monitor
+  • Light will make a sound and copy to clipboard
+  • Activation Key is the key that will trigger the display
+
+Linux-specific notes:
+  • Run with --setup-input for reliable global hotkeys
+  • Warframe runs via Steam Proton (borderless window)
+  • Log out and back in after setup for input group changes
+
+After these have been checked, you should be good!
+
+To use Snap-it, press Ctrl + activation key, then
+drag a rectangle over the items you want to scan.
+
+If you need help, we're active in Discord!
+                </TextBlock>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

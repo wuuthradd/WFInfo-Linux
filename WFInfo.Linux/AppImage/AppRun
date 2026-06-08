@@ -1,0 +1,34 @@
+#!/bin/bash
+# AppRun - launcher script for WFInfo AppImage
+
+SELF=$(readlink -f "$0")
+APPDIR=$(dirname "$SELF")
+BINDIR="${APPDIR}/usr/bin"
+
+# --- First-run: set up keyboard input access if needed ---
+if [ "$1" = "--setup-input" ]; then
+    exec "${APPDIR}/usr/bin/wfinfo-setup-input.sh"
+fi
+
+# Tesseract NuGet expects libleptonica-1.82.0.so and libtesseract50.so but
+# system packages use libleptonica.so.6 and libtesseract.so.5.
+# AppImage is read-only so we create symlinks in a temp dir.
+WFINFO_NATIVE=$(mktemp -d /tmp/wfinfo-native.XXXXXX)
+trap "rm -rf '$WFINFO_NATIVE'" EXIT
+
+for lib in /usr/lib/libleptonica.so.6 /usr/lib/libleptonica.so.5 /usr/lib/x86_64-linux-gnu/libleptonica.so.6 /usr/lib/x86_64-linux-gnu/libleptonica.so.5 /usr/lib64/libleptonica.so.6 /usr/lib64/libleptonica.so.5; do
+    [ -f "$lib" ] && ln -sf "$lib" "$WFINFO_NATIVE/libleptonica-1.82.0.so" && break
+done
+for lib in /usr/lib/libtesseract.so.5 /usr/lib/libtesseract.so.4 /usr/lib/x86_64-linux-gnu/libtesseract.so.5 /usr/lib/x86_64-linux-gnu/libtesseract.so.4 /usr/lib64/libtesseract.so.5 /usr/lib64/libtesseract.so.4; do
+    [ -f "$lib" ] && ln -sf "$lib" "$WFINFO_NATIVE/libtesseract50.so" && break
+done
+for lib in /usr/lib/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so.2 /lib/x86_64-linux-gnu/libdl.so.2 /usr/lib64/libdl.so.2; do
+    [ -f "$lib" ] && ln -sf "$lib" "$WFINFO_NATIVE/libdl.so" && break
+done
+
+export LD_LIBRARY_PATH="${WFINFO_NATIVE}:${BINDIR}:${LD_LIBRARY_PATH}"
+
+# Ensure .NET doesn't try to use global install
+export DOTNET_ROOT="${BINDIR}"
+
+exec "${BINDIR}/WFInfo.Linux" "$@"

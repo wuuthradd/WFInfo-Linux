@@ -1,0 +1,100 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WFInfo.Linux.Views.AutoCountWindow"
+        Title="WFInfo - Auto Add"
+        Width="400" Height="634"
+        MinWidth="400" MaxWidth="400" MinHeight="200"
+        WindowStartupLocation="CenterScreen"
+        SystemDecorations="None"
+        Background="#FF1B1B1B"
+        CanResize="True">
+
+    <Window.Styles>
+        <Style Selector="Button.actionBtn">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#FF90B0B8" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.actionBtn:pointerover">
+            <Setter Property="Foreground" Value="#FFB1D0D9" />
+        </Style>
+        <Style Selector="Button.actionBtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="#FF506464" />
+        </Style>
+    </Window.Styles>
+
+    <Border BorderBrush="#FF707070" BorderThickness="1">
+    <Grid RowDefinitions="22,*,30" PointerPressed="OnPointerPressed">
+        <!-- Title bar -->
+        <Grid Grid.Row="0">
+            <Rectangle Fill="#FF0F0F0F" Stroke="#FF646464" />
+            <Image Margin="2,0,0,0" Source="avares://WFInfo.Linux/Resources/WFLogo.png"
+                   Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Width="18" />
+            <TextBlock Text="Auto Add" Margin="24,1,0,0" FontSize="14" FontWeight="Bold"
+                       FontFamily="{StaticResource RobotoBlack}"
+                       VerticalAlignment="Center" />
+            <Button Content="x" Click="Close_Click" Classes="linkButton"
+                    Height="22" HorizontalAlignment="Right" Width="22"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+        </Grid>
+
+        <!-- Column headers + Reward rows -->
+        <Grid Grid.Row="1" RowDefinitions="Auto,*">
+            <Grid Grid.Row="0" ColumnDefinitions="*,70,70" Background="#FF1B1B1B" Margin="0,2,0,0">
+                <TextBlock Text=" Items" Grid.Column="0" FontSize="12" Foreground="#FFB1D0D9"
+                           VerticalAlignment="Center" Margin="4,2" />
+                <TextBlock Text="Save" Grid.Column="1" FontSize="12" Foreground="#FFB1D0D9"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <TextBlock Text="Dismiss" Grid.Column="2" FontSize="12" Foreground="#FFB1D0D9"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Grid>
+            <ScrollViewer Grid.Row="1">
+                <ItemsControl x:Name="RewardList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="*,70,70" Margin="0,1">
+                                <ComboBox ItemsSource="{Binding Options}"
+                                          SelectedItem="{Binding SelectedPart, Mode=TwoWay}"
+                                          Background="#FF1B1B1B" Foreground="#FFB1D0D9"
+                                          BorderBrush="#FF0F0F0F" FontSize="12"
+                                          HorizontalAlignment="Stretch" Margin="4,2" />
+                                <Button Grid.Column="1" Content="✓" Classes="actionBtn"
+                                        Tag="{Binding}" Click="AddItem_Click"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        Width="20" Height="20" />
+                                <Button Grid.Column="2" Content="X" Classes="actionBtn"
+                                        Tag="{Binding}" Click="DismissItem_Click"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        Width="20" Height="20" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Footer: Save all / Dismiss all -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,*">
+            <Button Grid.Column="0" Content="Save all" Classes="actionBtn"
+                    Click="AddAll_Click" BorderThickness="1" BorderBrush="#FF506464"
+                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+            <Button Grid.Column="1" Content="Dismiss all" Classes="actionBtn"
+                    Click="DismissAll_Click" BorderThickness="1" BorderBrush="#FF506464"
+                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+        </Grid>
+        <!-- Resize grip -->
+        <Panel Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+               Width="30" Height="10" Margin="0,0,0,1" Cursor="BottomSide"
+               PointerPressed="ResizeGrip_PointerPressed" Background="Transparent">
+            <Path Stroke="White" StrokeThickness="1.5"
+                  Data="M 4,5 L 26,5 M 4,8 L 26,8"/>
+        </Panel>
+    </Grid>
+    </Border>
+</Window>
