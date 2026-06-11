@@ -1,8 +1,10 @@
 # Changelog
 
-## 9.8.x
+## 9.8.1.1
 
 - Fix verify count window not stealing focus on subsequent scans, fix layout to match WPF, remember window position within session
+- Added self update for both AppImage and tarball installations, fixed previous layout issues on update dialog window, added check for updates button in settings.
+- Layout correction on main window and some small fixes.
 
 ## 9.8.1 - Initial Release
 

@@ -11,6 +11,12 @@ namespace WFInfo.Linux
     {
         private static FileStream _lockFile;
 
+        public static void ReleaseLock()
+        {
+            _lockFile?.Dispose();
+            _lockFile = null;
+        }
+
         [STAThread]
         public static void Main(string[] args)
         {

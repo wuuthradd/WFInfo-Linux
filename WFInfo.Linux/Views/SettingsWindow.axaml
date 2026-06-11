@@ -248,6 +248,15 @@
                               IsCheckedChanged="OnManualMarketChanged" />
                 </Border>
 
+                <!-- Check for Updates -->
+                <Border Classes="section">
+                    <Button x:Name="CheckUpdateBtn" Content="Check for updates"
+                            Click="OnCheckUpdateClick"
+                            Background="#FF0F0F0F" Foreground="#FFB1D0D9"
+                            HorizontalAlignment="Center" MinWidth="150"
+                            HorizontalContentAlignment="Center" Height="30" />
+                </Border>
+
                 <!-- Theme -->
                 <Border Classes="section">
                     <Grid ColumnDefinitions="3*,Auto,6*" RowDefinitions="Auto">

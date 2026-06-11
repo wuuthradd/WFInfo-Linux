@@ -454,6 +454,20 @@ namespace WFInfo.Linux.Views
             SaveSettings();
         }
 
+        private void OnCheckUpdateClick(object sender, RoutedEventArgs e)
+        {
+            CheckUpdateBtn.IsEnabled = false;
+            CheckUpdateBtn.Content = "Checking...";
+            UpdateDialogue.CheckForUpdates(force: true, onComplete: (found) =>
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    CheckUpdateBtn.IsEnabled = true;
+                    CheckUpdateBtn.Content = "Check for updates";
+                });
+            });
+        }
+
         private void OnLocaleChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_loading) return;

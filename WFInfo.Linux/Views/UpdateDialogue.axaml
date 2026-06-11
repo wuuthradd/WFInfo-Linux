@@ -25,8 +25,9 @@
                     <Button Content="x" Click="CloseClick"
                             HorizontalAlignment="Right" VerticalAlignment="Center"
                             Background="Transparent" Foreground="#FFB1D0D9"
-                            Width="29" Height="26" FontSize="14"
+                            Width="26" Height="26" FontSize="12"
                             HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+                    <Rectangle Fill="#FF646464" Height="1" VerticalAlignment="Bottom" />
                 </Grid>
 
                 <!-- Content -->
@@ -52,13 +53,13 @@
                             <ColumnDefinition/>
                             <ColumnDefinition/>
                         </Grid.ColumnDefinitions>
-                        <Button Content="Download" Click="DownloadClick"
+                        <Button x:Name="UpdateButton" Content="Update" Click="DownloadClick"
                                 Background="#FF0F0F0F" Foreground="#FFB1D0D9"
-                                HorizontalAlignment="Left" Width="100" Height="26"
+                                HorizontalAlignment="Left" Width="100" Height="35"
                                 HorizontalContentAlignment="Center"/>
                         <Button Content="Skip" Click="SkipClick" Grid.Column="1"
                                 Background="#FF0F0F0F" Foreground="#FFB1D0D9"
-                                HorizontalAlignment="Right" Width="100" Height="26"
+                                HorizontalAlignment="Right" Width="100" Height="35"
                                 HorizontalContentAlignment="Center"
                                 ToolTip.Tip="Stop prompts until a newer version is released"/>
                     </Grid>

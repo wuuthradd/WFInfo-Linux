@@ -162,6 +162,11 @@ namespace WFInfo.Linux
             INPC.CaptureUIContext();
 
             AppMain.Initialize();
+            if (Environment.GetCommandLineArgs() is { } clArgs && Array.Exists(clArgs, a => a == "--test-update"))
+            {
+                AppMain.buildVersion = "0.0.1";
+                AppMain.AddLog("TEST MODE: version overridden to 0.0.1 for update testing");
+            }
             AppMain.AddLog("Starting WFInfo Linux Desktop");
 
             CollectStartupDebugInfo();
@@ -286,6 +291,7 @@ namespace WFInfo.Linux
 
                         AppMain.StatusUpdate("Updating databases...", 0);
                         await AppMain.dataBase.Update();
+                        AppMain.dataBase.FireReloadEnabled(true);
 
                         // Restore persisted JWT and reconnect WebSocket for live market updates
                         try

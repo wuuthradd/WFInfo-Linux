@@ -113,7 +113,7 @@ The socket path is also shown in Settings when evdev is not available. You can g
 
 WFInfo checks for updates on startup by querying GitHub Releases. If a newer version is available, a dialogue shows the release notes with two options:
 
-- **Download** - opens the releases page in your browser
+- **Update** - downloads and installs the update automatically then relaunches. If auto update fails, the error is shown and you can retry or close and download manually from the [releases page](https://github.com/wuuthradd/WFInfo-Linux/releases).
 - **Skip** - suppresses the prompt until an even newer version is released
 
 Closing the window dismisses for this session (will prompt again next launch).

@@ -85,6 +85,7 @@ namespace WFInfo
         public event Action<string> OnMarketDataUpdated;
         public event Action<string> OnDropDataUpdated;
         public event Action<bool> OnReloadEnabled;
+        public void FireReloadEnabled(bool enabled) => OnReloadEnabled?.Invoke(enabled);
         public event Action<List<List<string>>, short> OnSessionEnd;
         public event Action<string> OnWebSocketStatusChanged;
 
@@ -445,7 +446,7 @@ namespace WFInfo
         public async Task ForceDataUpdate()
         {
             var acquired = await _DataUpdateSema.WaitAsync(TimeSpan.Zero);
-            if (!acquired) { AppMain.StatusUpdate("Data Update already in progress", 3); return; }
+            if (!acquired) { AppMain.StatusUpdate("Data Update already in progress", 3); OnReloadEnabled?.Invoke(true); return; }
             try
             {
                 await UpdateInner(true);

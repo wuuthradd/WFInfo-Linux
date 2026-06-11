@@ -54,6 +54,7 @@
         <Button x:Name="MinimiseBtn" Click="Minimise" Content="_" Classes="linkButton"
                 Margin="0,0,21,0" Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" Width="22"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+        <Rectangle Fill="#FF646464" Width="1" Margin="0,0,21,0" Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" />
         <Button x:Name="ExitBtn" Click="Exit" Content="x" Classes="linkButton"
                 Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" Width="22"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
@@ -91,7 +92,7 @@
                 <Image Classes="hover" Source="avares://WFInfo.Linux/Resources/Settings_h.png" Stretch="Uniform" />
             </Panel>
         </Button>
-        <Button x:Name="ReloadBtn" Classes="iconBtn" ToolTip.Tip="Reloads market and prime data" Click="ReloadDataClick"
+        <Button x:Name="ReloadBtn" Classes="iconBtn" IsEnabled="False" ToolTip.Tip="Reloads market and prime data" Click="ReloadDataClick"
                 Margin="6,26,0,0" Padding="3" Height="22" VerticalAlignment="Top" HorizontalAlignment="Left" Width="20"
                 Background="Transparent" BorderThickness="0">
             <Panel>
@@ -119,17 +120,19 @@
                    ToolTip.Tip="Click to open data folder"
                    PointerPressed="OpenAppDataFolder" />
 
-        <!-- Title bar login/status area rect, widened for Avalonia ComboBox chrome -->
-        <Rectangle Stroke="#FF646464" Margin="204,0,42,0" Height="22" VerticalAlignment="Top" />
+        <!-- Title bar login/status area left separator -->
+        <Rectangle Fill="#FF646464" Width="1" Margin="204,0,0,0" Height="22" VerticalAlignment="Top" HorizontalAlignment="Left" />
         <Button x:Name="LoginBtn" IsEnabled="False" Content="Login to WFM"
-                HorizontalAlignment="Left" Margin="205,1,0,0" VerticalAlignment="Top"
-                Width="86" Height="20" Padding="2,0" FontSize="12"
+                HorizontalAlignment="Left" Margin="205,0,0,0" VerticalAlignment="Top"
+                Width="86" Height="22" Padding="2,0" FontSize="12"
                 Background="Transparent" Foreground="#FFB1D0D9"
-                BorderThickness="0" Click="SpawnLogin" />
+                BorderThickness="0" Click="SpawnLogin"
+                VerticalContentAlignment="Center"
+                HorizontalContentAlignment="Center" />
         <!-- WFM status ComboBox (hidden until logged in, fills title bar slot) -->
         <ComboBox x:Name="StatusCombo" IsVisible="False"
                   HorizontalAlignment="Left" VerticalAlignment="Top"
-                  Margin="204,0,0,0" Width="88"
+                  Margin="205,0,0,0" Width="86"
                   Height="22" MinHeight="0"
                   Background="#FF0F0F0F" Foreground="#FFAFD0D9"
                   BorderThickness="0" Padding="4,0,0,0"
@@ -152,6 +155,8 @@
             <ComboBoxItem Content="Invisible" />
             <ComboBoxItem Content="Log out" />
         </ComboBox>
+        <!-- Title bar login/status area right separator (after ComboBox for Z-order) -->
+        <Rectangle Fill="#FF646464" Width="1" Margin="0,0,42,0" Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" />
 
         <!-- CreateListing button (visible after login) -->
         <Button x:Name="CreateListingBtn" Classes="iconBtn" IsVisible="False"
