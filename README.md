@@ -173,7 +173,7 @@ make -C WFInfo.Linux/DBMon
 ### Running
 
 ```bash
-dotnet run --project WFInfo.Linux/WFInfo.Linux.csproj
+dotnet run --project WFInfo.Linux
 ```
 
 ### Build dependencies

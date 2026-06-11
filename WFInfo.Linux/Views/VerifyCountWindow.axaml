@@ -10,9 +10,10 @@
 
     <Border BorderBrush="#FF707070" BorderThickness="1">
     <Grid PointerPressed="OnPointerPressed">
-        <!-- Title bar -->
-        <Rectangle Fill="#FF0F0F0F" Stroke="#FF646464" Height="25" VerticalAlignment="Top" />
-        <Rectangle Stroke="#FF646464" />
+        <Rectangle Fill="#FF0F0F0F" Height="25" VerticalAlignment="Top" />
+        <Rectangle Fill="#FF646464" Height="1" VerticalAlignment="Top" Margin="0,25,0,0" />
+        <Image Source="avares://WFInfo.Linux/Resources/WFLogo.png" Height="23" Width="24"
+               VerticalAlignment="Top" HorizontalAlignment="Left" Margin="1,0,0,0" />
         <TextBlock Text="WFInfo" Margin="26,3,0,0" FontSize="16" FontWeight="Bold"
                    FontFamily="{StaticResource RobotoBlack}"
                    VerticalAlignment="Top" HorizontalAlignment="Left" />
@@ -20,17 +21,21 @@
         <TextBlock Text="Please verify item counts" FontSize="18"
                    HorizontalAlignment="Center" Margin="0,28,0,0" VerticalAlignment="Top" />
 
-        <Button x:Name="BackupButton" Content="Backup and clear inventory"
-                HorizontalAlignment="Center" Margin="0,60,0,0" VerticalAlignment="Top"
-                Height="35" Background="#FF0F0F0F" Foreground="#FFB1D0D9"
-                Click="BackupClick" />
-
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
-                    VerticalAlignment="Bottom" Margin="0,0,0,15" Spacing="20">
-            <Button Content="Save Count" Width="110" Height="35"
-                    Background="#FF0F0F0F" Foreground="#FFB1D0D9" Click="SaveClick" />
-            <Button Content="Cancel" Width="110" Height="35"
-                    Background="#FF0F0F0F" Foreground="#FFB1D0D9" Click="CancelClick" />
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,55,0,15" Spacing="8">
+            <Button x:Name="BackupButton" Content="Backup and clear inventory"
+                    Height="35" Background="#FF0F0F0F" Foreground="#FFB1D0D9"
+                    HorizontalContentAlignment="Center"
+                    Click="BackupClick" />
+            <Grid ColumnDefinitions="*,10,*">
+                <Button Grid.Column="0" Content="Save Count" Height="35"
+                        Background="#FF0F0F0F" Foreground="#FFB1D0D9"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        Click="SaveClick" />
+                <Button Grid.Column="2" Content="Cancel" Height="35"
+                        Background="#FF0F0F0F" Foreground="#FFB1D0D9"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        Click="CancelClick" />
+            </Grid>
         </StackPanel>
     </Grid>
     </Border>

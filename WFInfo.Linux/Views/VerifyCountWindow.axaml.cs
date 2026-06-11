@@ -12,6 +12,7 @@ namespace WFInfo.Linux.Views
     public partial class VerifyCountWindow : Window
     {
         private List<InventoryItem> _latestSnap = new();
+        private static Avalonia.PixelPoint? _lastPosition;
 
         public VerifyCountWindow()
         {
@@ -22,8 +23,19 @@ namespace WFInfo.Linux.Views
         {
             _latestSnap = items;
             BackupButton.IsVisible = true;
+            if (_lastPosition.HasValue)
+            {
+                WindowStartupLocation = WindowStartupLocation.Manual;
+                Position = _lastPosition.Value;
+            }
             Show();
             Activate();
+        }
+
+        protected override void OnClosing(WindowClosingEventArgs e)
+        {
+            _lastPosition = Position;
+            base.OnClosing(e);
         }
 
         private void OnPointerPressed(object sender, PointerPressedEventArgs e)
@@ -67,7 +79,7 @@ namespace WFInfo.Linux.Views
                 AppMain.StatusUpdate("Item counts saved", 0);
 
             EquipmentWindow.ReloadIfOpen();
-            Hide();
+            Close();
         }
 
         private void BackupClick(object sender, RoutedEventArgs e)
@@ -96,7 +108,7 @@ namespace WFInfo.Linux.Views
 
         private void CancelClick(object sender, RoutedEventArgs e)
         {
-            Hide();
+            Close();
         }
     }
 }

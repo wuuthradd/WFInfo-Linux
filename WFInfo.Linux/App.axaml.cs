@@ -412,11 +412,9 @@ namespace WFInfo.Linux
             {
                 Dispatcher.UIThread.Post(() =>
                 {
-                    if (_verifyCountWindow == null || !_verifyCountWindow.IsVisible)
-                    {
-                        _verifyCountWindow = new VerifyCountWindow();
-                        _verifyCountWindow.Closed += (_, _) => _verifyCountWindow = null;
-                    }
+                    _verifyCountWindow?.Close();
+                    _verifyCountWindow = new VerifyCountWindow();
+                    _verifyCountWindow.Closed += (_, _) => _verifyCountWindow = null;
                     _verifyCountWindow.ShowVerifyCount(items);
                 });
             };
