@@ -47,7 +47,9 @@ namespace WFInfo
                 if (asm != null)
                 {
                     string ver = asm.GetName().Version?.ToString() ?? "1.0.0";
-                    buildVersion = ver.Substring(0, ver.LastIndexOf('.') > 0 ? ver.LastIndexOf('.') : ver.Length);
+                    if (ver.EndsWith(".0"))
+                        ver = ver.Substring(0, ver.LastIndexOf('.'));
+                    buildVersion = ver;
                 }
             }
             catch { }
