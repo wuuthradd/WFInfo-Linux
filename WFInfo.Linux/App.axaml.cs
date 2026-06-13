@@ -184,6 +184,7 @@ namespace WFInfo.Linux
             services.AddSingleton<IScreenshotService>(sp =>
                 new LinuxScreenshotService(
                     sp.GetRequiredService<IProcessFinder>(),
+                    sp.GetRequiredService<IWindowInfoService>(),
                     sp.GetRequiredService<ILogger>()));
             services.AddSingleton<IInputListener, LinuxInputListener>();
             services.AddSingleton<ILogCapture>(sp =>

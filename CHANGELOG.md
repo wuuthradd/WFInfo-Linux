@@ -1,5 +1,9 @@
 # Changelog
 
+## 9.8.1.2
+
+- Fix screenshot capture failing on compositors where XGetWindowAttributes is unavailable (XWayland fallback using screen bounds)
+
 ## 9.8.1.1
 
 - Fix verify count window not stealing focus on subsequent scans, fix layout to match WPF, remember window position within session

@@ -6,6 +6,7 @@ using SkiaSharp;
 using WFInfo.Services;
 using WFInfo.Services.Screenshot;
 using WFInfo.Services.WarframeProcess;
+using WFInfo.Services.WindowInfo;
 using static WFInfo.Linux.Services.X11Interop;
 
 namespace WFInfo.Linux.Services
@@ -13,12 +14,14 @@ namespace WFInfo.Linux.Services
     public class LinuxScreenshotService : IScreenshotService
     {
         private readonly IProcessFinder _processFinder;
+        private readonly IWindowInfoService _windowInfo;
         private readonly ILogger _logger;
 
         private readonly object _captureLock = new object();
 
         private bool _shmProbed;
         private bool _shmAvailable;
+        private bool _rootFallbackLogged;
 
         private XShmSegmentInfo _shmInfo;
         private IntPtr _shmImage;
@@ -27,9 +30,10 @@ namespace WFInfo.Linux.Services
 
         public bool IsAvailable => true;
 
-        public LinuxScreenshotService(IProcessFinder processFinder, ILogger logger)
+        public LinuxScreenshotService(IProcessFinder processFinder, IWindowInfoService windowInfo, ILogger logger)
         {
             _processFinder = processFinder;
+            _windowInfo = windowInfo;
             _logger = logger;
         }
 
@@ -327,25 +331,32 @@ namespace WFInfo.Linux.Services
                         }
                     }
 
-                    if (XGetWindowAttributes(display, targetWindow, out var attrs) == 0)
+                    int w, h;
+                    bool attrsFailed = false;
+
+                    if (XGetWindowAttributes(display, targetWindow, out var attrs) == 0
+                        || attrs.map_state != IsViewable
+                        || attrs.width <= 0 || attrs.height <= 0)
                     {
-                        _logger.AddLog("X11: Cannot get window attributes");
-                        return null;
+                        var sb = _windowInfo.ScreenBounds;
+                        if (sb.Width <= 0 || sb.Height <= 0)
+                        {
+                            _logger.AddLog("X11: Cannot get window attributes and no screen bounds available");
+                            return null;
+                        }
+                        if (!_rootFallbackLogged)
+                        {
+                            _logger.AddLog($"X11: Window attributes unavailable, using screen bounds ({sb.Width}x{sb.Height})");
+                            _rootFallbackLogged = true;
+                        }
+                        w = sb.Width;
+                        h = sb.Height;
+                        attrsFailed = true;
                     }
-
-                    if (attrs.map_state != IsViewable)
+                    else
                     {
-                        _logger.AddLog("X11: Window not viewable");
-                        return null;
-                    }
-
-                    int w = attrs.width;
-                    int h = attrs.height;
-
-                    if (w <= 0 || h <= 0)
-                    {
-                        _logger.AddLog($"X11: Invalid dimensions {w}x{h}");
-                        return null;
+                        w = attrs.width;
+                        h = attrs.height;
                     }
 
                     XSync(display, false);
@@ -353,7 +364,8 @@ namespace WFInfo.Linux.Services
                     ProbeShm(display);
 
                     SKBitmap result = null;
-                    if (_shmAvailable)
+
+                    if (!attrsFailed && _shmAvailable)
                     {
                         result = CaptureViaShm(display, targetWindow, w, h);
                     }

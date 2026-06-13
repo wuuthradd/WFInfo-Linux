@@ -116,3 +116,4 @@ jobs:
             WFInfo.AppImage
             WFInfo-linux-x64.tar.gz
           body: ${{ steps.changelog.outputs.notes }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
