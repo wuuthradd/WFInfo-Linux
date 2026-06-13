@@ -11,7 +11,7 @@ using static WFInfo.Linux.Services.X11Interop;
 
 namespace WFInfo.Linux.Services
 {
-    public class LinuxScreenshotService : IScreenshotService
+    public class LinuxScreenshotService : IScreenshotService, IDisposable
     {
         private readonly IProcessFinder _processFinder;
         private readonly IWindowInfoService _windowInfo;
@@ -23,10 +23,22 @@ namespace WFInfo.Linux.Services
         private bool _shmAvailable;
         private bool _rootFallbackLogged;
 
-        private XShmSegmentInfo _shmInfo;
+        // XShmSegmentInfo must live in unmanaged memory because XShmCreateImage
+        // stores a raw pointer to it in XImage->obdata, and later calls
+        // (XShmGetImage, XShmDetach) dereference that pointer.  If we kept the
+        // struct on the managed heap the GC could relocate it between captures,
+        // turning the obdata pointer stale → XShmGetImage fails on the second
+        // screenshot after any GC compaction.
+        private IntPtr _shmInfoPtr;
         private IntPtr _shmImage;
         private int _shmWidth;
         private int _shmHeight;
+
+        // Dedicated display connection for screenshot captures.
+        // Avoids protocol-level races with other X11 calls (e.g. window info,
+        // process finder) on the shared connection — the root cause of the
+        // historical XShm SEGV on XWayland.
+        private IntPtr _captureDisplay;
 
         public bool IsAvailable => true;
 
@@ -35,6 +47,19 @@ namespace WFInfo.Linux.Services
             _processFinder = processFinder;
             _windowInfo = windowInfo;
             _logger = logger;
+        }
+
+        public void Dispose()
+        {
+            lock (_captureLock)
+            {
+                if (_captureDisplay != IntPtr.Zero)
+                {
+                    DestroyShmSegment(_captureDisplay);
+                    XCloseDisplay(_captureDisplay);
+                    _captureDisplay = IntPtr.Zero;
+                }
+            }
         }
 
         public Task<List<SKBitmap>> CaptureScreenshot()
@@ -63,13 +88,6 @@ namespace WFInfo.Linux.Services
             if (_shmProbed) return;
             _shmProbed = true;
 
-            if (X11Interop.IsXWayland)
-            {
-                _shmAvailable = false;
-                _logger.AddLog("X11: XShm disabled on XWayland (unreliable)");
-                return;
-            }
-
             try
             {
                 _shmAvailable = XShmQueryExtension(display) != 0;
@@ -84,21 +102,22 @@ namespace WFInfo.Linux.Services
 
         private void DestroyShmSegment(IntPtr display)
         {
-            if (_shmImage != IntPtr.Zero)
+            if (_shmImage != IntPtr.Zero && _shmInfoPtr != IntPtr.Zero)
             {
-                XShmDetach(display, ref _shmInfo);
+                XShmDetach(display, _shmInfoPtr);
                 XDestroyImage(_shmImage);
                 _shmImage = IntPtr.Zero;
             }
-            if (_shmInfo.shmaddr != IntPtr.Zero && _shmInfo.shmaddr != (IntPtr)(-1))
+            if (_shmInfoPtr != IntPtr.Zero)
             {
-                shmdt(_shmInfo.shmaddr);
+                var info = Marshal.PtrToStructure<XShmSegmentInfo>(_shmInfoPtr);
+                if (info.shmaddr != IntPtr.Zero && info.shmaddr != (IntPtr)(-1))
+                    shmdt(info.shmaddr);
+                if (info.shmid >= 0)
+                    shmctl(info.shmid, IPC_RMID, IntPtr.Zero);
+                Marshal.FreeHGlobal(_shmInfoPtr);
+                _shmInfoPtr = IntPtr.Zero;
             }
-            if (_shmInfo.shmid >= 0)
-            {
-                shmctl(_shmInfo.shmid, IPC_RMID, IntPtr.Zero);
-            }
-            _shmInfo = default;
             _shmWidth = 0;
             _shmHeight = 0;
         }
@@ -115,49 +134,64 @@ namespace WFInfo.Linux.Services
             IntPtr visual = XDefaultVisual(display, screen);
             uint depth = XDefaultDepth(display, screen);
 
-            _shmInfo = new XShmSegmentInfo();
+            // Allocate XShmSegmentInfo in unmanaged memory so its address is
+            // stable — XShmCreateImage stores a raw pointer to it in obdata.
+            int infoSize = Marshal.SizeOf<XShmSegmentInfo>();
+            _shmInfoPtr = Marshal.AllocHGlobal(infoSize);
+            Marshal.StructureToPtr(new XShmSegmentInfo(), _shmInfoPtr, false);
+
             _shmImage = XShmCreateImage(display, visual, depth, ZPixmap, IntPtr.Zero,
-                ref _shmInfo, (uint)w, (uint)h);
+                _shmInfoPtr, (uint)w, (uint)h);
             if (_shmImage == IntPtr.Zero)
+            {
+                Marshal.FreeHGlobal(_shmInfoPtr);
+                _shmInfoPtr = IntPtr.Zero;
                 return false;
+            }
 
             var img = Marshal.PtrToStructure<XImage>(_shmImage);
             int size = img.bytes_per_line * img.height;
 
-            _shmInfo.shmid = shmget(IPC_PRIVATE, (IntPtr)size, IPC_CREAT | 0x180);
-            if (_shmInfo.shmid < 0)
+            int shmid = shmget(IPC_PRIVATE, (IntPtr)size, IPC_CREAT | 0x180);
+            if (shmid < 0)
             {
                 XDestroyImage(_shmImage);
                 _shmImage = IntPtr.Zero;
+                Marshal.FreeHGlobal(_shmInfoPtr);
+                _shmInfoPtr = IntPtr.Zero;
                 return false;
             }
+            Marshal.WriteInt32(_shmInfoPtr, Marshal.OffsetOf<XShmSegmentInfo>(nameof(XShmSegmentInfo.shmid)).ToInt32(), shmid);
 
-            _shmInfo.shmaddr = shmat(_shmInfo.shmid, IntPtr.Zero, 0);
-            if (_shmInfo.shmaddr == (IntPtr)(-1))
+            IntPtr shmaddr = shmat(shmid, IntPtr.Zero, 0);
+            if (shmaddr == (IntPtr)(-1))
             {
-                shmctl(_shmInfo.shmid, IPC_RMID, IntPtr.Zero);
+                shmctl(shmid, IPC_RMID, IntPtr.Zero);
                 XDestroyImage(_shmImage);
                 _shmImage = IntPtr.Zero;
-                _shmInfo = default;
+                Marshal.FreeHGlobal(_shmInfoPtr);
+                _shmInfoPtr = IntPtr.Zero;
                 return false;
             }
+            Marshal.WriteIntPtr(_shmInfoPtr, Marshal.OffsetOf<XShmSegmentInfo>(nameof(XShmSegmentInfo.shmaddr)).ToInt32(), shmaddr);
 
             // Point XImage.data to the shared memory
-            Marshal.WriteIntPtr(_shmImage, Marshal.OffsetOf<XImage>(nameof(XImage.data)).ToInt32(), _shmInfo.shmaddr);
-            _shmInfo.readOnly = 0;
+            Marshal.WriteIntPtr(_shmImage, Marshal.OffsetOf<XImage>(nameof(XImage.data)).ToInt32(), shmaddr);
+            Marshal.WriteInt32(_shmInfoPtr, Marshal.OffsetOf<XShmSegmentInfo>(nameof(XShmSegmentInfo.readOnly)).ToInt32(), 0);
 
-            if (XShmAttach(display, ref _shmInfo) == 0)
+            if (XShmAttach(display, _shmInfoPtr) == 0)
             {
-                shmdt(_shmInfo.shmaddr);
-                shmctl(_shmInfo.shmid, IPC_RMID, IntPtr.Zero);
+                shmdt(shmaddr);
+                shmctl(shmid, IPC_RMID, IntPtr.Zero);
                 XDestroyImage(_shmImage);
                 _shmImage = IntPtr.Zero;
-                _shmInfo = default;
+                Marshal.FreeHGlobal(_shmInfoPtr);
+                _shmInfoPtr = IntPtr.Zero;
                 return false;
             }
 
             // Mark for removal on last detach, prevents leaks if process crashes
-            shmctl(_shmInfo.shmid, IPC_RMID, IntPtr.Zero);
+            shmctl(shmid, IPC_RMID, IntPtr.Zero);
 
             _shmWidth = w;
             _shmHeight = h;
@@ -189,11 +223,14 @@ namespace WFInfo.Linux.Services
                 return null;
             }
 
+            IntPtr shmaddr = Marshal.ReadIntPtr(_shmInfoPtr,
+                Marshal.OffsetOf<XShmSegmentInfo>(nameof(XShmSegmentInfo.shmaddr)).ToInt32());
+
             var bitmap = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Opaque);
             int rowBytes = w * 4;
             unsafe
             {
-                var srcSpan = new ReadOnlySpan<byte>(_shmInfo.shmaddr.ToPointer(), img.bytes_per_line * h);
+                var srcSpan = new ReadOnlySpan<byte>(shmaddr.ToPointer(), img.bytes_per_line * h);
                 var dstSpan = new Span<byte>(bitmap.GetPixels().ToPointer(), rowBytes * h);
 
                 if (img.bytes_per_line == rowBytes)
@@ -298,7 +335,14 @@ namespace WFInfo.Linux.Services
                 IntPtr prevHandler = IntPtr.Zero;
                 try
                 {
-                    IntPtr display = SharedDisplay;
+                    if (_captureDisplay == IntPtr.Zero)
+                    {
+                        _captureDisplay = XOpenDisplay(null);
+                        if (_captureDisplay != IntPtr.Zero)
+                            _logger.AddLog("X11: Opened dedicated capture display connection");
+                    }
+
+                    IntPtr display = _captureDisplay;
                     if (display == IntPtr.Zero)
                     {
                         _logger.AddLog("X11: Cannot open display (DISPLAY not set?)");

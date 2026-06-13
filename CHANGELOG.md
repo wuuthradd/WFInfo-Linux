@@ -2,6 +2,9 @@
 
 ## 9.8.1.2
 
+- Use dedicated X11 display connection for screenshot captures, fixing XShm crashes and XGetWindowAttributes failures caused by race issues on the shared connection
+- Re-enable XShm on XWayland for faster screenshot captures (previously was disabled because causing crashes which "fixed" now)
+- Fix game window not being re-discovered after Warframe restarts (XID retry)
 - Fix screenshot capture failing on compositors where XGetWindowAttributes is unavailable (XWayland fallback using screen bounds)
 
 ## 9.8.1.1

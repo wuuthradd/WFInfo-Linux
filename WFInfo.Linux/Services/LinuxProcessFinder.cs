@@ -78,7 +78,19 @@ namespace WFInfo.Linux.Services
                     try
                     {
                         if (!_warframe.HasExited)
+                        {
+                            // Retry XID lookup if the window wasn't ready when the process was first found
+                            if (_windowId == 0)
+                            {
+                                long xid = FindX11Window(_warframe.Id);
+                                if (xid > 0)
+                                {
+                                    _windowId = xid;
+                                    _logger.AddLog($"LinuxProcessFinder: Late window discovery XID=0x{xid:X}");
+                                }
+                            }
                             return;
+                        }
                     }
                     catch { }
                     _warframe?.Dispose();

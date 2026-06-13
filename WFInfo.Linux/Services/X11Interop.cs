@@ -26,14 +26,14 @@ internal static class X11Interop
 
     [DllImport("libXext.so.6")]
     internal static extern IntPtr XShmCreateImage(IntPtr display, IntPtr visual,
-        uint depth, int format, IntPtr data, ref XShmSegmentInfo shminfo,
+        uint depth, int format, IntPtr data, IntPtr shminfo,
         uint width, uint height);
 
     [DllImport("libXext.so.6")]
-    internal static extern int XShmAttach(IntPtr display, ref XShmSegmentInfo shminfo);
+    internal static extern int XShmAttach(IntPtr display, IntPtr shminfo);
 
     [DllImport("libXext.so.6")]
-    internal static extern int XShmDetach(IntPtr display, ref XShmSegmentInfo shminfo);
+    internal static extern int XShmDetach(IntPtr display, IntPtr shminfo);
 
     [DllImport("libXext.so.6")]
     internal static extern int XShmGetImage(IntPtr display, IntPtr drawable,
