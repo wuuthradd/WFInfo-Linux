@@ -48,7 +48,7 @@ namespace WFInfo.Linux.Services
                 {
                     _window = new SKRectI(gx, gy, gx + gw, gy + gh);
                     _center = new SKPointI(gx + gw / 2, gy + gh / 2);
-                    _screenScaling = Math.Max(gw / 1920.0, gh / 1080.0);
+                    _screenScaling = gh / 1080.0;
                     DetectScreenBounds();
                     DetectDpi();
                     return;
@@ -64,7 +64,7 @@ namespace WFInfo.Linux.Services
                 {
                     _window = _screenBounds;
                     _center = new SKPointI(_screenBounds.MidX, _screenBounds.MidY);
-                    _screenScaling = Math.Max(_screenBounds.Width / 1920.0, _screenBounds.Height / 1080.0);
+                    _screenScaling = _screenBounds.Height / 1080.0;
                     _logger.AddLog($"LinuxWindowInfo: Using screen bounds as window (fullscreen): {_screenBounds.Width}x{_screenBounds.Height}, scaling={_screenScaling:F2}");
                 }
             }
@@ -81,7 +81,7 @@ namespace WFInfo.Linux.Services
 
             _window = new SKRectI(0, 0, w, h);
             _center = new SKPointI(w / 2, h / 2);
-            _screenScaling = Math.Max(w / 1920.0, h / 1080.0);
+            _screenScaling = h / 1080.0;
             _screenBounds = _window;
         }
 

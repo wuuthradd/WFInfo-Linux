@@ -6,6 +6,7 @@
 - Re-enable XShm on XWayland for faster screenshot captures (previously was disabled because causing crashes which "fixed" now)
 - Fix game window not being re-discovered after Warframe restarts (XID retry)
 - Fix screenshot capture failing on compositors where XGetWindowAttributes is unavailable (XWayland fallback using screen bounds)
+- Fix reward detection and theme detection failing on ultrawide monitors due to incorrect screen scaling calculation
 
 ## 9.8.1.1
 
