@@ -436,9 +436,7 @@ class CoreTestRunner
 class HeadlessProcessFinder : IProcessFinder
 {
     public Process Warframe => null;
-    public long WindowId => 0;
     public bool IsRunning => false;
-    public bool GameIsStreamed => false;
     public WineEnvironmentInfo WineEnvironment => null;
     public event ProcessChangedArgs OnProcessChanged { add { } remove { } }
 }
@@ -447,7 +445,6 @@ class HeadlessWindowInfoService : IWindowInfoService
 {
     private SKRectI _window;
     private SKPointI _center;
-    public double DpiScaling => 1.0;
     public double ScreenScaling => _window.Height / 1080.0;
     public SKRectI Window => _window;
     public SKPointI Center => _center;

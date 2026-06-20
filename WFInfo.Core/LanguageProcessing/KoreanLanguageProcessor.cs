@@ -212,7 +212,6 @@ namespace WFInfo.LanguageProcessing
 
         public override int CalculateLevenshteinDistance(string s, string t)
         {
-            // i18n korean edit distance algorithm
             // Normalize spacing but preserve word boundaries for better OCR fragment matching
             s = NormalizeKoreanTextForComparison(s ?? "");
             t = NormalizeKoreanTextForComparison(t ?? "");

@@ -1,32 +1,41 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="WFInfo.Linux.Views.SearchItWindow"
-        Title="WFInfo - Search" Height="55" Width="350"
+        Title="SearchIt" Height="50" Width="300"
         CanResize="False"
         SystemDecorations="None"
-        Background="#FF1B1B1B"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
         WindowStartupLocation="CenterScreen"
         Topmost="True"
         ShowInTaskbar="False">
 
-    <Border BorderBrush="#FF707070" BorderThickness="1">
-    <Grid>
-        <!-- Title bar -->
-        <Rectangle Fill="#FF0F0F0F" Stroke="#FF646464" Height="22" VerticalAlignment="Top" />
-        <Rectangle Stroke="#FF646464" />
-        <TextBlock Text="WFInfo - Search" Margin="5,1,0,0" FontSize="14" FontWeight="Bold"
-                   FontFamily="{StaticResource RobotoBlack}"
-                   VerticalAlignment="Top" />
-        <Button Content="x" Click="Close_Click" Classes="linkButton"
-                Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" Width="22"
-                HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+    <Window.Styles>
+        <Style Selector="TextBox#SearchField /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+        </Style>
+        <Style Selector="TextBox#SearchField:focus /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="TextBox#SearchField:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+    </Window.Styles>
 
-        <!-- Search input -->
-        <TextBox x:Name="SearchField" Margin="5,25,5,5"
+    <Grid>
+        <Image Source="avares://WFInfo.Linux/Resources/background.jpg" Stretch="Fill" />
+        <TextBox x:Name="SearchField"
+                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                 Width="300" Height="50"
+                 Background="Transparent" BorderThickness="0"
+                 Foreground="#FFB1D0D9" CaretBrush="#FFB1D0D9"
+                 FontSize="16"
+                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                  Watermark="Search for warframe.market items"
-                 Height="25" FontSize="13"
-                 VerticalContentAlignment="Center"
                  KeyDown="SearchField_KeyDown" />
     </Grid>
-    </Border>
 </Window>

@@ -1,11 +1,10 @@
-#ifndef OVERLAY_H
-#define OVERLAY_H
+#ifndef OVERLAY_HPP
+#define OVERLAY_HPP
 
-#include <time.h>
+#include <ctime>
+#include <vector>
 #include <cairo/cairo.h>
-
-#define MAX_PANELS 68
-#define HIDE_DEFAULT_REWARD_MS  10000
+#define HIDE_DEFAULT_REWARD_MS  10000  /* auto-hide delay (ms) */
 #define HIDE_DEFAULT_SNAPIT_MS  20000
 
 #define RW_CARD_W   250
@@ -97,14 +96,12 @@ typedef struct {
     void (*rw_tick)(void);
 } OverlayBackend;
 
-extern Panel panels[MAX_PANELS];
 extern RwState rw;
 extern SnapItState snapit;
 extern int running;
 extern int pointer_on_rw;
 extern double rw_ptr_x, rw_ptr_y;
 extern OverlayBackend *backend;
-extern int snapit_output_scale;
 
 extern cairo_surface_t *plat_icon_surface;
 extern cairo_surface_t *ducat_icon_surface;
@@ -117,13 +114,13 @@ void draw_icon_surface(cairo_t *cr, cairo_surface_t *icon,
                        double x, double y, double target_w, double target_h);
 void render_panel(Panel *p, void *buf_data, int scale);
 void render_rw_content(cairo_t *cr);
-void render_snapit(void *buf_data, int w, int h, int scale);
+void composite_mark_panel_dirty(int id) __attribute__((weak));
+void composite_mark_rw_dirty(void) __attribute__((weak));
+void overlay_send_event(const char *json) __attribute__((weak));
+
 void snapit_cache_hint(void);
 void hide_panel_by_id(int id);
 void process_line(const char *line);
-
-typedef struct { int x, y, w, h; } MonitorRect;
-void get_monitor_at_point(void *display, int px, int py, MonitorRect *out);
 
 void handle_rw_button_press(double px, double py);
 void handle_rw_button_release(void);
@@ -138,7 +135,11 @@ int json_get_bool(const char *json, const char *key, int def);
 void json_get_string(const char *json, const char *key, char *out, int maxlen);
 double json_get_double(const char *json, const char *key, double def);
 
-OverlayBackend *wayland_backend_create(void);
-OverlayBackend *x11_backend_create(void);
+extern std::vector<Panel> panels;
+
+inline void ensure_panel_capacity(int id) {
+    if (id >= 0 && static_cast<size_t>(id) >= panels.size())
+        panels.resize(static_cast<size_t>(id) + 1);
+}
 
 #endif

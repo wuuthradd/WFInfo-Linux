@@ -25,23 +25,15 @@ namespace WFInfo.LanguageProcessing
         {
             if (string.IsNullOrEmpty(input)) return input;
 
-            // Basic cleanup for Chinese
             string normalized = input.ToLower(_culture).Trim();
-
-            // Add spaces around "Prime" to match database format better
             normalized = normalized.Replace("prime", " prime ");
-
-            // Remove accents (not typically needed for Chinese)
             normalized = RemoveAccents(normalized);
-
-            // Remove extra spaces
             var parts = normalized.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             return string.Join(" ", parts);
         }
 
         public override bool IsPartNameValid(string partName)
         {
-            // Chinese requires minimum of 4 characters after removing spaces
             return !string.IsNullOrEmpty(partName) && partName.Replace(" ", "").Length >= 4;
         }
 

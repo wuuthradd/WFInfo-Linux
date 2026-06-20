@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -17,7 +17,6 @@ using WFInfo.Linux.Services;
 using WFInfo.Linux.Views;
 using WFInfo.Models;
 using WFInfo.Services;
-using WFInfo.Services.Screenshot;
 using WFInfo.Services.WarframeProcess;
 using WFInfo.Services.WindowInfo;
 using WFInfo.Settings;
@@ -34,7 +33,7 @@ namespace WFInfo.Linux
         public static void ClearSnapItActive() => _snapItActive = false;
         private static SkiaSharp.SKBitmap _nativeSnapItScreenshot;
         /// <summary>Handle selection or cancellation from the native SnapIt overlay.</summary>
-        private static void HandleNativeSnapItResult(NativeOverlayService.SnapItResult result)
+        private static void HandleNativeSnapItResult(VulkanLayerService.SnapItResult result)
         {
             _snapItActive = false;
 
@@ -53,11 +52,8 @@ namespace WFInfo.Linux
                 return;
             }
 
-            // Native overlay result coordinates are in physical pixels (already
-            // multiplied by snapit_output_scale in the C overlay).  Screenshot
-            // pixels and X11 game window geometry are also physical.  No DPI
-            // scaling conversion is needed for the crop - just subtract the
-            // game window offset to get screenshot-local coordinates.
+            // Native overlay coordinates and screenshot pixels are both physical.
+            // Subtract the game window offset to get screenshot-local coordinates.
             var windowSvc = Services.GetRequiredService<IWindowInfoService>();
             var win = windowSvc.Window;
 
@@ -109,37 +105,40 @@ namespace WFInfo.Linux
             var screenshot = OCR.CaptureScreenshot();
             if (screenshot == null)
             {
-                AppMain.StatusUpdate("Screenshot failed", 1);
+                if (_vulkanLayer?.IsStale != true)
+                    AppMain.StatusUpdate("Screenshot failed", 1);
                 return;
             }
 
-            if (_nativeOverlay == null || !_nativeOverlay.IsAvailable)
+            if (_vulkanLayer == null)
             {
-                AppMain.StatusUpdate("Native overlay not available", 1);
+                AppMain.StatusUpdate("Vulkan layer not available", 1);
                 screenshot.Dispose();
                 return;
             }
 
-            AppMain.AddLog("Snap-It: using native overlay (Wayland/X11)");
+            AppMain.AddLog("Snap-It triggered");
             var old = System.Threading.Interlocked.Exchange(ref _nativeSnapItScreenshot, screenshot);
             old?.Dispose();
             var windowSvc = Services.GetRequiredService<IWindowInfoService>();
             var win = windowSvc.Window;
             _snapItActive = true;
-            _nativeOverlay.StartSnapIt(win.Width, win.Height);
+            _vulkanLayer.StartSnapIt(win.Width, win.Height);
         }
 
         private static VerifyCountWindow _verifyCountWindow;
-        private static NativeOverlayService _nativeOverlay;
+        private static VulkanLayerService _vulkanLayer;
         private static SocketCommandServer _socketServer;
 
-        internal static void HideNativeRewardWindow() => _nativeOverlay?.HideRewardWindow();
-        internal static void HideNativeOverlays() => _nativeOverlay?.HideAll();
-        private static int _nextSnapItPanelId = 4;
+        internal static void HideNativeOverlays()
+        {
+            _vulkanLayer?.HideAll();
+        }
+        private static int _nextSnapItPanelId = 4; // 0-3 reserved for reward panels
 
         private static volatile bool _nativeRewardsDisplaying;
 
-        private const int MinutesTillAfk = 7;
+        private const int MinutesTillAfk = 7; // minutes idle before setting market status to invisible
         private static DateTime _latestActive = DateTime.UtcNow;
         private static bool _userAway;
         private static CancellationTokenSource _manualActivationCts;
@@ -178,14 +177,10 @@ namespace WFInfo.Linux
 
             services.AddSingleton<ILogger, SimpleLogger>();
             services.AddSingleton<ISoundPlayer, CrossPlatformSoundPlayer>();
-            // Linux platform services
             services.AddSingleton<IProcessFinder, LinuxProcessFinder>();
-            services.AddSingleton<IWindowInfoService, LinuxWindowInfoService>();
-            services.AddSingleton<IScreenshotService>(sp =>
-                new LinuxScreenshotService(
-                    sp.GetRequiredService<IProcessFinder>(),
-                    sp.GetRequiredService<IWindowInfoService>(),
-                    sp.GetRequiredService<ILogger>()));
+            services.AddSingleton(sp => new VulkanLayerService(sp.GetRequiredService<ILogger>()));
+            services.AddSingleton<IWindowInfoService>(sp =>
+                new LinuxWindowInfoService(sp.GetRequiredService<VulkanLayerService>(), sp.GetRequiredService<ILogger>()));
             services.AddSingleton<IInputListener, LinuxInputListener>();
             services.AddSingleton<ILogCapture>(sp =>
                 new FileLogCapture(sp.GetRequiredService<ILogger>(), sp.GetRequiredService<IProcessFinder>()));
@@ -202,11 +197,19 @@ namespace WFInfo.Linux
             });
 
             Services = services.BuildServiceProvider();
-            _nativeOverlay = new NativeOverlayService(Services.GetRequiredService<ILogger>());
 
-            _nativeOverlay.Start();
+            // Install Vulkan layer for future game launches
+            var logger = Services.GetRequiredService<ILogger>();
+            InstallVulkanLayer(logger);
 
-            _nativeOverlay.OnSnapItResult += HandleNativeSnapItResult;
+            // Connects lazily, works regardless
+            // of whether Warframe or WFInfo starts first.
+            _vulkanLayer = Services.GetRequiredService<VulkanLayerService>();
+            _vulkanLayer.OnSnapItResult += HandleNativeSnapItResult;
+            if (_vulkanLayer.Connect())
+                logger.AddLog("VulkanLayerService: connected at startup");
+            else
+                logger.AddLog("VulkanLayerService: layer socket not yet available, will retry on use");
 
             _socketServer = new SocketCommandServer(Services.GetRequiredService<ILogger>());
             _socketServer.OnCommand += HandleSocketCommand;
@@ -222,10 +225,7 @@ namespace WFInfo.Linux
 
             AppMain.OnStatusUpdate += (message, severity) =>
             {
-                Dispatcher.UIThread.Post(() =>
-                {
-                    MainWindowInstance?.ChangeStatus(message, severity);
-                });
+                Dispatcher.UIThread.Post(() => MainWindowInstance?.ChangeStatus(message, severity));
             };
 
             AppMain.OnSpawnErrorPopup += (timestamp, gap) =>
@@ -267,17 +267,14 @@ namespace WFInfo.Linux
 
                         AppMain.dataBase = Services.GetRequiredService<Data>();
 
-                        // Wire session-end events (AutoCSV/AutoCount/AutoList)
                         WireSessionEndEvents();
 
                         var tesseract = Services.GetRequiredService<ITesseractService>();
                         var soundPlayer = Services.GetRequiredService<ISoundPlayer>();
                         var settings = Services.GetRequiredService<IReadOnlyApplicationSettings>();
                         var window = Services.GetRequiredService<IWindowInfoService>();
-                        var screenshot = Services.GetRequiredService<IScreenshotService>();
-
                         AppMain.StatusUpdate("Initializing OCR engine...", 0);
-                        OCR.Init(tesseract, soundPlayer, settings, window, screenshot);
+                        OCR.Init(tesseract, soundPlayer, settings, window, _vulkanLayer);
 
                         // Enable auto-detection BEFORE database update (don't gate on network)
                         if (settings.Auto)
@@ -290,11 +287,7 @@ namespace WFInfo.Linux
                             AppMain.AddLog("Auto mode disabled, enable in Settings for automatic reward detection");
                         }
 
-                        AppMain.StatusUpdate("Updating databases...", 0);
-                        await AppMain.dataBase.Update();
-                        AppMain.dataBase.FireReloadEnabled(true);
-
-                        // Restore persisted JWT and reconnect WebSocket for live market updates
+                        // Restore persisted JWT before database update so login state settles immediately
                         try
                         {
                             string storedJwt = WFInfo.Services.EncryptedDataService.LoadStoredJWT();
@@ -322,19 +315,35 @@ namespace WFInfo.Linux
                             AppMain.AddLog($"JWT restore failed: {ex.Message}");
                         }
 
+                        AppMain.StatusUpdate("Updating databases...", 0);
+                        await AppMain.dataBase.Update();
+                        AppMain.dataBase.FireReloadEnabled(true);
+
                         WireInputListener(settings);
 
-                        AppMain.StatusUpdate("WFInfo ready!", 0);
+                        var processFinder = Services.GetRequiredService<IProcessFinder>();
+                        if (processFinder.IsRunning && _vulkanLayer != null && !_vulkanLayer.IsConnected && !_vulkanLayer.IsAvailable)
+                        {
+                            AppMain.StatusUpdate("Vulkan layer not connected, add WFINFO=1 to game launch options", 1);
+                            AppMain.AddLog("WFInfo initialized but Vulkan layer not available, overlay system won't work");
+                        }
+                        else if (_vulkanLayer?.IsStale == true)
+                        {
+                            AppMain.StatusUpdate("Vulkan layer outdated, restart Warframe to apply updates", 1);
+                        }
+                        else
+                        {
+                            AppMain.StatusUpdate("WFInfo Initialization Complete", 0);
+                        }
                         AppMain.AddLog("WFInfo Linux initialized successfully");
-                        AppMain.AddLog("Tip: Use the Scan button in the sidebar if global hotkeys are unavailable");
-
-                        UpdateDialogue.CheckForUpdates();
                     }
                     catch (Exception ex)
                     {
                         AppMain.AddLog($"Initialization failed: {ex}");
                         AppMain.StatusUpdate("Initialization failed, check logs", 1);
                     }
+
+                    UpdateDialogue.CheckForUpdates();
                 });
             }
 
@@ -350,16 +359,16 @@ namespace WFInfo.Linux
             {
                 AppMain.AddLog($"OnRewardDisplay fired: part={partNumber}, name={name}, plat={plat}, ducats={ducats}, display={settings.Display}");
 
+                if (partNumber == 0)
+                    _rewardData.Clear();
+
                 _rewardData[partNumber] = (name, plat ?? "0", setPlat, ducats ?? "0", volume ?? "", owned ?? "", vaulted, mastered, hideInfo, snapIt, highlight);
 
                 if (settings.Display == Display.Window)
                 {
-                    if (_nativeOverlay != null && _nativeOverlay.IsAvailable)
-                    {
-                        _nativeOverlay.ShowRewardWindowPart(partNumber, name, plat ?? "0",
-                            ducats ?? "0", owned ?? "", vaulted, mastered, false,
-                            volume ?? "", setPlat ?? "", hideInfo, settings.HighContrast, highlight);
-                    }
+                    RewardWindow.Instance.LoadPart(partNumber, name, plat ?? "0",
+                        setPlat ?? "", ducats ?? "0", volume ?? "", vaulted, mastered,
+                        owned ?? "", hideInfo, highlight);
                 }
             };
 
@@ -371,7 +380,7 @@ namespace WFInfo.Linux
                     return;
 
                 if (partNumber == 0)
-                    _nativeOverlay?.HideRewardWindow();
+                    Dispatcher.UIThread.Post(() => RewardWindow.DismissIfOpen());
 
                 if (!_rewardData.TryGetValue(partNumber, out var data))
                 {
@@ -379,40 +388,32 @@ namespace WFInfo.Linux
                     return;
                 }
 
-                if (_nativeOverlay != null && _nativeOverlay.IsAvailable)
-                {
-                    int overlayH = (int)(width * 160.0 / 243.0);
-                    _nativeOverlay.ShowOverlay(partNumber, x, y, width, overlayH,
-                        data.name, data.plat, data.ducats, data.owned, data.vaulted,
-                        volume: data.volume, setPlat: data.setPlat, mastered: data.mastered,
-                        warning: data.warning, highlight: data.highlight, delay: delay,
-                        hideInfo: data.hideInfo, highContrast: settings.HighContrast);
-                }
+                int overlayH = (int)(width * 160.0 / 243.0);
+                _vulkanLayer?.ShowOverlay(partNumber, x, y, width, overlayH,
+                    data.name, data.plat, data.ducats, data.owned, data.vaulted,
+                    volume: data.volume, setPlat: data.setPlat, mastered: data.mastered,
+                    warning: data.warning, highlight: data.highlight, delay: delay,
+                    hideInfo: data.hideInfo, highContrast: settings.HighContrast);
             };
 
-            // Wire snap-it events, always use native overlay on Wayland
-            // (SnapIt results are positional overlays regardless of Display mode)
+            // SnapIt overlays, shown regardless of Display mode
             OCR.OnSnapItRewardDisplay += (name, plat, setPlat, ducats, volume, vaulted, mastered,
                 owned, partsDetected, hideInfo, warning, width, x, y) =>
             {
-                if (_nativeOverlay != null && _nativeOverlay.IsAvailable)
-                {
-                    int panelId = _nextSnapItPanelId++;
-                    if (_nextSnapItPanelId >= 68) _nextSnapItPanelId = 4;
-                    var windowSvc = Services.GetRequiredService<IWindowInfoService>();
-                    double dpiScale = windowSvc.DpiScaling;
-                    int snapW = (int)(width / dpiScale);
-                    int snapH = (int)(snapW * 160.0 / 243.0);
-                    _nativeOverlay.ShowOverlay(panelId, x, y, snapW, snapH,
-                        name, plat, ducats, owned, vaulted,
-                        volume: volume, setPlat: setPlat, mastered: mastered,
-                        warning: warning, snapit: true,
-                        minEff: settings.MinimumEfficiencyValue,
-                        maxEff: settings.MaximumEfficiencyValue,
-                        delay: settings.SnapItDelay,
-                        hideInfo: hideInfo, highContrast: settings.HighContrast,
-                        detected: partsDetected);
-                }
+                int panelId = _nextSnapItPanelId++;
+                if (_nextSnapItPanelId >= 68) _nextSnapItPanelId = 4; // wrap around, max 64 snap-it panels
+                int snapW = width;
+                int snapH = (int)(snapW * 160.0 / 243.0);
+
+                _vulkanLayer?.ShowOverlay(panelId, x, y, snapW, snapH,
+                    name, plat, ducats, owned, vaulted,
+                    volume: volume, setPlat: setPlat, mastered: mastered,
+                    warning: warning, snapit: true,
+                    minEff: settings.MinimumEfficiencyValue,
+                    maxEff: settings.MaximumEfficiencyValue,
+                    delay: settings.SnapItDelay,
+                    hideInfo: hideInfo, highContrast: settings.HighContrast,
+                    detected: partsDetected);
             };
 
             OCR.OnSnapItVerifyCount += (items) =>
@@ -429,7 +430,7 @@ namespace WFInfo.Linux
             OCR.OnRewardsDoneDisplaying += () =>
             {
                 if (settings.Display == Display.Window)
-                    _nativeOverlay?.CommitRewardWindow();
+                    RewardWindow.Instance.FinalizeDisplay();
             };
 
             OCR.OnClipboardCopy += (text) =>
@@ -469,7 +470,7 @@ namespace WFInfo.Linux
                     if (_snapItActive)
                     {
                         _snapItActive = false;
-                        _nativeOverlay?.CancelSnapIt();
+                        _vulkanLayer?.CancelSnapIt();
                         return;
                     }
 
@@ -495,7 +496,8 @@ namespace WFInfo.Linux
                         if (inputListener.IsKeyHeld(VirtualKey.Delete))
                         {
                             AppMain.AddLog("Delete + activation: dismissing overlays");
-                            _nativeOverlay?.HideAll();
+                            HideNativeOverlays();
+                            Dispatcher.UIThread.Post(() => RewardWindow.DismissIfOpen());
                             _nativeRewardsDisplaying = false;
                             AppMain.StatusUpdate("Overlays dismissed", 1);
                             return;
@@ -551,7 +553,7 @@ namespace WFInfo.Linux
                             Task.Run(() =>
                             {
                                 var screenshot = OCR.CaptureScreenshot();
-                                if (screenshot == null) { AppMain.StatusUpdate("Screenshot failed", 1); return; }
+                                if (screenshot == null) { if (_vulkanLayer?.IsStale != true) AppMain.StatusUpdate("Screenshot failed", 1); return; }
                                 using (screenshot) { OCR.ProcessProfileScreen(screenshot); }
                             });
                             return;
@@ -607,7 +609,7 @@ namespace WFInfo.Linux
                         {
                             try
                             {
-                                var cursorPos = GetX11CursorPosition();
+                                var cursorPos = GetCursorPosition();
                                 if (cursorPos == null) return;
                                 int index = OCR.GetSelectedReward(cursorPos.Value.X, cursorPos.Value.Y);
                                 AppMain.AddLog("Chosen reward index: " + index);
@@ -726,7 +728,7 @@ namespace WFInfo.Linux
                     Task.Run(() =>
                     {
                         var screenshot = OCR.CaptureScreenshot();
-                        if (screenshot == null) { AppMain.StatusUpdate("Screenshot failed", 1); return; }
+                        if (screenshot == null) { if (_vulkanLayer?.IsStale != true) AppMain.StatusUpdate("Screenshot failed", 1); return; }
                         using (screenshot) { OCR.ProcessProfileScreen(screenshot); }
                     });
                     break;
@@ -753,7 +755,6 @@ namespace WFInfo.Linux
                 {
                     AppMain.AddLog($"Session end: AutoCSV={settings.AutoCSV}, AutoCount={settings.AutoCount}, AutoList={settings.AutoList}");
 
-                    // ═══ AutoCSV ═══
                     if (settings.AutoCSV)
                     {
                         try
@@ -799,7 +800,6 @@ namespace WFInfo.Linux
                         }
                     }
 
-                    // ═══ AutoCount ═══
                     if (settings.AutoCount)
                     {
                         Dispatcher.UIThread.Post(() =>
@@ -810,12 +810,14 @@ namespace WFInfo.Linux
                                 _autoCountWindow.Closed += (_, _) => _autoCountWindow = null;
                             }
                             _autoCountWindow.AddRewards(rewards, selectedIdx);
-                            _autoCountWindow.Show();
-                            _autoCountWindow.Activate();
+                            if (!_autoCountWindow.IsVisible)
+                            {
+                                _autoCountWindow.Show();
+                                _autoCountWindow.Activate();
+                            }
                         });
                     }
 
-                    // ═══ AutoList ═══
                     if (settings.AutoList)
                     {
                         bool jwtOk = AppMain.dataBase.IsJwtLoggedIn() && await AppMain.dataBase.IsJWTvalid();
@@ -862,7 +864,7 @@ namespace WFInfo.Linux
 
         /// <summary>
         /// Show the listing helper window with the given rewards.
-        /// Called from SearchIt to open integrated listing (WPF parity).
+        /// Called from SearchIt to open integrated listing.
         /// </summary>
         public static void ShowListingHelper(List<List<string>> rewards, short selectedIdx)
         {
@@ -891,13 +893,13 @@ namespace WFInfo.Linux
 
         private void TrayWiki_Click(object sender, EventArgs e)
         {
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://wfinfo.github.io/") { UseShellExecute = true }); }
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://wfinfo.warframestat.us/") { UseShellExecute = true }); }
             catch { }
         }
 
         private void TrayBugs_Click(object sender, EventArgs e)
         {
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/WFCD/WFinfo/issues") { UseShellExecute = true }); }
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/wuuthradd/WFInfo-Linux/issues") { UseShellExecute = true }); }
             catch { }
         }
 
@@ -939,7 +941,82 @@ namespace WFInfo.Linux
 
         private static void CleanupOverlays()
         {
-            _nativeOverlay?.Dispose();
+            _vulkanLayer?.Dispose();
+        }
+
+        /// <summary>Install the Vulkan implicit layer .so and manifest to user-local paths.</summary>
+        private static void InstallVulkanLayer(ILogger logger)
+        {
+            try
+            {
+                string layerSo = FindLayerFile("libwfinfo_vk.so");
+                string layerJson = FindLayerFile("wfinfo_vk.json");
+                if (layerSo == null || layerJson == null)
+                {
+                    logger.AddLog("VulkanLayer: layer files not found, skipping install");
+                    return;
+                }
+
+                string installDir = PlatformPaths.AppDataPath;
+                string installedSo = Path.Combine(installDir, "libwfinfo_vk.so");
+
+                if (!File.Exists(installedSo) || !FilesEqual(layerSo, installedSo))
+                {
+                    Directory.CreateDirectory(installDir);
+                    // Atomic replace: copy to temp then rename so a running game
+                    // keeps the old inode mapped and new launches get the new file.
+                    string tmpSo = installedSo + ".tmp";
+                    File.Copy(layerSo, tmpSo, overwrite: true);
+                    File.Move(tmpSo, installedSo, overwrite: true);
+                    logger.AddLog("VulkanLayer: installed libwfinfo_vk.so");
+                }
+
+                string localDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "vulkan", "implicit_layer.d");
+                Directory.CreateDirectory(localDir);
+                string localManifest = Path.Combine(localDir, "wfinfo_vk.json");
+
+                string manifest = File.ReadAllText(layerJson)
+                    .Replace("\"./libwfinfo_vk.so\"", $"\"{installedSo}\"");
+
+                if (!File.Exists(localManifest) || File.ReadAllText(localManifest) != manifest)
+                {
+                    File.WriteAllText(localManifest, manifest);
+                    logger.AddLog($"VulkanLayer: installed manifest to {localManifest}");
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.AddLog($"VulkanLayer: install failed: {ex.Message}");
+            }
+        }
+
+        private static string FindLayerFile(string name)
+        {
+            string baseDir = AppContext.BaseDirectory;
+            foreach (string candidate in new[] {
+                Path.Combine(baseDir, name),
+                Path.Combine(baseDir, "..", "lib", name),
+                Path.Combine(baseDir, "..", "..", "..", "..", "WFInfo.Linux", "NativeOverlay", name),
+            })
+            {
+                if (File.Exists(candidate)) return Path.GetFullPath(candidate);
+            }
+            return null;
+        }
+
+        private static bool FilesEqual(string a, string b)
+        {
+            using var ha = SHA256.Create();
+            using var fa = File.OpenRead(a);
+            using var fb = File.OpenRead(b);
+            byte[] da = ha.ComputeHash(fa);
+            byte[] db = ha.ComputeHash(fb);
+            if (da.Length != db.Length) return false;
+            for (int i = 0; i < da.Length; i++)
+                if (da[i] != db[i]) return false;
+            return true;
         }
 
         private static void CollectStartupDebugInfo()
@@ -948,7 +1025,6 @@ namespace WFInfo.Linux
             {
                 AppMain.AddLog("=== System Info ===");
 
-                // Linux distro
                 if (File.Exists("/etc/os-release"))
                 {
                     foreach (var line in File.ReadAllLines("/etc/os-release"))
@@ -961,10 +1037,8 @@ namespace WFInfo.Linux
                     }
                 }
 
-                // Kernel
                 AppMain.AddLog("Kernel: " + System.Runtime.InteropServices.RuntimeInformation.OSDescription);
 
-                // CPU
                 if (File.Exists("/proc/cpuinfo"))
                 {
                     foreach (var line in File.ReadAllLines("/proc/cpuinfo"))
@@ -977,16 +1051,13 @@ namespace WFInfo.Linux
                     }
                 }
 
-                // .NET runtime
                 AppMain.AddLog("Runtime: " + System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
 
-                // Display server
                 string waylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
                 string x11Display = Environment.GetEnvironmentVariable("DISPLAY");
                 string sessionType = Environment.GetEnvironmentVariable("XDG_SESSION_TYPE");
                 AppMain.AddLog($"Display: session={sessionType ?? "?"}, WAYLAND_DISPLAY={waylandDisplay ?? "(none)"}, DISPLAY={x11Display ?? "(none)"}");
 
-                // Desktop environment
                 string de = Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP");
                 if (!string.IsNullOrEmpty(de))
                     AppMain.AddLog("Desktop: " + de);
@@ -1180,24 +1251,14 @@ namespace WFInfo.Linux
             }
         }
 
-        private static PixelPoint? GetX11CursorPosition()
+        private static PixelPoint? GetCursorPosition()
         {
-            try
-            {
-                IntPtr display = X11Interop.SharedDisplay;
-                if (display == IntPtr.Zero) return null;
-
-                IntPtr rootWindow = X11Interop.XDefaultRootWindow(display);
-                if (X11Interop.XQueryPointer(display, rootWindow,
-                    out _, out _,
-                    out int rootX, out int rootY,
-                    out _, out _, out _))
-                {
-                    return new PixelPoint(rootX, rootY);
-                }
-                return null;
-            }
-            catch { return null; }
+            // Query cursor via DBMON bridge
+            var logCapture = Services?.GetService<ILogCapture>() as FileLogCapture;
+            var pos = logCapture?.QueryCursorPosition();
+            if (pos == null)
+                AppMain.AddLog("Cursor query failed: DBMON did not respond");
+            return pos;
         }
     }
 }

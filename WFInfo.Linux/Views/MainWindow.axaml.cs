@@ -18,7 +18,7 @@ namespace WFInfo.Linux.Views
         private RelicsWindow _relicsWindow;
         private EquipmentWindow _equipmentWindow;
         private bool _dataEventsWired = false;
-        private bool _updateSuppression = false; // Suppress ComboBox events during programmatic updates
+        private bool _updateSuppression = false;
 
         public MainWindow()
         {
@@ -32,11 +32,15 @@ namespace WFInfo.Linux.Views
                 Opened += (_, _) =>
                 {
                     var welcome = new WelcomeDialogue();
-                    var s = DesktopScaling;
-                    welcome.Position = new Avalonia.PixelPoint(
-                        (int)(Position.X + Width * s + 30 * s),
-                        (int)(Position.Y + Height * s / 2 - welcome.Height * s / 2));
                     welcome.Show();
+                    async void PlaceLeft()
+                    {
+                        await System.Threading.Tasks.Task.Delay(200);
+                        welcome.Position = new Avalonia.PixelPoint(
+                            Math.Max(0, Position.X - (int)(welcome.Bounds.Width * DesktopScaling)),
+                            Position.Y);
+                    }
+                    PlaceLeft();
                 };
             }
 
@@ -69,7 +73,6 @@ namespace WFInfo.Linux.Views
                 Dispatcher.UIThread.Post(() => UpdateMarketStatus(status));
             };
 
-            // Enable login button once data is loaded
             Dispatcher.UIThread.Post(() => LoginBtn.IsEnabled = true);
 
             _dataEventsWired = true;
@@ -196,7 +199,7 @@ namespace WFInfo.Linux.Views
                         _settingsWindow.Hide();
                     };
                 }
-                // WPF: Settings snaps directly below MainWindow, left-aligned
+                // Position settings window directly below main window
                 _settingsWindow.Position = new Avalonia.PixelPoint(
                     Position.X,
                     (int)(Position.Y + Bounds.Height * DesktopScaling));
@@ -243,7 +246,15 @@ namespace WFInfo.Linux.Views
         public void LoggedIn()
         {
             LoginBtn.IsVisible = false;
-            StatusCombo.SelectedIndex = 1; // "Online" default
+            var settings = ApplicationSettings.GlobalReadonlySettings;
+            string saved = settings.ManualMarketStatus ? (settings.MarketStatus ?? "ingame") : "ingame";
+            switch (saved)
+            {
+                case "ingame": StatusCombo.SelectedIndex = 0; break;
+                case "online": StatusCombo.SelectedIndex = 1; break;
+                case "invisible": StatusCombo.SelectedIndex = 2; break;
+                default: StatusCombo.SelectedIndex = 0; break;
+            }
             StatusCombo.IsVisible = true;
             CreateListingBtn.IsVisible = true;
             PlusOneBtn.IsVisible = true;
@@ -297,7 +308,7 @@ namespace WFInfo.Linux.Views
                 var settings = ApplicationSettings.GlobalSettings;
                 settings.MarketStatus = status;
                 settings.Save();
-                Task.Run(async () => await AppMain.dataBase.SetWebsocketStatus(status));
+                Task.Run(async () => await AppMain.dataBase?.SetWebsocketStatus(status));
             }
 
             switch (StatusCombo.SelectedIndex)

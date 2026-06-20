@@ -147,9 +147,14 @@ namespace WFInfo.Linux.Services
                 UseShellExecute = false,
                 RedirectStandardError = true
             };
-            var proc = Process.Start(psi);
-            proc?.WaitForExit();
-            if (proc?.ExitCode != 0)
+            using var proc = Process.Start(psi);
+            if (proc == null)
+            {
+                try { Directory.Delete(stagingDir, true); } catch { }
+                return "Failed to start tar process";
+            }
+            proc.WaitForExit();
+            if (proc.ExitCode != 0)
             {
                 try { Directory.Delete(stagingDir, true); } catch { }
                 return "Failed to extract update archive";
@@ -183,10 +188,12 @@ namespace WFInfo.Linux.Services
                     UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
                     UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
                     UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
-                File.SetUnixFileMode(Path.Combine(libDir, "WFInfo.Linux"),
-                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-                    UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
-                    UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+                string mainBinary = Path.Combine(libDir, "WFInfo.Linux");
+                if (File.Exists(mainBinary))
+                    File.SetUnixFileMode(mainBinary,
+                        UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                        UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                        UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
             }
             catch
             {

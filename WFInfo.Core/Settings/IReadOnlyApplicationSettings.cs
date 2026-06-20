@@ -8,7 +8,6 @@ namespace WFInfo.Settings
     public interface IReadOnlyApplicationSettings
     {
         Display Display { get; }
-        bool IsOverlaySelected { get; }
         bool IsLightSelected { get; }
         string ActivationKey { get; }
         VirtualKey? ActivationKeyKey { get; }

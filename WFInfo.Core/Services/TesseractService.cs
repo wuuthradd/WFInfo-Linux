@@ -168,9 +168,7 @@ namespace WFInfo.Services
         {
             string exeDir = AppContext.BaseDirectory;
 
-            // Check if exe directory is writable (AppImage mounts read-only SquashFS).
-            // Can't just try Directory.CreateDirectory - x64/ may already exist from
-            // Tesseract NuGet's bundled Windows DLLs, which succeeds even on read-only fs.
+            // Check if exe directory is writable (AppImage mounts read-only SquashFS)
             bool exeDirWritable = false;
             try
             {

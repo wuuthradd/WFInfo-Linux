@@ -6,26 +6,24 @@
         Background="#FF1B1B1B"
         WindowStartupLocation="CenterScreen">
 
-    <Grid PointerPressed="OnPointerPressed">
+    <Grid>
         <Border BorderBrush="#FF707070" BorderThickness="1">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="26"/>
+                    <RowDefinition Height="23"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
                 <!-- Title bar -->
-                <Grid Background="#FF0F0F0F">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0,0,0">
-                        <Image Source="avares://WFInfo.Linux/Resources/WFLogo.png" Height="20" Width="20" Margin="0,0,4,0"/>
-                        <TextBlock Text="New Update Available" FontSize="14" FontWeight="Bold"
-                                   FontFamily="{StaticResource RobotoBlack}" Foreground="#FFB1D0D9"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
-                    <Button Content="x" Click="CloseClick"
+                <Grid Background="#FF0F0F0F" PointerPressed="OnPointerPressed">
+                    <Image Source="avares://WFInfo.Linux/Resources/WFLogo.png" Height="20" Width="20" Margin="2,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                    <TextBlock Text="New Update Available" Margin="28,1,0,0" FontSize="14" FontWeight="Bold"
+                               FontFamily="{StaticResource RobotoBlack}" Foreground="#FFB1D0D9"
+                               VerticalAlignment="Center"/>
+                    <Rectangle Fill="#FF646464" Width="1" Margin="0,0,22,0" Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" />
+                    <Button Content="x" Click="CloseClick" Classes="linkButton"
                             HorizontalAlignment="Right" VerticalAlignment="Center"
-                            Background="Transparent" Foreground="#FFB1D0D9"
-                            Width="26" Height="26" FontSize="12"
+                            Width="22" Height="22"
                             HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
                     <Rectangle Fill="#FF646464" Height="1" VerticalAlignment="Bottom" />
                 </Grid>
@@ -34,17 +32,17 @@
                 <StackPanel Grid.Row="1" Margin="17,10,17,10">
                     <TextBlock x:Name="NewVersionText" Text="WFInfo version X.X.X has been released!"
                                FontWeight="Bold" FontFamily="{StaticResource RobotoBlack}"
-                               Foreground="#FFB1D0D9"/>
+                               FontSize="13" Foreground="#FFB1D0D9"/>
                     <TextBlock x:Name="OldVersionText" Text="You have version X.X.X installed."
-                               Foreground="#FFB1D0D9" Margin="0,4,0,0"/>
+                               FontSize="13" Foreground="#FFB1D0D9" Margin="0,4,0,0"/>
 
                     <TextBlock Text="Release Notes:" FontWeight="Bold"
                                FontFamily="{StaticResource RobotoBlack}"
-                               Foreground="#FFB1D0D9" Margin="0,14,0,4"/>
+                               FontSize="13" Foreground="#FFB1D0D9" Margin="0,14,0,4"/>
 
                     <Border BorderBrush="#FF646464" BorderThickness="1" Height="160">
-                        <ScrollViewer Padding="5">
-                            <StackPanel x:Name="ReleaseNotes"/>
+                        <ScrollViewer>
+                            <StackPanel x:Name="ReleaseNotes" Margin="6,4,18,4" />
                         </ScrollViewer>
                     </Border>
 

@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="WFInfo.Linux.Views.ListingHelperWindow"
-        Title="WFInfo - Auto List"
+        Title="ListingHelper"
         Width="380" Height="340"
         MinWidth="380" MinHeight="300"
         WindowStartupLocation="CenterScreen"
@@ -9,21 +9,24 @@
         Background="#FF1B1B1B">
 
     <Border BorderBrush="#FF707070" BorderThickness="1">
-    <Grid RowDefinitions="22,Auto,Auto,*,Auto,Auto" PointerPressed="OnPointerPressed">
+    <Grid RowDefinitions="23,Auto,Auto,*,Auto,Auto" PointerPressed="OnPointerPressed">
         <!-- Title bar -->
         <Grid Grid.Row="0">
-            <Rectangle Fill="#FF0F0F0F" Stroke="#FF646464" />
+            <Rectangle Fill="#FF0F0F0F" />
             <Image Margin="2,0,0,0" Source="avares://WFInfo.Linux/Resources/WFLogo.png"
                    Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Width="18" />
             <TextBlock Text="Auto List" Margin="24,1,0,0" FontSize="14" FontWeight="Bold"
                        FontFamily="{StaticResource RobotoBlack}"
                        VerticalAlignment="Center" />
+            <Rectangle Fill="#FF646464" Width="1" Margin="0,0,43,0" Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" />
             <Button Content="_" Click="Minimize_Click" Classes="linkButton"
-                    Height="22" HorizontalAlignment="Right" Width="44"
-                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Margin="0,0,22,0" />
+                    Height="22" HorizontalAlignment="Right" Width="22"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Margin="0,0,21,0" />
+            <Rectangle Fill="#FF646464" Width="1" Margin="0,0,21,0" Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" />
             <Button Content="x" Click="Close_Click" Classes="linkButton"
                     Height="22" HorizontalAlignment="Right" Width="22"
                     HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+            <Rectangle Height="1" Fill="#FF646464" VerticalAlignment="Bottom" />
         </Grid>
 
         <!-- Reward selection -->
@@ -41,7 +44,7 @@
 
         <!-- Listings table -->
         <Border x:Name="ListingsBorder" Grid.Row="3" Background="#FF222222" CornerRadius="4" Margin="8,0" Padding="4">
-            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="10">
                 <!-- Header -->
                 <Grid Grid.Row="0" ColumnDefinitions="*,*,*" Margin="0,0,0,4">
                     <TextBlock Text="Platinum" Foreground="#FF888888" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" />

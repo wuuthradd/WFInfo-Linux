@@ -1,0 +1,71 @@
+#version 450
+
+/* Convert A2B10G10R10 PQ (ST.2084 / BT.2020) pixels to B8G8R8A8 sRGB.
+ * Reads raw 10-bit packed pixels from src buffer, writes B8G8R8A8 to dst.
+ * Dispatched as 1D: one invocation per pixel. */
+
+layout(local_size_x = 256) in;
+
+layout(binding = 0) readonly buffer SrcBuf { uint src_pixels[]; };
+layout(binding = 1) writeonly buffer DstBuf { uint dst_pixels[]; };
+
+layout(push_constant) uniform PC {
+    uint pixel_count;
+    uint is_abgr;   /* 1 for A2B10G10R10, 0 for A2R10G10B10 */
+};
+
+/* PQ EOTF constants (ITU-R BT.2100) */
+const float m1 = 0.1593017578125;
+const float m2 = 78.84375;
+const float c1 = 0.8359375;
+const float c2 = 18.8515625;
+const float c3 = 18.6875;
+
+float pq_eotf(float N)
+{
+    float Np = pow(N, 1.0 / m2);
+    float num = max(Np - c1, 0.0);
+    float den = max(c2 - c3 * Np, 1e-12);
+    return pow(num / den, 1.0 / m1) * 10000.0;
+}
+
+float srgb_oetf(float v)
+{
+    if (v <= 0.0031308)
+        return v * 12.92;
+    return 1.055 * pow(v, 1.0 / 2.4) - 0.055;
+}
+
+void main()
+{
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= pixel_count) return;
+
+    uint p = src_pixels[idx];
+    uint c0 = (p >>  0) & 0x3FFu;
+    uint c1v = (p >> 10) & 0x3FFu;
+    uint c2v = (p >> 20) & 0x3FFu;
+
+    /* PQ EOTF: 10-bit code to linear nits (BT.2020 primaries) */
+    float lr = pq_eotf(float(is_abgr != 0u ? c0 : c2v) / 1023.0);
+    float lg = pq_eotf(float(c1v) / 1023.0);
+    float lb = pq_eotf(float(is_abgr != 0u ? c2v : c0) / 1023.0);
+
+    /* BT.2020 to BT.709 gamut conversion */
+    float sr =  1.6605 * lr - 0.5876 * lg - 0.0728 * lb;
+    float sg = -0.1246 * lr + 1.1329 * lg - 0.0083 * lb;
+    float sb = -0.0182 * lr - 0.1006 * lg + 1.1187 * lb;
+
+    /* Normalize by 203 nits SDR reference white, clamp */
+    sr = clamp(sr / 203.0, 0.0, 1.0);
+    sg = clamp(sg / 203.0, 0.0, 1.0);
+    sb = clamp(sb / 203.0, 0.0, 1.0);
+
+    /* sRGB OETF */
+    uint r8 = clamp(uint(srgb_oetf(sr) * 255.0 + 0.5), 0u, 255u);
+    uint g8 = clamp(uint(srgb_oetf(sg) * 255.0 + 0.5), 0u, 255u);
+    uint b8 = clamp(uint(srgb_oetf(sb) * 255.0 + 0.5), 0u, 255u);
+
+    /* B8G8R8A8 packing */
+    dst_pixels[idx] = b8 | (g8 << 8u) | (r8 << 16u) | (0xFFu << 24u);
+}

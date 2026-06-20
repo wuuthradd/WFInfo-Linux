@@ -29,8 +29,6 @@ namespace WFInfo.Settings
         public bool Initialized { get; set; } = false;
         public Display Display { get; set; } = Display.Overlay;
         [JsonIgnore]
-        public bool IsOverlaySelected => Display == Display.Overlay;
-        [JsonIgnore]
         public bool IsLightSelected => Display == Display.Light;
         public string ActivationKey { get; set; } = "PrintScreen";
         [JsonIgnore]
@@ -114,7 +112,6 @@ namespace WFInfo.Settings
         public string IgnoredUpdate { get; set; } = null;
         public bool ManualMarketStatus { get; set; } = false;
         public string MarketStatus { get; set; } = "ingame";
-
         public void Load()
         {
             try

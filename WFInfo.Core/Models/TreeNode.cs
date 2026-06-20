@@ -88,6 +88,7 @@ namespace WFInfo
 
     public class TreeNode : INPC
     {
+        // Warframe relic drop probabilities per refinement tier
         private const double INTACT_CHANCE_RARE = 0.02;
         private const double RADIANT_CHANCE_RARE = 0.1;
         private const double INTACT_CHANCE_UNCOMMON = 0.11;
@@ -95,16 +96,16 @@ namespace WFInfo
         private const double INTACT_CHANCE_COMMON = 0.2533;
         private const double RADIANT_CHANCE_COMMON = 0.1667;
 
-        // Image keys (resource paths) replacing WPF ImageSource
+        // Image keys (resource paths)
         private static string PLAT_SRC = "plat";
         private static string DUCAT_SRC = "ducat_w";
 
-        // Colors as (R,G,B) bytes replacing WPF Color
+        // Colors as (R,G,B) bytes
         public static (byte R, byte G, byte B) RARE_COLOR = (255, 215, 0);
         public static (byte R, byte G, byte B) UNCOMMON_COLOR = (192, 192, 192);
         public static (byte R, byte G, byte B) COMMON_COLOR = (205, 127, 50);
 
-        // Hex color strings replacing WPF Brush
+        // Hex color strings
         public static string RARE_HEX = "#FFD700";
         public static string UNCOMMON_HEX = "#C0C0C0";
         public static string COMMON_HEX = "#CD7F32";

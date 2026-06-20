@@ -12,8 +12,8 @@ namespace WFInfo.Linux.Services
     {
         private readonly string _socketPath;
         private readonly ILogger _logger;
-        private readonly CancellationTokenSource _cts = new();
         private Socket _listener;
+        private volatile bool _stopping;
 
         public event Action<string> OnCommand;
 
@@ -52,7 +52,7 @@ namespace WFInfo.Linux.Services
                 }
                 catch { }
 
-                Task.Factory.StartNew(AcceptLoop, _cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                Task.Factory.StartNew(AcceptLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
                 _logger.AddLog($"SocketCommandServer: listening on {_socketPath}");
             }
             catch (Exception ex)
@@ -63,7 +63,7 @@ namespace WFInfo.Linux.Services
 
         private void AcceptLoop()
         {
-            while (!_cts.IsCancellationRequested)
+            while (!_stopping)
             {
                 Socket client = null;
                 try
@@ -81,7 +81,7 @@ namespace WFInfo.Linux.Services
                         }
                     }
                 }
-                catch (SocketException) when (_cts.IsCancellationRequested)
+                catch (SocketException) when (_stopping)
                 {
                     break;
                 }
@@ -91,7 +91,7 @@ namespace WFInfo.Linux.Services
                 }
                 catch (Exception ex)
                 {
-                    if (!_cts.IsCancellationRequested)
+                    if (!_stopping)
                         _logger.AddLog($"SocketCommandServer: error handling connection: {ex.Message}");
                 }
                 finally
@@ -103,10 +103,9 @@ namespace WFInfo.Linux.Services
 
         public void Dispose()
         {
-            _cts.Cancel();
+            _stopping = true;
             try { _listener?.Close(); } catch { }
             try { if (File.Exists(_socketPath)) File.Delete(_socketPath); } catch { }
-            _cts.Dispose();
         }
     }
 }

@@ -8,11 +8,6 @@ namespace WFInfo.Services.WindowInfo
     public interface IWindowInfoService
     {
         /// <summary>
-        /// Gets the DPI scaling factor.
-        /// </summary>
-        double DpiScaling { get; }
-
-        /// <summary>
         /// Gets the screen resolution scaling factor.
         /// </summary>
         double ScreenScaling { get; }

@@ -55,7 +55,7 @@ namespace WFInfo
         private ILogCapture _logCapture;
         private Task autoThread;
 
-        // Reward tracking for AutoCSV/AutoCount/AutoList (mirrors WPF ListingHelper)
+        // Reward tracking for AutoCSV/AutoCount/AutoList
         public List<List<string>> PrimeRewards { get; } = new();
         public short SelectedRewardIndex { get; set; } = 0;
         private readonly object _rewardsLock = new object();
@@ -74,6 +74,7 @@ namespace WFInfo
         private volatile bool _intentionalDisconnect = false;
         private volatile bool _reconnectionInProgress = false;
         private int _reconnectionAttempts = 0;
+        // Exponential backoff delays (ms) for WebSocket reconnection
         private readonly int[] _reconnectionDelays = { 1000, 2000, 4000, 8000, 15000, 30000 };
 
         private readonly object _reconnectionLock = new object();
@@ -119,7 +120,7 @@ namespace WFInfo
                 proxy = new WebProxy(new Uri(proxy_string));
 
             HttpClientHandler handler = new HttpClientHandler { Proxy = proxy, UseCookies = false };
-            client = new HttpClient(handler);
+            client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(15) };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("WFInfo/" + AppMain.BuildVersion);
 
             OCR.OnRewardsProcessed += OnRewardsProcessed;
@@ -129,7 +130,7 @@ namespace WFInfo
         {
             if (_logCapture != null)
             {
-                _logCapture.TextChanged -= LogChanged;  // Guard against double-subscribe
+                _logCapture.TextChanged -= LogChanged;  // Prevent double-subscribe
                 _logCapture.TextChanged += LogChanged;
                 AppMain.AddLog("Data: LogCapture subscribed (auto-detection active)");
             }
@@ -169,7 +170,7 @@ namespace WFInfo
 
         public bool IsJwtLoggedIn()
         {
-            // Valid WFM JWT tokens are >300 chars; shorter strings indicate invalid/partial tokens
+            // WFM JWT tokens are >300 chars
             return JWT != null && JWT.Length > 300;
         }
 
@@ -281,7 +282,7 @@ namespace WFInfo
             JObject stats = new JObject { { "avg_price", 999 }, { "volume", 0 } };
             try
             {
-                await Task.Delay(333); // rate-limit WFM API calls
+                await Task.Delay(333); // rate-limit WFM API (~3 req/sec)
                 string statsResponse = await client.GetStringAsync("https://api.warframe.market/v1/items/" + url + "/statistics");
                 JObject allStats = JsonConvert.DeserializeObject<JObject>(statsResponse);
                 JToken latestStats = allStats["payload"]["statistics_closed"]["90days"].LastOrDefault();
@@ -292,7 +293,7 @@ namespace WFInfo
             string ducat = "0";
             try
             {
-                await Task.Delay(333);
+                await Task.Delay(333); // rate-limit WFM API (~3 req/sec)
                 string itemResponse = await client.GetStringAsync("https://api.warframe.market/v2/item/" + url);
                 JObject responseJObject = JsonConvert.DeserializeObject<JObject>(itemResponse);
                 if (responseJObject["data"].ToObject<JObject>().TryGetValue("ducats", out JToken temp))
@@ -535,11 +536,24 @@ namespace WFInfo
                         missing.Add((itemName, itemUrl));
                 }
             }
-            foreach (var m in missing)
+            var tradeable = missing.Where(m => !IsItemUntradeable(allFiltered.Data, m.Name)).ToList();
+            if (tradeable.Count > 0)
             {
-                if (IsItemUntradeable(allFiltered.Data, m.Name)) continue;
-                AppMain.AddLog("Load missing market item: " + m.Name);
-                newMarketData[m.Name] = await LoadMarketItem(m.Url);
+                var semaphore = new SemaphoreSlim(3);
+                var tasks = tradeable.Select(async m =>
+                {
+                    await semaphore.WaitAsync();
+                    try
+                    {
+                        AppMain.AddLog("Load missing market item: " + m.Name);
+                        var data = await LoadMarketItem(m.Url);
+                        return (m.Name, data);
+                    }
+                    finally { semaphore.Release(); }
+                }).ToList();
+                var results = await Task.WhenAll(tasks);
+                foreach (var (name, data) in results)
+                    newMarketData[name] = data;
             }
 
             var newEquipmentData = (JObject)equipmentData.DeepClone();
@@ -895,7 +909,6 @@ namespace WFInfo
             {
                 if (marketItems == null) return s;
 
-                // Detect locale mismatch and trigger background refresh
                 string cachedLocale = marketItems.TryGetValue("locale", out var localeToken) ? localeToken?.ToString() : null;
                 if (cachedLocale != processor.Culture.Name)
                 {
@@ -951,7 +964,7 @@ namespace WFInfo
                 lock (_rewardsLock)
                 {
                     if (PrimeRewards.Count == 0) return;
-                    // Deep copy: each inner list is already a copy from OnRewardsProcessed
+                    // Inner lists are already copies
                     rewards = new List<List<string>>(PrimeRewards);
                     selectedIdx = SelectedRewardIndex;
                     PrimeRewards.Clear();
@@ -1109,10 +1122,8 @@ namespace WFInfo
                                 string status;
                                 if (_settings?.ManualMarketStatus == true)
                                     status = _settings.MarketStatus ?? "ingame";
-                                else if (_process.IsRunning && !_process.GameIsStreamed)
-                                    status = "ingame";
                                 else
-                                    status = "online";
+                                    status = _process.IsRunning ? "ingame" : "online";
                                 await SetWebsocketStatus(status);
                             }
                             catch (Exception ex)
@@ -1237,7 +1248,7 @@ namespace WFInfo
             {
                 var msg = JsonConvert.DeserializeObject<JObject>(message);
                 var route = msg["route"]?.ToString();
-                var payload = msg["payload"];
+                var payload = msg["payload"] as JObject;
 
                 if (route == "@wfm|cmd/auth/signIn" || route?.Contains("auth") == true)
                 {
@@ -1337,7 +1348,7 @@ namespace WFInfo
             {
                 _intentionalDisconnect = true;
 
-                // Send invisible status while still operational
+                // Set invisible before disconnect
                 if (marketSocket != null && marketSocket.State == WebSocketState.Open && _isWebSocketAuthenticated && IsJwtLoggedIn())
                 {
                     try

@@ -17,27 +17,19 @@ namespace WFInfo.LanguageProcessing
         {
             if (string.IsNullOrEmpty(input)) return input;
 
-            // Basic cleanup for European languages
             string normalized = input.ToLower(_culture).Trim();
-
-            // Add spaces around "Prime" to match database format better
             normalized = normalized.Replace("prime", " prime ");
-
-            // Don't remove accents for European languages since database has accented characters
-            // Remove extra spaces
             var parts = normalized.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             return string.Join(" ", parts);
         }
 
         public override bool IsPartNameValid(string partName)
         {
-            // European languages require minimum of 8 characters
             return !string.IsNullOrEmpty(partName) && partName.Length >= 8;
         }
 
         public override bool ShouldFilterWord(string word)
         {
-            // European languages filter very short words (less than 2 characters)
             return !string.IsNullOrEmpty(word) && word.Length < 2;
         }
 

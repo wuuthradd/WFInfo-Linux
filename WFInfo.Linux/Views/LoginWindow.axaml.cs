@@ -112,7 +112,7 @@ namespace WFInfo.Linux.Views
                 }
                 else
                 {
-                    statusMessage = "Too many requests";
+                    statusMessage = "Login failed: " + msg;
                     statusSeverity = 1;
                 }
 

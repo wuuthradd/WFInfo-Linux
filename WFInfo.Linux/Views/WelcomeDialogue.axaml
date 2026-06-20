@@ -6,22 +6,25 @@
         SystemDecorations="None"
         Background="#FF1B1B1B"
         CanResize="False"
-        WindowStartupLocation="Manual">
+        WindowStartupLocation="CenterScreen">
     <Grid PointerPressed="Grid_PointerPressed">
         <Border BorderBrush="#FF707070" BorderThickness="1">
             <StackPanel>
                 <!-- Title bar -->
-                <Grid Height="26" Background="#FF0F0F0F">
+                <Grid Height="22" Background="#FF0F0F0F">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0,0,0">
                         <Image Source="avares://WFInfo.Linux/Resources/WFLogo.png" Height="20" Width="20" Margin="0,0,4,0"/>
                         <TextBlock Text="WFInfo" FontSize="14" FontWeight="Bold" FontFamily="{StaticResource RobotoBlack}" Foreground="#FFB1D0D9" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <Button Content="x" Click="Exit_Click"
+                    <Rectangle Fill="#FF646464" Width="1" Margin="0,0,22,0" Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" />
+                    <Button Content="x" Click="Exit_Click" Classes="linkButton"
                             HorizontalAlignment="Right" VerticalAlignment="Center"
-                            Background="Transparent" Foreground="#FFB1D0D9"
-                            Width="29" Height="26" FontSize="14"
+                            Height="22" Width="22"
                             HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
                 </Grid>
+
+                <!-- Separator -->
+                <Rectangle Height="1" Fill="#FF646464"/>
 
                 <!-- Welcome text -->
                 <TextBlock Text="Welcome to WFInfo!" FontSize="18"
@@ -31,25 +34,32 @@
                 <!-- Guide text -->
                 <TextBlock TextWrapping="Wrap" Foreground="#FFB1D0D9" FontSize="13"
                            Margin="20,10,20,0" LineHeight="18">
-Here's a quick guide on how to get started
+Here's a quick guide on how to get started</TextBlock>
 
-First go into Settings and verify the following:
-  • Overlay will overlay the results on top of Warframe
-  • Window will make it display elsewhere, like a 2nd monitor
-  • Light will make a sound and copy to clipboard
-  • Activation Key is the key that will trigger the display
+                <StackPanel Orientation="Horizontal" Margin="20,4,20,0">
+                    <TextBlock Text="First go into Settings(" Foreground="#FFB1D0D9" FontSize="13" VerticalAlignment="Center"/>
+                    <Image Source="avares://WFInfo.Linux/Resources/Settings.png" Width="13" Height="13" VerticalAlignment="Center"/>
+                    <TextBlock Text=") and verify the following:" Foreground="#FFB1D0D9" FontSize="13" VerticalAlignment="Center"/>
+                </StackPanel>
 
-Linux-specific notes:
-  • Run with --setup-input for reliable global hotkeys
-  • Warframe runs via Steam Proton (borderless window)
-  • Log out and back in after setup for input group changes
+                <TextBlock TextWrapping="Wrap" Foreground="#FFB1D0D9" FontSize="13"
+                           Margin="20,2,20,0" LineHeight="18">
+* Overlay will overlay the results on top of Warframe
+* Window will make it display elsewhere, like a 2nd monitor
+* Light will make a sound and copy to clipboard
+* Activation Key is the key/mouse press that will trigger the display
 
-After these have been checked, you should be good!
+After all of these have been checked,
+You should be good to use our app!
 
-To use Snap-it, press Ctrl + activation key, then
-drag a rectangle over the items you want to scan.
+If you want to use Snap-it make sure that you have "labels"
+activated in your settings! It is required.
+To activate Snap-it press ctrl + activation key,
+then drag a rectangle over the items you want to scan.
 
-If you need help, we're active in Discord!
+Linux: run with --setup-input for reliable global hotkeys.
+
+If you have any questions or need help, we're active in Discord!
                 </TextBlock>
             </StackPanel>
         </Border>

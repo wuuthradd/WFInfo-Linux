@@ -51,6 +51,7 @@ namespace WFInfo.Linux.Views
 
         private void SaveClick(object sender, RoutedEventArgs e)
         {
+            if (AppMain.dataBase == null) return;
             bool saveFailed = false;
             foreach (var item in _latestSnap)
             {
@@ -84,6 +85,7 @@ namespace WFInfo.Linux.Views
 
         private void BackupClick(object sender, RoutedEventArgs e)
         {
+            if (AppMain.dataBase == null) return;
             string itemPath = Path.Combine(PlatformPaths.AppDataPath, "eqmt_data.json");
             string backupPath = itemPath + ".bak";
 

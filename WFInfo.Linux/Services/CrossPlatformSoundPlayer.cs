@@ -8,9 +8,7 @@ using WFInfo.Services;
 namespace WFInfo.Linux.Services
 {
     /// <summary>
-    /// Cross-platform sound player.
-    /// Linux: uses paplay (PulseAudio) or pw-play (PipeWire)
-    /// Windows: uses System.Media.SoundPlayer equivalent
+    /// Sound player for Linux. Uses pw-play (PipeWire), paplay (PulseAudio), or aplay as fallback.
     /// </summary>
     public class CrossPlatformSoundPlayer : ISoundPlayer, IDisposable
     {
@@ -21,14 +19,20 @@ namespace WFInfo.Linux.Services
         {
             _logger = logger;
 
-            _tempWavPath = Path.Combine(Path.GetTempPath(), "wfinfo_notification.wav");
+            _tempWavPath = Path.Combine(Path.GetTempPath(), $"wfinfo_notification_{Environment.UserName}.wav");
             try
             {
-                if (!File.Exists(_tempWavPath))
+                using var stream = Assembly.GetExecutingAssembly()
+                    .GetManifestResourceStream("WFInfo.Linux.Resources.achievment_03.wav");
+                if (stream != null)
                 {
-                    using var stream = Assembly.GetExecutingAssembly()
-                        .GetManifestResourceStream("WFInfo.Linux.Resources.achievment_03.wav");
-                    if (stream != null)
+                    bool needsExtract = !File.Exists(_tempWavPath);
+                    if (!needsExtract)
+                    {
+                        try { needsExtract = new FileInfo(_tempWavPath).Length != stream.Length; }
+                        catch { needsExtract = true; }
+                    }
+                    if (needsExtract)
                     {
                         using var fs = File.Create(_tempWavPath);
                         stream.CopyTo(fs);
@@ -47,7 +51,6 @@ namespace WFInfo.Linux.Services
 
             try
             {
-                // Try PipeWire first, then PulseAudio, then aplay
                 if (!TryPlay("pw-play", _tempWavPath))
                     if (!TryPlay("paplay", _tempWavPath))
                         TryPlay("aplay", _tempWavPath);

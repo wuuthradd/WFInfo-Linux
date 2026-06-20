@@ -2,61 +2,155 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:WFInfo.Linux.Views"
         x:Class="WFInfo.Linux.Views.EquipmentWindow"
-        Title="WFInfo Equipment" Height="500" Width="520"
+        Title="Equipment" Height="500" Width="520"
         CanResize="True"
         SystemDecorations="None"
         Background="#FF1B1B1B"
         WindowStartupLocation="CenterScreen"
         MinHeight="300" MinWidth="520" MaxWidth="520">
 
+    <Window.Styles>
+        <!-- Compact TextBox for toolbar strips -->
+        <Style Selector="TextBox.strip">
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="4,0" />
+            <Setter Property="Foreground" Value="#FFB1D0D9" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBox.strip /template/ Border#PART_BorderElement">
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="TextBox.strip:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="TextBox.strip:focus /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <!-- Compact CheckBox for toolbar strips -->
+        <Style Selector="CheckBox.strip">
+            <Setter Property="RenderTransform" Value="scale(0.85)" />
+            <Setter Property="RenderTransformOrigin" Value="0%,50%" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="6,0,0,0" />
+            <Setter Property="FontSize" Value="15" />
+        </Style>
+        <!-- Compact ComboBox for toolbar strips -->
+        <Style Selector="ComboBox.strip">
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ComboBox.strip /template/ Border#Background">
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Background" Value="#FF0F0F0F" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="4,0,0,0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ComboBox.strip:pointerover /template/ Border#Background">
+            <Setter Property="Background" Value="#FF1B1B1B" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="ComboBox.strip:pressed /template/ Border#Background">
+            <Setter Property="Background" Value="#FF0F0F0F" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <!-- Suppress Fluent theme hover chrome on inline buttons -->
+        <Style Selector="Button.eqmt-btn">
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+        </Style>
+        <Style Selector="Button.eqmt-btn /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.eqmt-btn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.eqmt-btn:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+    </Window.Styles>
+
     <Border BorderBrush="#FF707070" BorderThickness="1">
-    <Grid PointerPressed="OnPointerPressed" RowDefinitions="22,Auto,Auto,*">
-        <Rectangle Grid.Row="0" Fill="#FF0F0F0F" Stroke="#FF646464" />
+    <Grid PointerPressed="OnPointerPressed" RowDefinitions="23,27,27,*">
+        <Rectangle Grid.Row="0" Fill="#FF0F0F0F" />
         <Image Grid.Row="0" Margin="2,0,0,0" Source="avares://WFInfo.Linux/Resources/WFLogo.png"
                Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Width="20" />
         <TextBlock Grid.Row="0" Text="Equipment" Margin="28,1,0,0" FontSize="14" FontWeight="Bold"
                    FontFamily="{StaticResource RobotoBlack}"
                    VerticalAlignment="Center" />
+        <Rectangle Grid.Row="0" Fill="#FF646464" Width="1" Margin="0,0,22,0" Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" />
         <Button Grid.Row="0" Content="x" Click="Close_Click" Classes="linkButton"
                 Height="22" HorizontalAlignment="Right" Width="22"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+        <Rectangle Grid.Row="0" Height="1" Fill="#FF646464" VerticalAlignment="Bottom" />
 
-        <!-- Filter row: expand/collapse, hide vaulted, search -->
-        <Grid Grid.Row="1" Margin="5,3,5,3" ColumnDefinitions="Auto,Auto,Auto,*">
-            <Button Content="＋" Click="ExpandAll_Click" ToolTip.Tip="Expand All"
-                    Width="22" Height="22" FontSize="13" Margin="0,0,2,0"
-                    Background="Transparent" Foreground="#FFB1D0D9" Padding="0"
-                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
-            <Button Grid.Column="1" Content="－" Click="CollapseAll_Click" ToolTip.Tip="Collapse All"
-                    Width="22" Height="22" FontSize="13" Margin="0,0,8,0"
-                    Background="Transparent" Foreground="#FFB1D0D9" Padding="0"
-                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
-            <CheckBox x:Name="VaultedCheckBox" Grid.Column="2" Content="Hide Vaulted"
-                      IsChecked="True" Margin="0,0,8,0"
-                      Click="VaultedClick" VerticalAlignment="Center" />
-            <TextBox x:Name="SearchBox" Grid.Column="3" Watermark="Filter Terms" Height="24"
-                     TextChanged="SearchBox_TextChanged" />
+        <!-- Filter row: expand/collapse, hide vaulted, filter label, search -->
+        <Grid Grid.Row="1">
+            <Rectangle Fill="#FF1B1B1B" />
+            <Rectangle Height="1" Fill="#FF646464" VerticalAlignment="Bottom" />
+            <DockPanel>
+                <Button Content="＋" Click="ExpandAll_Click" ToolTip.Tip="Expand All"
+                        Width="27" Height="27" FontSize="14"
+                        Background="Transparent" Foreground="#FFB1D0D9" Padding="0"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        DockPanel.Dock="Left" />
+                <Rectangle Fill="#FF646464" Width="1" DockPanel.Dock="Left" />
+                <Button Content="－" Click="CollapseAll_Click" ToolTip.Tip="Collapse All"
+                        Width="27" Height="27" FontSize="14"
+                        Background="Transparent" Foreground="#FFB1D0D9" Padding="0"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        DockPanel.Dock="Left" />
+                <Rectangle Fill="#FF646464" Width="1" DockPanel.Dock="Left" />
+                <CheckBox x:Name="VaultedCheckBox" Content="Hide Vaulted" Classes="strip"
+                          IsChecked="True" Margin="12,-4,6,0"
+                          Click="VaultedClick" VerticalAlignment="Center"
+                          DockPanel.Dock="Left" />
+                <Rectangle Fill="#FF646464" Width="1" DockPanel.Dock="Left" />
+                <TextBlock Text="Filter:" Padding="5,0" VerticalAlignment="Center" FontSize="13"
+                           DockPanel.Dock="Left" />
+                <Rectangle Fill="#FF646464" Width="1" DockPanel.Dock="Left" />
+                <TextBox x:Name="SearchBox" Classes="strip" Watermark="Filter Terms" FontSize="13"
+                         TextChanged="SearchBox_TextChanged" />
+            </DockPanel>
         </Grid>
 
-        <!-- Sort row: type toggle, sort combobox -->
-        <Grid Grid.Row="2" Margin="5,0,5,3" ColumnDefinitions="Auto,*,Auto,Auto">
-            <Button x:Name="EqmtModeButton" Content="Equipment Types" Click="ToggleShowAllEqmt"
-                    Height="22" FontSize="11" Margin="0,0,8,0"
-                    Background="#FF2B2F33" Foreground="#FFB1D0D9" Padding="6,2" />
-            <TextBlock Grid.Column="2" Text="Sort by:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12" />
-            <ComboBox x:Name="SortBox" Grid.Column="3" SelectedIndex="0" Width="160" Height="24"
-                      FontSize="11" SelectionChanged="SortBoxChanged">
-                <ComboBoxItem Content="Name" />
-                <ComboBoxItem Content="Cost" />
-                <ComboBoxItem Content="Unowned" />
-                <ComboBoxItem Content="Owned" />
-                <ComboBoxItem Content="Owned Value (Plat)" />
-                <ComboBoxItem Content="Owned Value (Ducats)" />
-            </ComboBox>
+        <!-- Sort row: type toggle, sort by label, combobox -->
+        <Grid Grid.Row="2">
+            <Rectangle Fill="#FF0F0F0F" />
+            <DockPanel>
+                <Button x:Name="EqmtModeButton" Content="Equipment Types" Click="ToggleShowAllEqmt"
+                        Width="130" Height="27" FontSize="13"
+                        Background="Transparent" Foreground="#FFB1D0D9" Padding="0"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        DockPanel.Dock="Left" />
+                <Rectangle Fill="#FF646464" Width="1" DockPanel.Dock="Left" />
+                <TextBlock Text="Sort by:" Padding="5,0" VerticalAlignment="Center" FontSize="13"
+                           DockPanel.Dock="Left" />
+                <Rectangle Fill="#FF646464" Width="1" DockPanel.Dock="Left" />
+                <ComboBox x:Name="SortBox" Classes="strip" SelectedIndex="0" Height="27"
+                          FontSize="13" SelectionChanged="SortBoxChanged"
+                          Foreground="#FFB1D0D9">
+                    <ComboBoxItem Content="Name" />
+                    <ComboBoxItem Content="Cost" />
+                    <ComboBoxItem Content="Unowned" />
+                    <ComboBoxItem Content="Owned" />
+                    <ComboBoxItem Content="Owned Value (Plat)" />
+                    <ComboBoxItem Content="Owned Value (Ducats)" />
+                </ComboBox>
+            </DockPanel>
         </Grid>
 
         <!-- Virtualized flat list (replaces TreeView for performance) -->
-        <ListBox x:Name="EquipmentTree" Grid.Row="3" Margin="5,0,5,5"
+        <Rectangle Grid.Row="3" Height="1" Fill="#FF646464" VerticalAlignment="Top" />
+        <ListBox x:Name="EquipmentTree" Grid.Row="3" Margin="1,1,1,1"
                  Background="#FF1B1B1B"
                  SelectionMode="Single"
                  SelectionChanged="SingleClickExpand">
@@ -70,20 +164,6 @@
                     <Setter Property="Background" Value="Transparent" />
                 </Style>
                 <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-                    <Setter Property="Background" Value="Transparent" />
-                </Style>
-                <!-- Suppress Fluent theme hover chrome on inline buttons -->
-                <Style Selector="Button.eqmt-btn">
-                    <Setter Property="MinWidth" Value="0" />
-                    <Setter Property="MinHeight" Value="0" />
-                </Style>
-                <Style Selector="Button.eqmt-btn /template/ ContentPresenter#PART_ContentPresenter">
-                    <Setter Property="Background" Value="Transparent" />
-                </Style>
-                <Style Selector="Button.eqmt-btn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-                    <Setter Property="Background" Value="Transparent" />
-                </Style>
-                <Style Selector="Button.eqmt-btn:pressed /template/ ContentPresenter#PART_ContentPresenter">
                     <Setter Property="Background" Value="Transparent" />
                 </Style>
             </ListBox.Styles>

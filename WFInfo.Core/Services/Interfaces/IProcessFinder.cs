@@ -18,19 +18,9 @@ namespace WFInfo.Services.WarframeProcess
         Process Warframe { get; }
 
         /// <summary>
-        /// Gets the game window identifier (HWND on Windows, XID on X11).
-        /// </summary>
-        long WindowId { get; }
-
-        /// <summary>
         /// Whether the game process is running.
         /// </summary>
         bool IsRunning { get; }
-
-        /// <summary>
-        /// Whether the game is being streamed (e.g. GeForce NOW).
-        /// </summary>
-        bool GameIsStreamed { get; }
 
         /// <summary>
         /// Wine/Proton environment detected from the running game process.

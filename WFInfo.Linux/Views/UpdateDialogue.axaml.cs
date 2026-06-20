@@ -1,11 +1,11 @@
 using System;
-using System.Diagnostics;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Controls.ApplicationLifetimes;
 using Newtonsoft.Json.Linq;
 using WFInfo.Settings;
@@ -42,27 +42,106 @@ namespace WFInfo.Linux.Views
                     if (cleanTag == AppMain.BuildVersion)
                         break;
 
-                    var tag = new TextBlock
+                    ReleaseNotes.Children.Add(new TextBlock
                     {
                         Text = tagName,
-                        FontWeight = Avalonia.Media.FontWeight.Bold,
-                        Foreground = Avalonia.Media.Brushes.White
-                    };
-                    ReleaseNotes.Children.Add(tag);
+                        FontSize = 13,
+                        FontWeight = FontWeight.Bold,
+                        Foreground = Brushes.White,
+                        Margin = new Avalonia.Thickness(0, ReleaseNotes.Children.Count > 0 ? 6 : 0, 0, 2)
+                    });
 
                     if (!string.IsNullOrEmpty(body))
-                    {
-                        var note = new TextBlock
-                        {
-                            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-                            Padding = new Avalonia.Thickness(10, 0, 0, 0),
-                            Foreground = Avalonia.Media.Brushes.LightGray
-                        };
-                        ParseMarkdownInto(note, body);
-                        ReleaseNotes.Children.Add(note);
-                    }
+                        RenderMarkdown(body);
                 }
             }
+        }
+
+        private void RenderMarkdown(string markdown)
+        {
+            var lines = markdown.Split('\n');
+            foreach (string rawLine in lines)
+            {
+                string line = rawLine.TrimEnd('\r');
+
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                // Headings (## or ###)
+                if (line.StartsWith('#'))
+                {
+                    string text = line.TrimStart('#').Trim();
+                    ReleaseNotes.Children.Add(new TextBlock
+                    {
+                        Text = text,
+                        FontSize = 13,
+                        FontWeight = FontWeight.Bold,
+                        Foreground = Brushes.White,
+                        Margin = new Avalonia.Thickness(0, 4, 0, 2)
+                    });
+                    continue;
+                }
+
+                // List items (- or *)
+                bool isList = Regex.IsMatch(line, @"^\s*[\-\*]\s+");
+                if (isList)
+                {
+                    string text = Regex.Replace(line, @"^\s*[\-\*]\s+", "");
+                    var panel = new DockPanel { Margin = new Avalonia.Thickness(4, 1, 0, 1) };
+                    var bullet = new TextBlock
+                    {
+                        Text = "\u2022 ",
+                        FontSize = 13,
+                        Foreground = new SolidColorBrush(Avalonia.Media.Color.Parse("#FFB1D0D9")),
+                        VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top
+                    };
+                    DockPanel.SetDock(bullet, Avalonia.Controls.Dock.Left);
+                    panel.Children.Add(bullet);
+                    var tb = new TextBlock
+                    {
+                        FontSize = 13,
+                        TextWrapping = TextWrapping.Wrap,
+                        Foreground = new SolidColorBrush(Avalonia.Media.Color.Parse("#FFB1D0D9"))
+                    };
+                    AddInlines(tb, text);
+                    panel.Children.Add(tb);
+                    ReleaseNotes.Children.Add(panel);
+                    continue;
+                }
+
+                // Regular paragraph
+                var para = new TextBlock
+                {
+                    FontSize = 13,
+                    TextWrapping = TextWrapping.Wrap,
+                    Foreground = new SolidColorBrush(Avalonia.Media.Color.Parse("#FFB1D0D9")),
+                    Margin = new Avalonia.Thickness(0, 1, 0, 1)
+                };
+                AddInlines(para, line);
+                ReleaseNotes.Children.Add(para);
+            }
+        }
+
+        private static void AddInlines(TextBlock tb, string text)
+        {
+            int pos = 0;
+            foreach (Match m in Regex.Matches(text, @"\*\*(.+?)\*\*|\*(.+?)\*|\[([^\]]+)\]\(([^)]+)\)"))
+            {
+                if (m.Index > pos)
+                    tb.Inlines.Add(new Run(text[pos..m.Index]));
+
+                if (m.Groups[1].Success)
+                    tb.Inlines.Add(new Run(m.Groups[1].Value) { FontWeight = FontWeight.Bold });
+                else if (m.Groups[2].Success)
+                    tb.Inlines.Add(new Run(m.Groups[2].Value) { FontStyle = FontStyle.Italic });
+                else if (m.Groups[3].Success)
+                    tb.Inlines.Add(new Run(m.Groups[3].Value));
+
+                pos = m.Index + m.Length;
+            }
+
+            if (pos < text.Length)
+                tb.Inlines.Add(new Run(text[pos..]));
         }
 
         [System.Runtime.Versioning.SupportedOSPlatform("linux")]
@@ -220,31 +299,6 @@ namespace WFInfo.Linux.Views
             return string.Compare(remote, local, StringComparison.Ordinal) > 0;
         }
 
-        private static void ParseMarkdownInto(TextBlock textBlock, string markdown)
-        {
-            // Strip bold/italic markers
-            string text = Regex.Replace(markdown, @"\*{1,3}(.+?)\*{1,3}", "$1");
 
-            int lastIndex = 0;
-            foreach (Match m in Regex.Matches(text, @"\[([^\]]+)\]\(([^)]+)\)"))
-            {
-                if (m.Index > lastIndex)
-                    textBlock.Inlines.Add(new Run(text[lastIndex..m.Index]));
-
-                string linkText = m.Groups[1].Value;
-                string url = m.Groups[2].Value;
-                var hyperlink = new Run(linkText)
-                {
-                    Foreground = Avalonia.Media.Brushes.CornflowerBlue,
-                    TextDecorations = Avalonia.Media.TextDecorations.Underline
-                };
-                textBlock.Inlines.Add(hyperlink);
-
-                lastIndex = m.Index + m.Length;
-            }
-
-            if (lastIndex < text.Length)
-                textBlock.Inlines.Add(new Run(text[lastIndex..] + "\n"));
-        }
     }
 }

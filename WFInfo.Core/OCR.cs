@@ -29,6 +29,7 @@ namespace WFInfo
         [DllImport("libc.so.6")]
         private static extern int mallopt(int param, int value);
 
+        // glibc mallopt parameter constants
         private const int M_ARENA_MAX = -8;
         private const int M_MMAP_THRESHOLD = -3;
 
@@ -62,7 +63,7 @@ namespace WFInfo
 
         #region variables and constants
 
-        // Colors for the top left "profile bar"
+        // Primary colors for each Warframe UI theme
         public static WFColor[] ThemePrimary = new WFColor[] {
             WFColor.FromArgb(190, 169, 102),    //VITRUVIAN
             WFColor.FromArgb(153,  31,  35),    //STALKER
@@ -85,7 +86,7 @@ namespace WFInfo
             WFColor.FromArgb(12, 45, 25),       //POM_2
         };
 
-        // highlight colors from selected items
+        // Secondary colors for each Warframe UI theme
         public static WFColor[] ThemeSecondary = new WFColor[] {
             WFColor.FromArgb(245, 227, 173),    //VITRUVIAN
             WFColor.FromArgb(255,  61,  51),    //STALKER
@@ -242,7 +243,6 @@ namespace WFInfo
                 if (screenshot == null)
                 {
                     AppMain.AddLog("Processing failed: Screenshot failed");
-                    AppMain.StatusUpdate("Screenshot failed", 1);
                     processingActive = false;
                     return false;
                 }
@@ -312,8 +312,8 @@ namespace WFInfo
                     int startX = _window.Center.X - width / 2 + (int)(width * 0.004);
                     if (firstChecks.Length % 2 == 1) startX += width / 8;
                     if (firstChecks.Length <= 2) startX += 2 * (width / 8);
-                    int overWid = (int)(width / (4.1 * _window.DpiScaling));
-                    int startY = (int)(_window.Center.Y / _window.DpiScaling - 20 * _window.ScreenScaling * uiScaling);
+                    int overWid = (int)(width / 4.1);
+                    int startY = (int)(_window.Center.Y - 20 * _window.ScreenScaling * uiScaling);
                     int partNumber = 0;
                     bool hideRewardInfo = false;
                     var pendingParts = new List<(int pn, string name, string plat, string setPlat, string ducats, string volume,
@@ -426,8 +426,8 @@ namespace WFInfo
                             OnRewardDisplay?.Invoke(pn, name, pl, setPl, duc, vol,
                                 vault, mast, ownedStr, "", hide, false, hl);
                             OnOverlayDisplay?.Invoke(pn, overWid,
-                                (int)((startX + width / 4 * pn + _settings.OverlayXOffsetValue) / _window.DpiScaling),
-                                startY + (int)(_settings.OverlayYOffsetValue / _window.DpiScaling),
+                                startX + width / 4 * pn + _settings.OverlayXOffsetValue,
+                                startY + _settings.OverlayYOffsetValue,
                                 _settings.Delay);
                         }
                         OnRewardsDoneDisplaying?.Invoke();
@@ -475,23 +475,27 @@ namespace WFInfo
             clickY -= _window.Window.Top;
             var width = _window.Window.Width;
             var height = _window.Window.Height;
-            var mostWidth = (int)(pixleRewardWidth * _window.ScreenScaling * uiScaling);
-            var mostLeft = (width / 2) - (mostWidth / 2);
-            var bottom = height / 2 - (int)((pixleRewardYDisplay - pixleRewardHeight) * _window.ScreenScaling * 0.5 * uiScaling);
-            var top = height / 2 - (int)((pixleRewardYDisplay) * _window.ScreenScaling * uiScaling);
-            var selRect = new SKRectI(mostLeft, top, mostLeft + mostWidth, top + bottom / 2);
-            if (numberOfRewardsDisplayed == 3)
+
+            var scale = _window.ScreenScaling * uiScaling;
+            var cardWidth = (int)(pixleRewardWidth * scale);
+            var cardHeight = (int)(pixleRewardHeight * scale);
+            var cardLeft = (width / 2) - (cardWidth / 2);
+            var cardTop = (height / 2) - (int)(pixleRewardYDisplay * scale);
+            var margin = 20;
+            var selRect = new SKRectI(cardLeft - margin, cardTop - margin, cardLeft + cardWidth + margin, cardTop + cardHeight + margin);
+            var midHeight = cardTop + cardHeight / 2;
+            var length = cardWidth / 8;
+
+            if (_settings.Debug)
             {
-                var offset = selRect.Width / 8;
-                selRect = new SKRectI(selRect.Left + offset, selRect.Top, selRect.Right - offset, selRect.Bottom);
+                AppMain.AddLog($"GetSelectedReward: click=({clickX},{clickY}) window={width}x{height} screenScaling={_window.ScreenScaling:F2} uiScaling={uiScaling:F2} rewards={numberOfRewardsDisplayed}");
+                AppMain.AddLog($"GetSelectedReward: selRect=({selRect.Left},{selRect.Top},{selRect.Right},{selRect.Bottom}) cardWidth={cardWidth} cardLeft={cardLeft}");
             }
 
             if (!selRect.Contains(clickX, clickY))
                 return -1;
 
             var primeRewardIndex = 0;
-            var midHeight = top + bottom / 4;
-            var length = mostWidth / 8;
 
             if (numberOfRewardsDisplayed == 1)
             {
@@ -500,11 +504,13 @@ namespace WFInfo
             else if (numberOfRewardsDisplayed != 3)
             {
                 var points = new (int x, int y)[] {
-                    (mostLeft + length, midHeight),
-                    (mostLeft + 3 * length, midHeight),
-                    (mostLeft + 5 * length, midHeight),
-                    (mostLeft + 7 * length, midHeight)
+                    (cardLeft + length, midHeight),
+                    (cardLeft + 3 * length, midHeight),
+                    (cardLeft + 5 * length, midHeight),
+                    (cardLeft + 7 * length, midHeight)
                 };
+                if (_settings.Debug)
+                    AppMain.AddLog($"GetSelectedReward: centers=({points[0].x},{points[1].x},{points[2].x},{points[3].x}) midY={midHeight} boundaries=({(points[0].x + points[1].x) / 2},{(points[1].x + points[2].x) / 2},{(points[2].x + points[3].x) / 2})");
                 var lowestDist = int.MaxValue;
                 for (int i = 0; i < points.Length; i++)
                 {
@@ -526,10 +532,12 @@ namespace WFInfo
             else
             {
                 var points = new (int x, int y)[] {
-                    (mostLeft + 2 * length, midHeight),
-                    (mostLeft + 4 * length, midHeight),
-                    (mostLeft + 6 * length, midHeight)
+                    (cardLeft + 2 * length, midHeight),
+                    (cardLeft + 4 * length, midHeight),
+                    (cardLeft + 6 * length, midHeight)
                 };
+                if (_settings.Debug)
+                    AppMain.AddLog($"GetSelectedReward: centers=({points[0].x},{points[1].x},{points[2].x}) midY={midHeight} boundaries=({(points[0].x + points[1].x) / 2},{(points[1].x + points[2].x) / 2})");
                 var lowestDist = int.MaxValue;
                 for (int i = 0; i < points.Length; i++)
                 {
@@ -604,7 +612,7 @@ namespace WFInfo
                     var clr = WFColor.FromArgb(pixelSpan[byteIdx + 2], pixelSpan[byteIdx + 1], pixelSpan[byteIdx]);
                     int match = (int)GetClosestTheme(clr, out int thresh);
                     if (match >= 0 && match < weights.Length)
-                        weights[match] += 1 / Math.Pow(thresh + 1, 4);
+                        weights[match] += 1 / Math.Pow(thresh + 1, 4); // weight inversely proportional to color distance^4
                 }
             }
 
@@ -708,7 +716,7 @@ namespace WFInfo
             WFColor primary = ThemePrimary[(int)theme];
             WFColor secondary = ThemeSecondary[(int)theme];
 
-            // Pre-compute HSB once per pixel instead of repeatedly per comparison
+            // Pre-compute HSB once per pixel
             test.GetHSB(out float tH, out float tS, out float tB);
             primary.GetHSB(out float pH, out float pS, out float pB);
             secondary.GetHSB(out float sH, out float sS, out float sB);
@@ -831,6 +839,7 @@ namespace WFInfo
             AppMain.AddLog("Filtered Image " + (end - start) + "ms");
             start = watch.ElapsedMilliseconds;
 
+            // Weight arrays for 50-100% scaling range (index 0 = 50%, index 50 = 100%)
             double[] percWeights = new double[51];
             double[] topWeights = new double[51];
             double[] midWeights = new double[51];
@@ -986,7 +995,7 @@ namespace WFInfo
                         }
                     }
                     count = Math.Min(count, partBox.Height / 3);
-                    // cos^3 weighting to detect 3-player vs 4-player reward layout
+                    // Cosine-cubed weighting to detect 3 vs 4 player reward layouts
                     double sinVal = Math.Cos(8 * x * Math.PI / partBox.Width);
                     sinVal = sinVal * sinVal * sinVal;
                     weight += sinVal * count;
@@ -1321,7 +1330,7 @@ namespace WFInfo
 
         private static bool ProbeProfilePixel(byte[] byteArr, int width, int x, int y, bool lowSensitivity)
         {
-            int idx = (x + y * width) * 4; // BGRA byte order
+            int idx = (x + y * width) * 4;
             int B = byteArr[idx];
             int G = byteArr[idx + 1];
             int R = byteArr[idx + 2];
@@ -1431,7 +1440,7 @@ namespace WFInfo
 
                     hitRatios.RemoveAt(hitRatios.Count - 1);
 
-                    // Look for text→gap→text pattern (4 ratio changes)
+                    // Look for text-gap-text pattern (4 ratio changes)
                     int ratioChanges = 0;
                     bool prevMostlyHits = true;
                     int lineBreak = -1;
@@ -1448,6 +1457,7 @@ namespace WFInfo
                     int width = rightEdge - leftEdge;
                     int height = bottomEdge - topEdge;
 
+                    // Valid inventory item labels have 2.4:1 to 4:1 aspect ratio
                     if (ratioChanges != 4 || width < 2.4 * height || width > 4 * height)
                     {
                         x = Math.Max(rightEdge, x);
@@ -1463,7 +1473,7 @@ namespace WFInfo
 
                     height = lineBreak;
 
-                    // Build inverted bitmap for OCR: black text on white background with letter spacing
+                    // Build inverted bitmap for OCR with letter spacing
                     using var cloneBitmap = new SKBitmap(width * 3, height, SKColorType.Bgra8888, SKAlphaType.Premul);
                     int cloneStride = width * 3;
                     unsafe
@@ -1608,7 +1618,7 @@ namespace WFInfo
             }
             rowHeight = rowHeight / Math.Max(rows.Count, 1);
 
-            // Combine adjacent rows (draw white separator lines on clean image for Tesseract segmentation)
+            // Combine adjacent rows, draw separators for Tesseract
             i = 0;
             using (var canvas = new SKCanvas(filteredImageClean))
             {
@@ -1946,7 +1956,7 @@ namespace WFInfo
             foundItemsBottom.RemoveAll(item => !PartNameValid(item.Name));
             var foundItemsLeft = foundItemsBottom.OrderBy(o => o.Bounding.Left).ToList();
 
-            // Build grid (interleaved loop with cross-refinement, matching WPF)
+            // Build grid for item count detection
             var gridRows = new List<SKRectI>();
             var gridCols = new List<SKRectI>();
 
@@ -2070,7 +2080,7 @@ namespace WFInfo
                     if (sumBlack < h) { AppMain.AddLog($"  Count[{ri},{ci}]: flood-fill too small ({sumBlack}<{h})"); continue; }
                     xCNew /= sumBlack; yCNew /= sumBlack;
 
-                    // Y-center refinement: scan ±5 pixels vertically at xCNew to center on checkmark line (WPF lines 1657-1675)
+                    // Y-center refinement: scan ±5 pixels vertically to center on checkmark
                     int lowest = yCNew + 1000;
                     int highest = yCNew - 1000;
                     for (int yOff = -5; yOff < 5; yOff++)
@@ -2093,26 +2103,25 @@ namespace WFInfo
 
                     AppMain.AddLog($"  Count[{ri},{ci}]: checkmark found at ({xCNew},{yCNew}), rightmost={rightmost}, black={sumBlack}");
 
-                    // Find background color of amount label by diagonal probing on unfiltered image
-                    // WPF uses Queue with two starting points, shared stop flag, bounded to grid cell (lines 1697-1729)
+                    // Find background color of amount label by diagonal probing
                     var colorHits = new Dictionary<uint, int>();
                     var pointsToCheck = new Queue<(int x, int y)>();
                     pointsToCheck.Enqueue((left + xCNew, top + yCNew + 1));
                     pointsToCheck.Enqueue((left + xCNew, top + yCNew - 1));
                     bool probeStop = false;
-                    int probeYRef = top + yCenter; // WPF uses first-pass center for direction check
+                    int probeYRef = top + yCenter;
                     while (pointsToCheck.Count > 0)
                     {
                         var (px, py) = pointsToCheck.Dequeue();
                         int offset = (py > probeYRef) ? 1 : -1;
-                        // Stop 3 pixels from grid cell edge (matching WPF sub-image bounds)
+                        // Stop 3 pixels from grid cell edge
                         if (px + 3 > left + w || px - 3 < left || py + 3 > top + h || py - 3 < top)
                             probeStop = true;
                         if (!probeStop)
                             pointsToCheck.Enqueue((px + offset, py + offset));
                         int pidx = (py * unfilteredWidth + px) * 4;
                         if (pidx < 4 || pidx + 7 >= unfilteredBytes.Length) continue;
-                        // Check 3 horizontally adjacent pixels match (BGR only, ignore alpha - Linux screenshots may have alpha=0)
+                        // Check 3 adjacent pixels match (BGR only, alpha may be 0)
                         if (unfilteredBytes[pidx] == unfilteredBytes[pidx - 4] && unfilteredBytes[pidx] == unfilteredBytes[pidx + 4] &&
                             unfilteredBytes[pidx + 1] == unfilteredBytes[pidx - 3] && unfilteredBytes[pidx + 1] == unfilteredBytes[pidx + 5] &&
                             unfilteredBytes[pidx + 2] == unfilteredBytes[pidx - 2] && unfilteredBytes[pidx + 2] == unfilteredBytes[pidx + 6])
@@ -2137,14 +2146,14 @@ namespace WFInfo
                     AppMain.AddLog($"  Count[{ri},{ci}]: bgColor=({tcR},{tcG},{tcB}), hits={topScore}");
                     if (tcR == 255 && tcG == 255 && tcB == 255) { AppMain.AddLog($"  Count[{ri},{ci}]: skip (white bg)"); continue; }
 
-                    // Recalculate centers to global coordinates (WPF lines 1754-1759)
+                    // Convert to global coordinates
                     int absRightmost = left + rightmost + 1;
                     int gxCenter = left + xCenter;
                     int gyCenter = top + yCenter;
                     int gxCNew = left + xCNew;
                     int gyCNew = top + yCNew;
 
-                    // Search diagonally (toward top-right) from second-pass center for label color (WPF lines 1764-1774)
+                    // Search diagonally for label color
                     int sx = gxCNew, sy = gyCNew;
                     {
                         int pidx = (sy * unfilteredWidth + sx) * 4;
@@ -2158,7 +2167,7 @@ namespace WFInfo
                     }
                     if (sx >= unfilteredWidth || sy <= 0) { AppMain.AddLog($"  Count[{ri},{ci}]: diagonal label probe failed"); continue; }
 
-                    // Find label bounds (WPF lines 1776-1815)
+                    // Find label bounds
                     // Helper: check if pixel at (x,y) matches the label background color (BGR only)
                     bool isLabelColor(int bx, int by)
                     {
@@ -2175,14 +2184,14 @@ namespace WFInfo
                     while (isLabelColor(labelLeft, labelTop)) labelLeft--;
                     labelLeft += 2;
 
-                    // Find height (bottom edge) - WPF measures at x=Left (left edge), not at hit point
+                    // Find label height from left edge
                     int labelH = 0;
                     while (isLabelColor(labelLeft, labelTop + labelH)) labelH++;
                     labelH -= 2;
 
-                    // Cut out checkmark+circle icon, then find width (WPF lines 1805-1815)
+                    // Skip checkmark icon, find label width
                     labelLeft = absRightmost;
-                    // WPF: first check at (Left, Top+Height), then scan width at y=Top
+                    // Check at (Left, Top+Height), then scan width at y=Top
                     int labelW = 0;
                     if (isLabelColor(labelLeft, labelTop + labelH))
                     {
@@ -2263,7 +2272,6 @@ namespace WFInfo
                 csv += "ItemName,Plat,Ducats,Volume,Vaulted,Owned,partsDetected" + Environment.NewLine;
 
             int resultCount = foundParts.Count;
-            double dpiScale = _window?.DpiScaling ?? 1.0;
             double screenScale = _window?.ScreenScaling ?? 1.0;
 
             for (int i = 0; i < foundParts.Count; i++)
@@ -2335,8 +2343,8 @@ namespace WFInfo
                 var wnd = _window?.Window;
                 int wndLeft = wnd?.Left ?? 0;
                 int wndTop = wnd?.Top ?? 0;
-                int overlayX = (int)((wndLeft + snapOriginX + origCenterX) / dpiScale - width / (2.0 * dpiScale));
-                int overlayY = (int)((wndTop + snapOriginY + origY) / dpiScale - SnapItOverlayHeight);
+                int overlayX = wndLeft + snapOriginX + origCenterX - width / 2;
+                int overlayY = wndTop + snapOriginY + origY - SnapItOverlayHeight;
 
                 OnSnapItRewardDisplay?.Invoke(name, plat, primeSetPlat, ducats, volume, vaulted, mastered,
                     partsOwned, partsDetected, false, doWarn, width, overlayX, overlayY);

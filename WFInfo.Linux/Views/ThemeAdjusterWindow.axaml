@@ -13,19 +13,19 @@
     <Border BorderBrush="#FF707070" BorderThickness="1">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="26"/>
+            <RowDefinition Height="23"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <!-- Title bar (PointerPressed here only, not on outer Grid, so sliders/textboxes work) -->
         <Grid Grid.Row="0" Background="#FF0F0F0F" PointerPressed="TitleBar_PointerPressed">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0,0,0">
-                <Image Source="avares://WFInfo.Linux/Resources/WFLogo.png" Height="20" Width="20" Margin="0,0,4,0"/>
-                <TextBlock Text="Theme Adjuster" FontSize="16" FontWeight="Bold" FontFamily="{StaticResource RobotoBlack}" Foreground="#FFB1D0D9" VerticalAlignment="Center"/>
-            </StackPanel>
+            <Image Source="avares://WFInfo.Linux/Resources/WFLogo.png" Height="20" Width="20" Margin="2,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+            <TextBlock Text="Theme Adjuster" Margin="28,1,0,0" FontSize="14" FontWeight="Bold" FontFamily="{StaticResource RobotoBlack}" Foreground="#FFB1D0D9" VerticalAlignment="Center"/>
+            <Rectangle Fill="#FF646464" Width="1" Margin="0,0,22,0" Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" />
             <Button Content="x" Click="Close_Click" Classes="linkButton"
-                    HorizontalAlignment="Right" Width="26" Height="26"
+                    HorizontalAlignment="Right" Width="22" Height="22"
                     HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+            <Rectangle Height="1" Fill="#FF646464" VerticalAlignment="Bottom" />
         </Grid>
 
         <!-- Main content -->
@@ -80,8 +80,8 @@
                             Range1="255" Range2="255" Range3="255"
                             ValuesChanged="OnFilterValuesChanged" EnabledChanged="OnFilterEnabledChanged"/>
 
-                        <!-- Action buttons (WPF uses Label with Label_Button style, flat text with border) -->
-                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                        <!-- Action buttons -->
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
                             <Button Grid.Column="0" Grid.Row="0" Content="Load Last Use" Click="LoadLatest_Click"
                                     Classes="labelButton"
                                     ToolTip.Tip="Loads test image from your last attempted activation of any scanning functionality"
@@ -109,6 +109,25 @@
                             <Button Grid.Column="1" Grid.Row="3" Content="Export Filter" Click="ExportFilter_Click"
                                     Classes="labelButton"
                                     ToolTip.Tip="Exports your custom filter to the text box above"
+                                    HorizontalAlignment="Stretch"/>
+                            <Button Grid.Column="0" Grid.Row="4" Content="Import JSON" Click="ImportJsonFile_Click"
+                                    Classes="labelButton"
+                                    ToolTip.Tip="Import a filter from a JSON file"
+                                    HorizontalAlignment="Stretch"/>
+                            <Button Grid.Column="1" Grid.Row="4" Content="Export JSON" Click="ExportJsonFile_Click"
+                                    Classes="labelButton"
+                                    ToolTip.Tip="Export current filter to a JSON file"
+                                    HorizontalAlignment="Stretch"/>
+                            <ComboBox x:Name="FilterDropdown" Grid.Column="0" Grid.Row="5" Grid.ColumnSpan="2"
+                                      PlaceholderText="Select Filter" HorizontalAlignment="Stretch"
+                                      SelectionChanged="FilterDropdown_SelectionChanged"/>
+                            <Button Grid.Column="0" Grid.Row="6" Content="Save Filter" Click="SaveFilter_Click"
+                                    Classes="labelButton"
+                                    ToolTip.Tip="Save current filter as a named preset"
+                                    HorizontalAlignment="Stretch"/>
+                            <Button Grid.Column="1" Grid.Row="6" Content="Delete Filter" Click="DeleteFilter_Click"
+                                    Classes="labelButton"
+                                    ToolTip.Tip="Delete the selected filter preset"
                                     HorizontalAlignment="Stretch"/>
                         </Grid>
                     </StackPanel>

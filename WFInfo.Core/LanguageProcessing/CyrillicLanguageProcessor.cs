@@ -37,7 +37,7 @@ namespace WFInfo.LanguageProcessing
 
         public override IReadOnlyDictionary<string, string> IgnoredItemNames => _ignoredItemNames;
 
-        public override string CharacterWhitelist => GenerateCharacterRange(0x0400, 0x04FF) + GenerateCharacterRange(0x0500, 0x052F) + ": "; // Cyrillic + Cyrillic Supplement
+        public override string CharacterWhitelist => GenerateCharacterRange(0x0400, 0x04FF) + GenerateCharacterRange(0x0500, 0x052F) + ": "; // Cyrillic + Cyrillic Supplement + colon/space
 
         public override int CalculateLevenshteinDistance(string s, string t)
         {
@@ -51,7 +51,6 @@ namespace WFInfo.LanguageProcessing
         {
             if (string.IsNullOrEmpty(input)) return input;
 
-            // Basic cleanup for Russian
             string normalized = input.ToLower(_culture).Trim();
 
             // Handle Russian blueprint format: "Чертёж: <item_name>" -> "<item_name> (чертеж)"
@@ -75,7 +74,6 @@ namespace WFInfo.LanguageProcessing
 
         public override bool ShouldFilterWord(string word)
         {
-            // Russian filters very short words (less than 2 characters)
             return !string.IsNullOrEmpty(word) && word.Length < 2;
         }
 
@@ -84,10 +82,7 @@ namespace WFInfo.LanguageProcessing
             if (string.IsNullOrEmpty(localizedName))
                 return localizedName;
 
-            // Handle "Чертёж:" / "Чертеж:" prefix format before generic removal
             string result = Regex.Replace(localizedName, "^Черт[её]ж:\\s*", "", RegexOptions.IgnoreCase);
-
-            // Apply generic BlueprintRemovals (handles "(чертеж)" suffix, etc.)
             return base.RemoveBlueprintTerms(result);
         }
     }
@@ -138,13 +133,7 @@ namespace WFInfo.LanguageProcessing
         {
             if (string.IsNullOrEmpty(input)) return input;
 
-            // Basic cleanup for Ukrainian
             string normalized = input.ToLower(_culture).Trim();
-
-            // Remove accents (not typically needed for Ukrainian)
-            //normalized = RemoveAccents(normalized);
-
-            // Remove extra spaces
             var parts = normalized.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             return string.Join(" ", parts);
         }
@@ -157,7 +146,6 @@ namespace WFInfo.LanguageProcessing
 
         public override bool ShouldFilterWord(string word)
         {
-            // Ukrainian filters very short words (less than 2 characters)
             return !string.IsNullOrEmpty(word) && word.Length < 2;
         }
 

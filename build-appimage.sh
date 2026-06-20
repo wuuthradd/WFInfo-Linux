@@ -39,15 +39,16 @@ else
     echo "  Warning: WFInfo.DbMon/dbmon.c not found - DBMON bridge will not be available"
 fi
 
-# 3. Build native Wayland overlay helper (raw Wayland + cairo + pango, no GTK)
-echo "[3/5] Building native overlay helper..."
-if pkg-config --exists wayland-client cairo pangocairo 2>/dev/null; then
+# 3. Build Vulkan layer (implicit layer for screenshot capture + overlay compositing)
+echo "[3/5] Building Vulkan layer..."
+if pkg-config --exists cairo pangocairo fontconfig 2>/dev/null; then
     make -C "${PROJECT_DIR}/NativeOverlay" clean
     make -C "${PROJECT_DIR}/NativeOverlay"
-    cp "${PROJECT_DIR}/NativeOverlay/wfinfo-overlay" "${APPDIR}/usr/bin/"
-    echo "  Built and bundled wfinfo-overlay (~37KB, raw Wayland)"
+    install -m 755 "${PROJECT_DIR}/NativeOverlay/libwfinfo_vk.so" "${APPDIR}/usr/bin/"
+    cp "${PROJECT_DIR}/NativeOverlay/wfinfo_vk.json" "${APPDIR}/usr/bin/"
+    echo "  Built and bundled libwfinfo_vk.so + wfinfo_vk.json"
 else
-    echo "  Warning: wayland-client/cairo/pangocairo not found - overlay won't show above fullscreen games"
+    echo "  Warning: cairo/pangocairo/fontconfig not found, Vulkan layer won't be built"
 fi
 
 # 4. Set up AppImage metadata

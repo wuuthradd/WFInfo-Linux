@@ -1,9 +1,9 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
 using WFInfo.Services;
 using WFInfo.Services.WarframeProcess;
 
@@ -17,6 +17,8 @@ namespace WFInfo.Linux.Services
         private readonly ILogger _logger;
         private readonly IProcessFinder _processFinder;
         private Process _dbmonProcess;
+        private ManualResetEventSlim _cursorEvent;
+        private PixelPoint? _cursorResult;
 
         public event LogWatcherEventHandler TextChanged;
 
@@ -65,7 +67,7 @@ namespace WFInfo.Linux.Services
             old?.Cancel();
             old?.Dispose();
             var token = cts.Token;
-            Task.Factory.StartNew(() => CaptureLoop(token), TaskCreationOptions.LongRunning);
+            Task.Factory.StartNew(() => CaptureLoop(token), TaskCreationOptions.LongRunning).Unwrap();
         }
 
         private async Task CaptureLoop(CancellationToken token)
@@ -84,16 +86,14 @@ namespace WFInfo.Linux.Services
                 switch (result)
                 {
                     case DbMonResult.Unavailable:
-                        _logger.AddLog("FileLogCapture: DBMON unavailable (missing binary or Wine), falling back to EE.log");
-                        await RunEELogFallback(token);
+                        _logger.AddLog("FileLogCapture: DBMON unavailable (missing binary or Wine), auto mode disabled");
                         return;
 
                     case DbMonResult.Crashed:
                         retryCount++;
                         if (retryCount > maxRetries)
                         {
-                            _logger.AddLog($"FileLogCapture: DBMON failed {maxRetries} times, falling back to EE.log");
-                            await RunEELogFallback(token);
+                            _logger.AddLog($"FileLogCapture: DBMON failed {maxRetries} times, auto mode disabled");
                             return;
                         }
                         int delay = Math.Min(retryCount * 2000, 10_000);
@@ -217,6 +217,11 @@ namespace WFInfo.Linux.Services
 
                     if (line.Length > 0)
                     {
+                        if (line.StartsWith("CURSOR "))
+                        {
+                            ParseCursorResponse(line);
+                            continue;
+                        }
                         if (line.Contains("Got rewards") || line.Contains("Pause countdown done"))
                             _logger.AddLog("DBMON: trigger line detected");
                         TextChanged?.Invoke(this, line);
@@ -227,6 +232,58 @@ namespace WFInfo.Linux.Services
             catch (Exception ex)
             {
                 _logger.AddLog($"FileLogCapture: DBMON read error: {ex.Message}");
+            }
+        }
+
+        private void ParseCursorResponse(string line)
+        {
+            // Format: "CURSOR x y"
+            var parts = line.Split(' ');
+            if (parts.Length >= 3
+                && int.TryParse(parts[1], out int x)
+                && int.TryParse(parts[2], out int y))
+            {
+                _cursorResult = new PixelPoint(x, y);
+            }
+            else
+            {
+                _cursorResult = null;
+            }
+            try { _cursorEvent?.Set(); }
+            catch (ObjectDisposedException) { }
+        }
+
+        /// <summary>
+        /// Query cursor position via DBMON's GetCursorPos.
+        /// Returns null if DBMON is not running or the query times out.
+        /// </summary>
+        public PixelPoint? QueryCursorPosition()
+        {
+            if (_dbmonProcess == null || _dbmonProcess.HasExited)
+                return null;
+
+            _cursorResult = null;
+            _cursorEvent = new ManualResetEventSlim(false);
+            try
+            {
+                _dbmonProcess.StandardInput.WriteLine("CURSOR");
+                _dbmonProcess.StandardInput.Flush();
+                if (!_cursorEvent.Wait(200))
+                {
+                    _logger.AddLog("FileLogCapture: DBMON cursor query timeout");
+                    return null;
+                }
+                return _cursorResult;
+            }
+            catch (Exception ex)
+            {
+                _logger.AddLog($"FileLogCapture: DBMON cursor query failed: {ex.Message}");
+                return null;
+            }
+            finally
+            {
+                _cursorEvent.Dispose();
+                _cursorEvent = null;
             }
         }
 
@@ -242,7 +299,7 @@ namespace WFInfo.Linux.Services
             {
                 int pfxIdx = _logPath.IndexOf(Path.Combine("pfx", "drive_c"), StringComparison.Ordinal);
                 if (pfxIdx > 0)
-                    return _logPath.Substring(0, pfxIdx + 3);
+                    return _logPath.Substring(0, pfxIdx + 3); // keep up to end of "pfx"
             }
 
             return null;
@@ -280,14 +337,13 @@ namespace WFInfo.Linux.Services
             if (loader != null && File.Exists(loader))
                 return loader;
 
-            // 2. Derive from compat data config_info
+            // 2. Derive from compat data config_info, or infer from EE.log path
             string compatData = _processFinder?.WineEnvironment?.CompatDataPath;
-            // Derive from EE.log path: .../compatdata/230410/pfx/drive_c/...
             if (compatData == null && _logPath != null)
             {
                 int pfxIdx = _logPath.IndexOf(Path.Combine("pfx", "drive_c"), StringComparison.Ordinal);
                 if (pfxIdx > 0)
-                    compatData = _logPath.Substring(0, pfxIdx - 1); // .../compatdata/230410
+                    compatData = _logPath.Substring(0, pfxIdx - 1); // strip separator before "pfx"
             }
             if (compatData != null)
             {
@@ -297,14 +353,13 @@ namespace WFInfo.Linux.Services
                     try
                     {
                         string[] lines = File.ReadAllLines(configInfo);
-                        // Line 2+ contain paths like .../Proton X.X/files/share/fonts/
-                        // Extract the Proton base path
+                        // Extract Proton base path from font paths in config_info
                         foreach (string cfgLine in lines)
                         {
                             int idx = cfgLine.IndexOf("/files/");
                             if (idx > 0)
                             {
-                                string protonFiles = cfgLine.Substring(0, idx + 6); // .../Proton X.X/files
+                                string protonFiles = cfgLine.Substring(0, idx + 6); // include "/files"
                                 string wine = Path.Combine(protonFiles, "bin", "wine");
                                 if (File.Exists(wine)) return wine;
                             }
@@ -336,136 +391,14 @@ namespace WFInfo.Linux.Services
 
         #endregion
 
-        #region EE.log fallback
-
-        private async Task RunEELogFallback(CancellationToken token)
-        {
-            if (_logPath != null && File.Exists(_logPath))
-            {
-                _logger.AddLog($"FileLogCapture: Watching {_logPath}");
-                await TailLogAt(_logPath, token);
-            }
-            else
-            {
-                _logger.AddLog("FileLogCapture: EE.log not found, waiting for file");
-                await WaitForFileAndTail(token);
-            }
-        }
-
-        private async Task WaitForFileAndTail(CancellationToken token)
-        {
-            try
-            {
-                while (!token.IsCancellationRequested)
-                {
-                    await Task.Delay(5_000, token);
-                    string envPrefix = _processFinder?.WineEnvironment?.WinePrefix;
-                    string path = PlatformPaths.FindEELogPath(envPrefix);
-                    if (path != null && File.Exists(path))
-                    {
-                        _logPath = path;
-                        _logger.AddLog($"FileLogCapture: EE.log found at {path}");
-                        await TailLogAt(path, token);
-                        return;
-                    }
-                }
-            }
-            catch (OperationCanceledException) { }
-        }
-
-        private async Task TailLogAt(string path, CancellationToken token)
-        {
-            try
-            {
-                string realPath = path;
-                try
-                {
-                    var fi = new FileInfo(path);
-                    if (fi.LinkTarget != null)
-                        realPath = fi.LinkTarget;
-                }
-                catch { }
-
-                var fs = new FileStream(realPath, FileMode.Open, FileAccess.Read,
-                    FileShare.ReadWrite | FileShare.Delete, bufferSize: 4096, useAsync: true);
-                try
-                {
-                    fs.Seek(0, SeekOrigin.End);
-                    long pos = fs.Position;
-                    _logger.AddLog($"FileLogCapture: Tailing {realPath} from position {pos}");
-
-                    var buffer = new byte[4096];
-                    var lineBuffer = new StringBuilder();
-                    while (!token.IsCancellationRequested)
-                    {
-                        long fileLen;
-                        try { fileLen = new FileInfo(realPath).Length; }
-                        catch { fileLen = pos; }
-
-                        if (fileLen > pos)
-                        {
-                            fs.Position = pos;
-                            int bytesRead = await fs.ReadAsync(buffer, 0, buffer.Length, token);
-                            if (bytesRead > 0)
-                            {
-                                pos += bytesRead;
-                                string chunk = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                                for (int i = 0; i < chunk.Length; i++)
-                                {
-                                    char c = chunk[i];
-                                    if (c == '\n')
-                                    {
-                                        string line = lineBuffer.ToString().TrimEnd('\r');
-                                        lineBuffer.Clear();
-                                        if (line.Length > 0)
-                                        {
-                                            if (line.Contains("Got rewards") || line.Contains("Pause countdown done"))
-                                                _logger.AddLog("FileLogCapture: trigger line detected");
-                                            TextChanged?.Invoke(this, line);
-                                        }
-                                    }
-                                    else if (lineBuffer.Length < 65536)
-                                    {
-                                        lineBuffer.Append(c);
-                                    }
-                                }
-                            }
-                        }
-                        else if (fileLen < pos)
-                        {
-                            _logger.AddLog("FileLogCapture: File replaced/truncated, reopening from start");
-                            fs.Dispose();
-                            fs = new FileStream(realPath, FileMode.Open, FileAccess.Read,
-                                FileShare.ReadWrite | FileShare.Delete, bufferSize: 4096, useAsync: true);
-                            pos = 0;
-                            lineBuffer.Clear();
-                        }
-                        else
-                        {
-                            await Task.Delay(50, token);
-                        }
-                    }
-                }
-                finally
-                {
-                    fs.Dispose();
-                }
-            }
-            catch (OperationCanceledException) { }
-            catch (Exception ex)
-            {
-                _logger.AddLog($"FileLogCapture error: {ex.Message}");
-            }
-        }
-
-        #endregion
-
         public void Dispose()
         {
             if (_processFinder != null)
                 _processFinder.OnProcessChanged -= OnGameProcessChanged;
             _cts.Cancel();
             KillDbMon();
+            _captureCts?.Cancel();
+            _captureCts?.Dispose();
             _cts.Dispose();
         }
     }

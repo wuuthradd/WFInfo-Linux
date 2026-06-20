@@ -64,7 +64,7 @@ namespace WFInfo.Linux.Views
                 _lastSortIndex = -1;
                 var relicData = AppMain.dataBase.relicData;
 
-                // Match WPF: fixed era order with SortNum for proper Name_Sort in "All Relics" mode
+                // Fixed era order, SortNum for proper Name_Sort in "All Relics" mode
                 string[] eraOrder = { "Lith", "Meso", "Neo", "Axi", "Vanguard" };
                 int eraNum = 0;
 
@@ -315,7 +315,7 @@ namespace WFInfo.Linux.Views
         private void ToggleAllRelics(object sender, RoutedEventArgs e)
         {
             _showAllRelics = !_showAllRelics;
-            AllRelicsButton.Content = _showAllRelics ? "All Relics" : "Era Groups";
+            AllRelicsButton.Content = _showAllRelics ? "All Relics" : "Relic Eras";
 
             foreach (var era in _eraNodes)
                 foreach (var relic in era.Children)

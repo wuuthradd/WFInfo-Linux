@@ -161,7 +161,8 @@ namespace WFInfo.Linux.Services
             if (_cts.IsCancellationRequested) return;
             Task.Run(async () =>
             {
-                await Task.Delay(500, _cts.Token);
+                try { await Task.Delay(500, _cts.Token); }
+                catch (OperationCanceledException) { return; }
                 string path = e.FullPath;
                 if (_activeDevices.ContainsKey(path)) return;
                 var kbdDevices = FindKeyboardDevices();
@@ -227,9 +228,6 @@ namespace WFInfo.Linux.Services
             return result.Count > 0 ? result : kbdOnly;
         }
 
-        /// <summary>
-        /// Finds mouse/pointer event devices.
-        /// </summary>
         private List<string> FindMouseDevices()
         {
             var result = new List<string>();
@@ -314,10 +312,11 @@ namespace WFInfo.Linux.Services
             finally
             {
                 _activeDevices.TryRemove(devicePath, out _);
+                _heldKeys.Clear();
             }
         }
 
-        // ===================== Key mapping =====================
+        // Key mapping
 
         private static VirtualKey EvdevToVirtualKey(ushort code)
         {
@@ -384,8 +383,8 @@ namespace WFInfo.Linux.Services
 
         public void Dispose()
         {
-            _watcher?.Dispose();
             _cts.Cancel();
+            _watcher?.Dispose();
             _cts.Dispose();
         }
     }

@@ -13,7 +13,7 @@ using WFInfo.Settings;
 namespace WFInfo
 {
     /// <summary>
-    /// Cross-platform static coordinator replacing the WPF Main class.
+    /// Cross-platform static coordinator.
     /// Provides logging, status updates, and holds shared references.
     /// </summary>
     public static class AppMain
@@ -24,7 +24,7 @@ namespace WFInfo
 
         public static CultureInfo culture = new CultureInfo("en", false);
 
-        // Events for UI updates (subscribed by the Desktop project)
+        // UI update events
         public static event Action<string, int> OnStatusUpdate;
         public static event Action<Action> OnRunOnUIThread;
         public static event Action<DateTime, int> OnSpawnErrorPopup;
@@ -87,7 +87,7 @@ namespace WFInfo
             Console.WriteLine(argm);
             string logEntry = "[" + DateTime.UtcNow + " " + buildVersion + "]   " + argm;
 
-            // During shutdown, bypass queue and write directly to avoid losing final entries
+            // During shutdown, write directly to avoid losing entries
             if (Interlocked.CompareExchange(ref _shutdownInProgress, 0, 0) == 1)
             {
                 lock (_logFileWriteLock)
@@ -143,7 +143,7 @@ namespace WFInfo
         {
             Interlocked.Exchange(ref _shutdownInProgress, 1);
             _logFlushTimer.Change(Timeout.Infinite, Timeout.Infinite);
-            // Retry flush with spin-wait to drain queue before process exit
+            // Drain log queue before exit
             for (int i = 0; i < 3; i++)
             {
                 FlushLogQueue(null);

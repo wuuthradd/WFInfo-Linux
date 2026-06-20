@@ -374,7 +374,7 @@ namespace WFInfo.Linux.Views
         }
 
         /// <summary>
-        /// Reload owned counts from equipmentData in-place (matches WPF reloadItems).
+        /// Reload owned counts from equipmentData in-place.
         /// Called after master-it, verify-count save, and backup-clear.
         /// </summary>
         public void ReloadItems()
@@ -397,7 +397,7 @@ namespace WFInfo.Linux.Views
 
         private void RowBorder_Loaded(object sender, RoutedEventArgs e)
         {
-            // Show ✓ immediately for already-mastered items (matches WPF)
+            // Show checkmark for already-mastered items
             if (sender is Border border && border.DataContext is TreeNode node && node.Mastered)
                 foreach (var btn in border.GetVisualDescendants().OfType<Button>())
                     if (btn.Classes.Contains("hover-btn-check"))

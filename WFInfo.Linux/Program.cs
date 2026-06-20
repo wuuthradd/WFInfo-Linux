@@ -46,7 +46,7 @@ namespace WFInfo.Linux
                     AppMain.AddLog($"FATAL unhandled exception: {ex}");
                     AppMain.FlushLog();
                 }
-                catch { /* last resort - nothing we can do */ }
+                catch { /* last resort, nothing we can do */ }
             };
 
             TaskScheduler.UnobservedTaskException += (sender, e) =>

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Interactivity;
 
 namespace WFInfo.Linux.Views
 {
@@ -16,7 +15,7 @@ namespace WFInfo.Linux.Views
         }
 
         /// <summary>
-        /// Launch search. Checks JWT login first (matches WPF SearchIt.Start()).
+        /// Launch search. Checks JWT login first.
         /// </summary>
         public void Start()
         {
@@ -45,18 +44,13 @@ namespace WFInfo.Linux.Views
         }
 
         /// <summary>
-        /// Reset search state and hide (matches WPF SearchIt.Finish()).
+        /// Reset search state and hide.
         /// </summary>
         public void Finish()
         {
             SearchField.Text = "";
             IsInUse = false;
             Hide();
-        }
-
-        private void Close_Click(object sender, RoutedEventArgs e)
-        {
-            Finish();
         }
 
         private void SearchField_KeyDown(object sender, KeyEventArgs e)

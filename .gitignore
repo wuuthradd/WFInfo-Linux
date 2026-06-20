@@ -1,7 +1,9 @@
 bin/
 obj/
 build-appimage/
-WFInfo.Linux/NativeOverlay/wfinfo-overlay
+WFInfo.Linux/NativeOverlay/libwfinfo_vk.so
+WFInfo.Linux/NativeOverlay/*.spv
+WFInfo.Linux/NativeOverlay/*.inc
 WFInfo.Linux/DBMon/*.exe
 tests/test_results*.json
 tests/bench_*.json

@@ -1,29 +1,46 @@
-CC      ?= gcc
+CXX     ?= g++
 
-WL_PKGS := wayland-client wayland-cursor
-X11_PKGS := x11 x11-xcb xcb xfixes xrender xext xi xrandr
-COMMON_PKGS := cairo pangocairo fontconfig
+PKGS    := cairo pangocairo fontconfig
+CXXFLAGS := -std=c++17 -fPIC -Wall -Wextra -O2 -DVK_NO_PROTOTYPES \
+	$(shell pkg-config --cflags $(PKGS))
+LDFLAGS := -shared $(shell pkg-config --libs $(PKGS)) -lpthread -lm
+SRC     := wfinfo-vklayer.cpp vklayer-composite.cpp overlay-render.cpp
+HEADERS := overlay.hpp vklayer-composite.hpp
 
-CFLAGS  := -Wall -Wextra -O2 \
-	$(shell pkg-config --cflags $(COMMON_PKGS) $(WL_PKGS) $(X11_PKGS))
-LDFLAGS := $(shell pkg-config --libs $(COMMON_PKGS) $(WL_PKGS) $(X11_PKGS))
+all: libwfinfo_vk.so
 
-PROTO_SRC := wlr-layer-shell-code.c xdg-shell-code.c
-HEADERS   := overlay.h wlr-layer-shell-client.h xdg-shell-client.h icon_data.h bg_data.h
-SRCS      := wfinfo-overlay.c overlay-render.c overlay-wayland.c overlay-x11.c $(PROTO_SRC)
+overlay-blend.vert.spv: overlay-blend.vert
+	glslangValidator -V $< -o $@
 
-wfinfo-overlay: $(SRCS) $(HEADERS)
-	$(CC) -o $@ $(filter %.c,$^) $(CFLAGS) $(LDFLAGS)
+overlay-blend.vert.inc: overlay-blend.vert.spv
+	xxd -i $< > $@
 
-debug: $(SRCS) $(HEADERS)
-	$(CC) -o wfinfo-overlay -g -O0 -Wall -Wextra -Wpedantic \
-		-fsanitize=address,undefined -fno-omit-frame-pointer \
-		$(filter %.c,$(SRCS)) \
-		$(shell pkg-config --cflags $(COMMON_PKGS) $(WL_PKGS) $(X11_PKGS)) \
-		$(shell pkg-config --libs $(COMMON_PKGS) $(WL_PKGS) $(X11_PKGS)) \
-		-fsanitize=address,undefined
+overlay-blend.frag.spv: overlay-blend.frag
+	glslangValidator -V $< -o $@
+
+overlay-blend.frag.inc: overlay-blend.frag.spv
+	xxd -i $< > $@
+
+hdr-convert.comp.spv: hdr-convert.comp
+	glslangValidator -V $< -o $@
+
+hdr-convert.comp.inc: hdr-convert.comp.spv
+	xxd -i $< > $@
+
+SHADER_INCS := overlay-blend.vert.inc overlay-blend.frag.inc hdr-convert.comp.inc
+
+libwfinfo_vk.so: $(SRC) $(HEADERS) $(SHADER_INCS)
+	$(CXX) -o $@ $(filter %.cpp,$^) $(CXXFLAGS) $(LDFLAGS)
+
+debug: CXXFLAGS := $(filter-out -O2,$(CXXFLAGS)) -g -O0 \
+	-fsanitize=address,undefined -fno-omit-frame-pointer
+debug: LDFLAGS += -fsanitize=address,undefined
+debug: libwfinfo_vk.so
 
 clean:
-	rm -f wfinfo-overlay
+	rm -f libwfinfo_vk.so \
+		overlay-blend.vert.spv overlay-blend.vert.inc \
+		overlay-blend.frag.spv overlay-blend.frag.inc \
+		hdr-convert.comp.spv hdr-convert.comp.inc
 
-.PHONY: clean debug
+.PHONY: clean debug all

@@ -72,7 +72,7 @@ namespace WFInfo.Linux.Views
             foreach (var item in _items)
                 IncrementOwned(item, save: false);
 
-            AppMain.dataBase.SaveAllJSONs();
+            AppMain.dataBase?.SaveAllJSONs();
             EquipmentWindow.ReloadIfOpen();
             _items.Clear();
         }
@@ -93,7 +93,7 @@ namespace WFInfo.Linux.Views
 
             try
             {
-                // Derive prime set name and part key (same logic as WPF AutoAddViewModel)
+                // Derive prime set name and part key
                 string[] parts = partName.Split(new[] { "Prime" }, 2, StringSplitOptions.None);
                 string primeName = parts[0] + "Prime";
                 string partKey = primeName + (parts[1].Length > 10 && !parts[1].Contains("Kubrow")

@@ -1,0 +1,46 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WFInfo.Linux.Views.RewardWindow"
+        Title="Rewards Window"
+        Height="240" Width="252" MinWidth="252"
+        CanResize="False" SystemDecorations="None"
+        Background="#FF1B1B1B"
+        Icon="avares://WFInfo.Linux/Resources/WFLogo.png"
+        WindowStartupLocation="Manual">
+
+    <Border BorderBrush="#FF707070" BorderThickness="1">
+        <Grid>
+            <!-- Title bar -->
+            <Grid Height="23" VerticalAlignment="Top" ZIndex="500" PointerPressed="OnPointerPressed">
+                <Rectangle Fill="#FF0F0F0F" />
+                <Image HorizontalAlignment="Left" Height="20" VerticalAlignment="Center" Width="20"
+                       Source="avares://WFInfo.Linux/Resources/WFLogo.png" Margin="2,0,0,0" />
+                <TextBlock Text="Rewards" Margin="28,1,0,0"
+                           HorizontalAlignment="Left" VerticalAlignment="Center"
+                           FontSize="14" FontWeight="Bold"
+                           FontFamily="{StaticResource RobotoBlack}" />
+                <Rectangle Fill="#FF646464" Width="1" Margin="0,0,43,0" Height="22"
+                           VerticalAlignment="Top" HorizontalAlignment="Right" />
+                <Button Content="_" Click="Minimize_Click" Classes="linkButton"
+                        HorizontalAlignment="Right" Width="22" Height="22" VerticalAlignment="Top"
+                        Margin="0,0,21,0"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                <Rectangle Fill="#FF646464" Width="1" Margin="0,0,21,0" Height="22"
+                           VerticalAlignment="Top" HorizontalAlignment="Right" />
+                <Button Content="x" Click="Close_Click" Classes="linkButton"
+                        HorizontalAlignment="Right" Width="22" Height="22" VerticalAlignment="Top"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                <Rectangle Height="1" Fill="#FF646464" VerticalAlignment="Bottom" />
+            </Grid>
+
+            <!-- Reward panels -->
+            <ItemsControl x:Name="RewardPanels" Margin="0,23,0,0">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </Grid>
+    </Border>
+</Window>

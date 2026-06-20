@@ -1,22 +1,18 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <pango/pangocairo.h>
-#include <X11/Xlib.h>
-#include <X11/extensions/Xrandr.h>
-#include "overlay.h"
-#include "icon_data.h"
-#include "bg_data.h"
+#include "overlay.hpp"
+#include "icon_data.hpp"
+#include "bg_data.hpp"
 
-Panel panels[MAX_PANELS];
+std::vector<Panel> panels;
 RwState rw;
 SnapItState snapit;
 int running = 1;
 int pointer_on_rw;
 double rw_ptr_x, rw_ptr_y;
 OverlayBackend *backend;
-int snapit_output_scale = 1;
-
 cairo_surface_t *plat_icon_surface;
 cairo_surface_t *ducat_icon_surface;
 cairo_surface_t *warning_icon_surface;
@@ -49,42 +45,13 @@ static void set_panel_font(double size, int bold)
     pango_font_description_set_absolute_size(cached_panel_font, size * PANGO_SCALE);
 }
 
-/* ---- multi-monitor (XRandR) ---- */
-
-void get_monitor_at_point(void *display, int px, int py, MonitorRect *out)
-{
-    Display *dpy = (Display *)display;
-    int scr = DefaultScreen(dpy);
-    out->x = 0;
-    out->y = 0;
-    out->w = DisplayWidth(dpy, scr);
-    out->h = DisplayHeight(dpy, scr);
-
-    int nmon = 0;
-    XRRMonitorInfo *mons = XRRGetMonitors(dpy, DefaultRootWindow(dpy), True, &nmon);
-    if (!mons || nmon <= 0) return;
-
-    for (int i = 0; i < nmon; i++) {
-        if (px >= mons[i].x && px < mons[i].x + mons[i].width &&
-            py >= mons[i].y && py < mons[i].y + mons[i].height) {
-            out->x = mons[i].x;
-            out->y = mons[i].y;
-            out->w = mons[i].width;
-            out->h = mons[i].height;
-            break;
-        }
-    }
-
-    XRRFreeMonitors(mons);
-}
-
 /* ---- embedded icon loading ---- */
 
 typedef struct { const unsigned char *data; unsigned int offset; unsigned int size; } PngReadCtx;
 
 static cairo_status_t png_read_func(void *closure, unsigned char *buf, unsigned int length)
 {
-    PngReadCtx *ctx = closure;
+    auto *ctx = static_cast<PngReadCtx*>(closure);
     if (ctx->offset + length > ctx->size) return CAIRO_STATUS_READ_ERROR;
     memcpy(buf, ctx->data + ctx->offset, length);
     ctx->offset += length;
@@ -175,10 +142,6 @@ double json_get_double(const char *json, const char *key, double def)
     return atof(v);
 }
 
-static void json_get_cmd(const char *json, char *out, int maxlen)
-{
-    json_get_string(json, "cmd", out, maxlen);
-}
 
 /* ---- rendering ---- */
 
@@ -203,7 +166,7 @@ void render_panel(Panel *p, void *buf_data, int scale)
 {
     int bw = p->w * scale, bh = p->h * scale;
     cairo_surface_t *cs = cairo_image_surface_create_for_data(
-        buf_data, CAIRO_FORMAT_ARGB32, bw, bh, bw * 4);
+        static_cast<unsigned char*>(buf_data), CAIRO_FORMAT_ARGB32, bw, bh, bw * 4);
     if (scale > 1)
         cairo_surface_set_device_scale(cs, scale, scale);
     cairo_t *cr = cairo_create(cs);
@@ -229,6 +192,7 @@ void render_panel(Panel *p, void *buf_data, int scale)
         cairo_paint(cr);
     }
 
+    /* Default text color: WFInfo blue-gray (#b1d0d9) */
     double name_r = 0.694, name_g = 0.816, name_b = 0.851;
     double plat_r = 0.694, plat_g = 0.816, plat_b = 0.851;
     double ducat_r = 0.694, ducat_g = 0.816, ducat_b = 0.851;
@@ -249,6 +213,7 @@ void render_panel(Panel *p, void *buf_data, int scale)
         owned_bold = 1; name_bold = 1;
     }
 
+    /* Adaptive layout: padding, row gap, and font sizes scale with panel height */
     double pad = p->h * 0.035;
     if (pad < 2) pad = 2;
     double row_gap = p->h * 0.06;
@@ -633,75 +598,25 @@ void snapit_cache_hint(void)
     s->hint_cs = NULL;
 
     ensure_font_cache();
+
+    /* Measure on a 1x1 scratch surface, then render on the real one.
+     * Reuse the same PangoLayout for both passes. */
     cairo_surface_t *tmp = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1, 1);
     cairo_t *cr = cairo_create(tmp);
     PangoLayout *layout = pango_cairo_create_layout(cr);
     pango_layout_set_font_description(layout, cached_snapit_hint);
     pango_layout_set_text(layout, "Press any key to exit", -1);
     pango_layout_get_pixel_size(layout, &s->hint_w, &s->hint_h);
-    g_object_unref(layout);
     cairo_destroy(cr);
     cairo_surface_destroy(tmp);
 
     s->hint_cs = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, s->hint_w, s->hint_h);
     cr = cairo_create(s->hint_cs);
-    layout = pango_cairo_create_layout(cr);
-    pango_layout_set_font_description(layout, cached_snapit_hint);
-    pango_layout_set_text(layout, "Press any key to exit", -1);
+    pango_cairo_update_layout(cr, layout);
     cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 0.7);
     pango_cairo_show_layout(cr, layout);
     g_object_unref(layout);
     cairo_destroy(cr);
-}
-
-void render_snapit(void *buf_data, int w, int h, int scale)
-{
-    SnapItState *s = &snapit;
-    int bw = w * scale, bh = h * scale;
-
-    memset(buf_data, 0, bw * bh * 4);
-
-    cairo_surface_t *cs = cairo_image_surface_create_for_data(
-        buf_data, CAIRO_FORMAT_ARGB32, bw, bh, bw * 4);
-    if (scale > 1)
-        cairo_surface_set_device_scale(cs, scale, scale);
-    cairo_t *cr = cairo_create(cs);
-
-    cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 0.063);
-    cairo_paint(cr);
-
-    if (s->dragging) {
-        double rx = s->start_x < s->cur_x ? s->start_x : s->cur_x;
-        double ry = s->start_y < s->cur_y ? s->start_y : s->cur_y;
-        double rw = s->cur_x - s->start_x;
-        double rh_val = s->cur_y - s->start_y;
-        if (rw < 0) rw = -rw;
-        if (rh_val < 0) rh_val = -rh_val;
-
-        cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
-        cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 0.20);
-        cairo_rectangle(cr, rx, ry, rw, rh_val);
-        cairo_fill(cr);
-        cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
-
-        double dashes[] = {5.0, 5.0};
-        cairo_set_dash(cr, dashes, 2, s->dash_offset);
-        cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 1.0);
-        cairo_set_line_width(cr, 1.0);
-        cairo_rectangle(cr, rx, ry, rw, rh_val);
-        cairo_stroke(cr);
-        cairo_set_dash(cr, NULL, 0, 0);
-    }
-
-    if (s->hint_cs) {
-        double tx = (w - s->hint_w) / 2.0;
-        double ty = h - s->hint_h - 10;
-        cairo_set_source_surface(cr, s->hint_cs, tx, ty);
-        cairo_paint(cr);
-    }
-
-    cairo_destroy(cr);
-    cairo_surface_destroy(cs);
 }
 
 /* ---- input handlers ---- */
@@ -744,6 +659,25 @@ void handle_rw_motion(double px, double py)
     }
 }
 
+/* Route event to IPC socket (in-layer) or stdout (standalone) */
+static void send_overlay_event(const char *json)
+{
+    if (overlay_send_event)
+        overlay_send_event(json);
+    else {
+        fputs(json, stdout);
+        fflush(stdout);
+    }
+}
+
+static void snapit_teardown(void)
+{
+    backend->close_snapit();
+    snapit.active = 0;
+    snapit.configured = 0;
+    snapit.dragging = 0;
+}
+
 void handle_snapit_press(double x, double y)
 {
     snapit.start_x = x;
@@ -767,19 +701,18 @@ void handle_snapit_release(double x, double y)
 
     if (rw_val >= 10 && rh_val >= 10) {
         double sx = (snapit.surf_w > 0 && snapit.phys_w > 0)
-            ? (double)snapit.phys_w / snapit.surf_w : (double)snapit_output_scale;
+            ? (double)snapit.phys_w / snapit.surf_w : 1.0;
         double sy = (snapit.surf_h > 0 && snapit.phys_h > 0)
-            ? (double)snapit.phys_h / snapit.surf_h : (double)snapit_output_scale;
-        printf("{\"event\":\"snapit_result\",\"x\":%d,\"y\":%d,\"w\":%d,\"h\":%d,\"sw\":%d,\"sh\":%d}\n",
+            ? (double)snapit.phys_h / snapit.surf_h : 1.0;
+        char evt[256];
+        snprintf(evt, sizeof(evt),
+            "{\"event\":\"snapit_result\",\"x\":%d,\"y\":%d,\"w\":%d,\"h\":%d,\"sw\":%d,\"sh\":%d}\n",
             (int)(rx * sx + snapit.origin_x * sx),
             (int)(ry * sy + snapit.origin_y * sy),
             (int)(rw_val * sx), (int)(rh_val * sy),
             snapit.surf_w, snapit.surf_h);
-        fflush(stdout);
-        backend->close_snapit();
-        snapit.active = 0;
-        snapit.configured = 0;
-        snapit.dragging = 0;
+        send_overlay_event(evt);
+        snapit_teardown();
     }
 }
 
@@ -801,7 +734,8 @@ static void show_panel(int id, int x, int y, int w, int h,
                        double min_eff, double max_eff,
                        int hide_delay, int hide_info, int high_contrast)
 {
-    if (id < 0 || id >= MAX_PANELS) return;
+    if (id < 0) return;
+    ensure_panel_capacity(id);
     Panel *p = &panels[id];
 
     p->x = x; p->y = y; p->w = w; p->h = h;
@@ -825,6 +759,8 @@ static void show_panel(int id, int x, int y, int w, int h,
     p->configured = 0;
 
     backend->show_panel(id);
+    if (composite_mark_panel_dirty)
+        composite_mark_panel_dirty(id);
     p->visible = 1;
     int delay_ms = p->hide_delay > 0
         ? p->hide_delay
@@ -834,7 +770,7 @@ static void show_panel(int id, int x, int y, int w, int h,
 
 void hide_panel_by_id(int id)
 {
-    if (id < 0 || id >= MAX_PANELS) return;
+    if (id < 0 || static_cast<size_t>(id) >= panels.size()) return;
     Panel *p = &panels[id];
     if (!p->visible) return;
 
@@ -856,8 +792,8 @@ static void hide_rw_internal(void)
 
 static void hide_all(void)
 {
-    for (int i = 0; i < MAX_PANELS; i++)
-        hide_panel_by_id(i);
+    for (size_t i = 0; i < panels.size(); i++)
+        hide_panel_by_id(static_cast<int>(i));
     hide_rw_internal();
 }
 
@@ -915,7 +851,7 @@ static void commit_rw(void)
 void process_line(const char *line)
 {
     char cmd[32];
-    json_get_cmd(line, cmd, sizeof(cmd));
+    json_get_string(line, "cmd", cmd, sizeof(cmd));
 
     if (strcmp(cmd, "show") == 0) {
         char name[256], plat[64], ducats[64], owned[64], detected[64];
@@ -948,7 +884,7 @@ void process_line(const char *line)
         int id = json_get_int(line, "id", -1);
         char hl[32];
         json_get_string(line, "type", hl, sizeof(hl));
-        if (id >= 0 && id < MAX_PANELS && panels[id].visible) {
+        if (id >= 0 && static_cast<size_t>(id) < panels.size() && panels[id].visible) {
             snprintf(panels[id].highlight, sizeof(panels[id].highlight), "%s", hl);
             backend->rerender_panel(id);
         }
@@ -968,12 +904,8 @@ void process_line(const char *line)
         snapit.active = 1;
     } else if (strcmp(cmd, "cancel_snapit") == 0) {
         if (snapit.active) {
-            printf("{\"event\":\"snapit_cancel\"}\n");
-            fflush(stdout);
-            backend->close_snapit();
-            snapit.active = 0;
-            snapit.configured = 0;
-            snapit.dragging = 0;
+            send_overlay_event("{\"event\":\"snapit_cancel\"}\n");
+            snapit_teardown();
         }
     } else if (strcmp(cmd, "rw_show") == 0) {
         char name[256], plat[64], ducats[64], owned[64], volume[128], set_plat[64], hl[32];

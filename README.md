@@ -6,11 +6,10 @@ The original is a Windows only WPF/.NET Framework 4.8 app. This port replaces WP
 
 ## How it works on Linux
 
-- **Process detection**: Scans `/proc` for `Warframe.x64.exe` running under Proton, finds the XWayland window ID via X11 tree search.
-- **Log capture**: A tiny Win32 exe (DBMON bridge) runs under Proton's Wine to capture `OutputDebugString` in real time, same mechanism as the Windows version. Falls back to tailing `EE.log` from the Proton Wine prefix if DBMON is unavailable (slower, worst case for auto mode).
-- **Screenshots**: X11/XWayland screen capture via XShm with XGetImage as fallback.
+- **Process detection**: Scans `/proc` for `Warframe.x64.exe` running under Proton.
+- **Log capture**: A tiny Win32 exe (DBMON bridge) runs under Proton's Wine to capture `OutputDebugString` in real time, same mechanism as the Windows version.
+- **Screenshots + Overlay**: A Vulkan layer hooks the game's swapchain to capture frames and composite overlay panels directly onto the rendered image before present. Works in fullscreen, borderless and windowed modes on any display server and any compositor without needing specific protocols.
 - **OCR**: System-installed Tesseract via the managed NuGet wrapper.
-- **Overlay**: A native C/cairo helper process. On Wayland it uses `wlr-layer-shell` to render above fullscreen games with full transparency. On X11 it uses override-redirect windows with ARGB visuals (transparency is lost when a fullscreen game suspends compositing, see [Known limitations](#known-limitations)).
 - **Input listening**: Reads keyboard and mouse events directly from `/dev/input/event*` via evdev. Requires a one-time setup to grant read access (see [Setup](#setup)). Also listens on a Unix domain socket (`$XDG_RUNTIME_DIR/wfinfo.sock`) for commands, allowing desktop environment shortcuts to trigger actions without evdev access.
 
 ## Installation
@@ -45,22 +44,34 @@ WFInfo.Linux needs Tesseract OCR and a few graphics libraries at runtime. Most a
 | Library | What for |
 |---|---|
 | `tesseract` + `leptonica` | OCR engine |
-| `cairo`, `pango`, `fontconfig` | Overlay text rendering |
-| `libX11`, `libXext`, `libXrender`, `libXfixes`, `libXi`, `libXrandr`, `libxcb` | X11/XWayland screenshot and overlay |
-| `libwayland-client`, `libwayland-cursor` | Wayland overlay |
+| `cairo`, `pango`, `fontconfig` | Overlay panel rendering (used by the Vulkan layer) |
+| Vulkan loader (`libvulkan`) | Already present if you're running Proton games |
 
 **Install commands** :
 
 | Distro | Command |
 |---|---|
-| Arch / Manjaro | `sudo pacman -S tesseract` |
-| Ubuntu / Debian / Mint | `sudo apt install libtesseract-dev libleptonica-dev` |
+| Arch | `sudo pacman -S tesseract` |
+| Ubuntu / Debian / Mint | `sudo apt install tesseract-ocr` |
 | Fedora | `sudo dnf install tesseract leptonica` |
-| openSUSE | `sudo zypper install tesseract-ocr leptonica-devel` |
 
 ## Setup
 
+### Steam launch options (required)
+
+WFInfo uses a Vulkan layer to capture screenshots and render overlays directly in the game's swapchain. You need to enable it by adding an environment variable to your Steam launch options.
+
+Right-click Warframe in Steam → Properties → General → Launch Options and add:
+
+```
+WFINFO=1 %command%
+```
+
+Without this, WFInfo cannot capture the screen or show overlays. If you already have launch options, just add this before `%command%`. If you are using Lutris or other platforms, add this as environment variable or game argument without `%command%`.
+
 ### Global hotkeys (required for manual activation)
+
+If you are already in the `input` group or similar, this step is not needed. 
 
 WFInfo needs read access to input devices for global hotkeys. Run the included setup script once:
 
@@ -120,28 +131,11 @@ Closing the window dismisses for this session (will prompt again next launch).
 
 ## Known limitations
 
-### X11: Overlay transparency
+### Reward window mode
 
-On X11, overlay panels appear as opaque black rectangles when a fullscreen Proton game is running. This is a fundamental X11 limitation. All compositors (KWin, Picom, Mutter, xfwm4, Compiz) suspend or unredirect compositing for fullscreen games, so ARGB alpha blending is ignored by the X server. The overlays still show correct content, positioning and sizing, only the semi-transparent background becomes fully opaque.
+When using the reward window display mode, the window will appear behind a fullscreen game because of Linux limitations. To fix this, set the window to stay above others using your compositor's window rules. On KDE for instance, use "Detect Window Properties" in window rules at system settings to get the exact window class(full) and window title for matching. If you leave the window title empty the rule will apply to every WFInfo window. Then add a property as layer, choose popup or higher so it can show above. You can do this for any window you want, instead of exact match you can choose regular expressions to give a value as (Auto Add|Relics) so you can add multiple windows to show above always.
 
-On Wayland, overlays render with proper transparency at all times.
-
-### GNOME Wayland overlay
-
-The overlay uses the `wlr-layer-shell` Wayland protocol to render above fullscreen games. GNOME's Mutter compositor does not implement this protocol and has no alternative. This affects GNOME Wayland sessions, the overlay cannot appear above the game.
-
-Workarounds for GNOME users:
-- **Use an Xorg session** instead of Wayland, overlays work normally (with the transparency limitation above)
-- **Run Warframe through Gamescope** - `gamescope -- %command%` as a Steam launch option. Gamescope is a wlroots-based nested compositor that supports `wlr-layer-shell`
-- **Auto mode still works** - reward detection and clipboard/notification output function without the overlay
-
-Every other major compositor supports `wlr-layer-shell`: KDE (KWin 6.6+), Sway, Hyprland, COSMIC, Cinnamon (Muffin 6.6+), Budgie (labwc), River, niri, Labwc, Wayfire.
-
-### Pure Wayland (not yet supported)
-
-Some Proton/Wine versions offer a native Wayland backend for games (e.g. `proton-ge` with the Wayland launch option). WFInfo.Linux does not support this yet. The code skeleton for pure Wayland screenshots and pointer tracking is in place, but the implementation is incomplete. Currently all screenshot and input paths require X11/XWayland.
-
-Pure Wayland support is planned. For now, use XWayland (the default for Proton). If you're on a Wayland desktop, Proton already runs the game through XWayland automatically, no action needed. Only users who explicitly enable experimental native Wayland in Wine/Proton are affected.
+You can't interact with the reward window while the game stays focused.
 
 ## Reporting Bugs & Feature Requests
 
@@ -151,7 +145,7 @@ Create a debug zip from WFInfo Settings → "Create debug zip" and attach it to 
 
 ## Building from source
 
-Requires .NET 10+ SDK, a C compiler (gcc, clang, zig cc, etc.) and native development libraries.
+Requires .NET 10+ SDK, a C++ compiler (g++, clang++, zig c++, etc.) and native development libraries.
 
 ```bash
 # Build the .NET app (all projects)
@@ -160,7 +154,7 @@ dotnet build
 # Or build a specific project
 dotnet build WFInfo.Linux/WFInfo.Linux.csproj
 
-# Build the native overlay
+# Build the Vulkan layer (libwfinfo_vk.so)
 make -C WFInfo.Linux/NativeOverlay
 
 # Build the DBMON bridge (Win32 exe for game log capture via Wine)
@@ -179,6 +173,6 @@ dotnet run --project WFInfo.Linux
 ### Build dependencies
 
 - **.NET app**: .NET 10+ SDK. At runtime, requires `tesseract` and `leptonica` (see [Dependencies](#dependencies)).
-- **Native overlay**: `pkg-config` and development packages for `wayland-client`, `wayland-cursor`, `x11`, `x11-xcb`, `xcb`, `xfixes`, `xrender`, `xext`, `xi`, `xrandr`, `cairo`, `pangocairo`, `fontconfig`.
+- **Vulkan layer**: `pkg-config`, Vulkan headers (`vulkan-headers`), `glslangValidator` (shader compilation, from `glslang`), `xxd` (from `vim` or `xxd`), and development packages for `cairo`, `pangocairo`, `fontconfig`.
 - **DBMON bridge**: A C cross-compiler targeting Windows. The Makefile uses `zig cc -target x86_64-windows-gnu` by default. Alternatively, `x86_64-w64-mingw32-gcc` works.
 - **AppImage**: `appimagetool` (auto-downloaded if not found) and `libfuse2`.

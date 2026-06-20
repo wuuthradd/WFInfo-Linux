@@ -15,12 +15,13 @@ namespace WFInfo.Linux.Views
             Path.Combine(PlatformPaths.AppDataPath, "review_posted");
         private int _sliderCounter;
         private bool _slidersWired;
+        private bool _easterEggTriggered;
 
         public PlusOneWindow()
         {
             InitializeComponent();
 
-            // Check if already reviewed (replaces WPF Registry check)
+            // Check if already reviewed
             if (File.Exists(_reviewMarkerPath))
                 Processed();
         }
@@ -55,25 +56,27 @@ namespace WFInfo.Linux.Views
         private void Close_Click(object sender, RoutedEventArgs e) => Close();
         private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 
-        // Matches WPF TextboxGotFocus - clears placeholder text on focus
+        // Clear placeholder text on focus
         private void CommentBox_GotFocus(object sender, GotFocusEventArgs e)
         {
             if (CommentBox.Text != null && CommentBox.Text.Contains("Optional comment field"))
                 CommentBox.Text = "";
         }
 
-        // Matches WPF TextBox_TextChanged - slider easter egg
+        // Slider easter egg trigger
         private void CommentBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (CommentBox.Text != null &&
+            if (!_easterEggTriggered && CommentBox.Text != null &&
                 (CommentBox.Text.Contains("Give me sliders") || CommentBox.Text.Contains("more sliders")))
             {
+                _easterEggTriggered = true;
                 Height += 58;
             }
         }
 
         private async void Post_Click(object sender, RoutedEventArgs e)
         {
+            PostButton.IsEnabled = false;
             var message = CommentBox.Text == "Optional comment field" ? "" : CommentBox.Text;
 
             try
@@ -93,7 +96,7 @@ namespace WFInfo.Linux.Views
             Processed();
         }
 
-        // Easter egg: each slider drag grows the window, matching WPF
+        // Easter egg: each slider drag grows the window
         private void Slider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
         {
             if (_sliderCounter >= 9) return;

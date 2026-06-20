@@ -24,6 +24,13 @@ namespace WFInfo.Linux.Views
         private readonly TextBlock[] _reps;
         private List<int> _comboIndexMap = new();
 
+        private static readonly Avalonia.Media.SolidColorBrush InfoBrush =
+            new(Avalonia.Media.Color.FromRgb(0xB1, 0xD0, 0xD9));
+        private static readonly Avalonia.Media.SolidColorBrush SuccessBrush =
+            new(Avalonia.Media.Color.FromRgb(0, 200, 0));
+        private static readonly Avalonia.Media.SolidColorBrush ErrorBrush =
+            new(Avalonia.Media.Color.FromRgb(255, 80, 80));
+
         public ListingHelperWindow()
         {
             InitializeComponent();
@@ -32,14 +39,11 @@ namespace WFInfo.Linux.Views
             _reps = new[] { Rep0, Rep1, Rep2, Rep3, Rep4 };
         }
 
-        /// <summary>
-        /// Called from App.axaml.cs on session end. Fetches market data and populates UI.
-        /// </summary>
+        /// <summary>Fetch market data for rewards and populate UI.</summary>
         public void LoadRewards(List<List<string>> rewards, short selectedIdx)
         {
             StatusText.Text = "Loading market data...";
-            StatusText.Foreground = new Avalonia.Media.SolidColorBrush(
-                Avalonia.Media.Color.FromRgb(0xB1, 0xD0, 0xD9));
+            StatusText.Foreground = InfoBrush;
             RewardCombo.IsEnabled = false;
             ConfirmButton.IsEnabled = false;
             PriceBox.IsEnabled = false;
@@ -199,8 +203,7 @@ namespace WFInfo.Linux.Views
             {
                 case "successful":
                     StatusText.Text = "Listing already successfully posted";
-                    StatusText.Foreground = new Avalonia.Media.SolidColorBrush(
-                        Avalonia.Media.Color.FromRgb(0, 200, 0));
+                    StatusText.Foreground = SuccessBrush;
                     ConfirmButton.IsEnabled = false;
                     RewardCombo.IsEnabled = false;
                     PriceBox.IsEnabled = false;
@@ -215,8 +218,7 @@ namespace WFInfo.Linux.Views
                     break;
                 default:
                     StatusText.Text = status;
-                    StatusText.Foreground = new Avalonia.Media.SolidColorBrush(
-                        Avalonia.Media.Color.FromRgb(255, 80, 80));
+                    StatusText.Foreground = ErrorBrush;
                     ConfirmButton.IsEnabled = !_posting;
                     RewardCombo.IsEnabled = true;
                     PriceBox.IsEnabled = true;
@@ -231,8 +233,6 @@ namespace WFInfo.Linux.Views
             BackButton.IsEnabled = _pageIndex > 0;
             NextButton.IsEnabled = _pageIndex < _screens.Count - 1;
         }
-
-        // ── Event handlers ──
 
         private void OnPointerPressed(object sender, PointerPressedEventArgs e)
         {
@@ -323,7 +323,6 @@ namespace WFInfo.Linux.Views
         {
             if (_screens.Count <= 1)
             {
-                // Last screen, close the window
                 Close();
                 return;
             }
@@ -386,7 +385,7 @@ namespace WFInfo.Linux.Views
             {
                 _updating = true;
                 PriceBox.Text = cleaned;
-                PriceBox.CaretIndex = cleaned.Length;
+                PriceBox.CaretIndex = cleaned.Length; // keep caret at end after stripping non-digits
                 _updating = false;
             }
         }

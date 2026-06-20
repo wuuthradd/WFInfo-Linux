@@ -48,18 +48,17 @@ namespace WFInfo.Linux.Views
 
                 using (var zip = ZipFile.Open(fullZipPath, ZipArchiveMode.Create))
                 {
-                    // Priority files: debug.log and settings
                     AddFileIfExists(zip, Path.Combine(_appPath, "debug.log"));
                     AddFileIfExists(zip, Path.Combine(_appPath, "settings.json"));
+                    AddFileIfExists(zip, Path.Combine(_appPath, "vklayer.log"));
 
-                    // Data files
                     AddFileIfExists(zip, Path.Combine(_appPath, "eqmt_data.json"));
                     AddFileIfExists(zip, Path.Combine(_appPath, "market_data.json"));
                     AddFileIfExists(zip, Path.Combine(_appPath, "market_items.json"));
                     AddFileIfExists(zip, Path.Combine(_appPath, "name_data.json"));
                     AddFileIfExists(zip, Path.Combine(_appPath, "relic_data.json"));
 
-                    // Debug folder screenshots near the timestamp (most recent 50)
+                    // Debug folder screenshots near the timestamp (most recent 100)
                     if (Directory.Exists(_debugDir))
                     {
                         var files = new DirectoryInfo(_debugDir).GetFiles()
@@ -76,7 +75,6 @@ namespace WFInfo.Linux.Views
                     }
                 }
 
-                // Open the zip folder
                 try { Process.Start(new ProcessStartInfo(_zipDir) { UseShellExecute = true }); }
                 catch { /* non-critical */ }
             }

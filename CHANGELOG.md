@@ -1,5 +1,24 @@
 # Changelog
 
+## 9.8.1.3
+
+### Vulkan layer migration
+- Replaced X11/Wayland overlay and screenshot systems with a Vulkan layer that hooks the game's swapchain for screenshot capture and overlay compositing. You have to pass WFINFO=1 env to whatever launcher you are using, add WFINFO=1 %command% to launch options for steam.
+- Overlays now work in fullscreen, borderless and windowed modes on any display server and any compositor
+- HDR support: Warframe in game HDR is now supported. Recommended to use custom themes if you want best results. In game paperwhite setting can affect filtering so your filter wont work for different margin values, same as WPF version.
+- Handles DXVK multi-device init (extra devices get passthrough dispatch)
+
+### UI and window changes
+- Update dialogue: proper markdown rendering for release notes
+- Various layout fixes across windows (Equipment, Relics, SearchIt, PlusOne, Login, Settings, Welcome, ListingHelper)
+- Theme adjuster and settings window bug fixes
+
+### Other
+- Removed EE.log tailing fallback, DBMON bridge is now the only log capture method
+- Cursor tracking now done via DBMON bridge
+- Theme adjuster: added Import/Export JSON, also filter preset system to save and load them. Filters saved to $XDG_DATA_HOME/WFInfo/filters/ (default ~/.local/share/WFInfo/filters/)
+- Migrated to C++ for better Vulkan layer implementation
+
 ## 9.8.1.2
 
 - Use dedicated X11 display connection for screenshot captures, fixing XShm crashes and XGetWindowAttributes failures caused by race issues on the shared connection

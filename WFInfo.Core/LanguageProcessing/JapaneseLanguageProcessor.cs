@@ -160,23 +160,14 @@ namespace WFInfo.LanguageProcessing
             // Apply Japanese-specific normalization first
             string normalized = NormalizeJapaneseCharacters(input);
 
-            // Basic cleanup for Japanese
             normalized = normalized.ToLower(_culture).Trim();
-
-            // Add spaces around "Prime" to match database format better
             normalized = normalized.Replace("prime", " prime ");
-
-            // Remove accents (not typically needed for Japanese - preserve combining marks)
-            // normalized = RemoveAccents(normalized);
-
-            // Remove extra spaces
             var parts = normalized.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             return string.Join(" ", parts);
         }
 
         public override bool IsPartNameValid(string partName)
         {
-            // Japanese requires minimum of 4 characters after removing spaces
             return !string.IsNullOrEmpty(partName) && partName.Replace(" ", "").Length >= 4;
         }
 

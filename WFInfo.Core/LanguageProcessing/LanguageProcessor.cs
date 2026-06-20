@@ -56,7 +56,6 @@ namespace WFInfo.LanguageProcessing
             catch (Exception e)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to create CultureInfo for locale '{locale}': {e.Message}");
-                // Fallback to invariant culture for unsupported locales
                 return CultureInfo.InvariantCulture;
             }
         }
@@ -209,7 +208,7 @@ namespace WFInfo.LanguageProcessing
                     result = Regex.Replace(result, $"\\s+{escapedTerm}\\s*$", "", RegexOptions.IgnoreCase);
                     result = Regex.Replace(result, $"\\s+{escapedTerm}\\s+", " ", RegexOptions.IgnoreCase);
 
-                    // Remove term preceded by common punctuation: " - Term", " – Term", " — Term", ": Term"
+                    // Remove term preceded by common punctuation: " - Term", ": Term"
                     result = Regex.Replace(result, $"[:\\-–—]\\s*{escapedTerm}\\s*$", "", RegexOptions.IgnoreCase);
                     result = Regex.Replace(result, $"[:\\-–—]\\s*{escapedTerm}\\s+", " ", RegexOptions.IgnoreCase);
 

@@ -11,25 +11,28 @@
     <Grid>
         <Rectangle Stroke="#FF646464" />
         <!-- Title bar (PointerPressed here only, not on outer Grid, so sliders/textbox work) -->
-        <Grid Height="27" VerticalAlignment="Top" ZIndex="500" PointerPressed="OnPointerPressed">
-            <Rectangle Fill="#FF0F0F0F" Height="27" Stroke="#FF646464" VerticalAlignment="Top" />
-            <Image HorizontalAlignment="Left" Height="26" VerticalAlignment="Top" Width="24"
-                   Source="avares://WFInfo.Linux/Resources/WFLogo.png" Margin="1,0,0,0" />
-            <TextBlock Text="Thank you for using WFinfo" Margin="31,4,0,0"
-                       HorizontalAlignment="Left" VerticalAlignment="Top"
-                       FontSize="16" FontWeight="Bold"
-                       FontFamily="{StaticResource RobotoBlack}" Width="204" />
-            <Button Content="x" Click="Close_Click" Classes="linkButton"
-                    HorizontalAlignment="Right" Width="27" Height="27" VerticalAlignment="Top"
-                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+        <Grid Height="23" VerticalAlignment="Top" ZIndex="500" PointerPressed="OnPointerPressed">
+            <Rectangle Fill="#FF0F0F0F" />
+            <Image HorizontalAlignment="Left" Height="20" VerticalAlignment="Center" Width="20"
+                   Source="avares://WFInfo.Linux/Resources/WFLogo.png" Margin="2,0,0,0" />
+            <TextBlock Text="Thank you for using WFinfo" Margin="28,1,0,0"
+                       HorizontalAlignment="Left" VerticalAlignment="Center"
+                       FontSize="14" FontWeight="Bold"
+                       FontFamily="{StaticResource RobotoBlack}" />
+            <Rectangle Fill="#FF646464" Width="1" Margin="0,0,43,0" Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" />
             <Button Content="_" Click="Minimize_Click" Classes="linkButton"
-                    HorizontalAlignment="Right" Width="27" Height="27" VerticalAlignment="Top"
-                    Margin="0,0,27,0"
+                    HorizontalAlignment="Right" Width="22" Height="22" VerticalAlignment="Top"
+                    Margin="0,0,21,0"
                     HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+            <Rectangle Fill="#FF646464" Width="1" Margin="0,0,21,0" Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" />
+            <Button Content="x" Click="Close_Click" Classes="linkButton"
+                    HorizontalAlignment="Right" Width="22" Height="22" VerticalAlignment="Top"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+            <Rectangle Height="1" Fill="#FF646464" VerticalAlignment="Bottom" />
         </Grid>
 
-        <!-- Thank you message (matches WPF: Height="190", Width="388") -->
-        <TextBlock Margin="10,32,0,0" TextWrapping="Wrap" HorizontalAlignment="Left"
+        <!-- Thank you message -->
+        <TextBlock Margin="10,28,0,0" TextWrapping="Wrap" HorizontalAlignment="Left"
                    VerticalAlignment="Top" Height="190" Width="388">
             <Run Text="Thank you for using WFinfo" /><LineBreak /><LineBreak />
             <Run Text="Without you this program would have never continued development." /><LineBreak />
@@ -42,7 +45,7 @@
             <Run Text="If you want you can leave a review right here!" />
         </TextBlock>
 
-        <!-- Post review button (matches WPF Margin="313,199,11,0") -->
+        <!-- Post review button -->
         <Button x:Name="PostButton" Content="Post review" Click="Post_Click"
                 Margin="313,199,11,0" VerticalAlignment="Top" HorizontalAlignment="Left"
                 Width="86" Height="22" Padding="0"
@@ -50,7 +53,7 @@
                 BorderBrush="#FF646464" BorderThickness="1"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
 
-        <!-- Comment box (matches WPF: Text placeholder, GotFocus clears, Margin="10,227,0,0") -->
+        <!-- Comment box -->
         <TextBox x:Name="CommentBox" HorizontalAlignment="Left" Height="89"
                  Margin="10,227,0,0" VerticalAlignment="Top" Width="388"
                  TextWrapping="Wrap" Text="Optional comment field"

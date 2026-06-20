@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="WFInfo.Linux.Views.VerifyCountWindow"
-        Title="WFInfo - Verify Count" Height="150" Width="280"
+        Title="VerifyCount" Height="150" Width="280"
         CanResize="False"
         SystemDecorations="None"
         Background="#FF1B1B1B"

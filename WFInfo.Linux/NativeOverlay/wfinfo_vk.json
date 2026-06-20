@@ -1,0 +1,17 @@
+{
+    "file_format_version": "1.1.0",
+    "layer": {
+        "name": "VK_LAYER_WFINFO_overlay",
+        "type": "GLOBAL",
+        "api_version": "1.4.0",
+        "library_path": "./libwfinfo_vk.so",
+        "implementation_version": "1",
+        "description": "WFInfo overlay and screenshot capture",
+        "enable_environment": {
+            "WFINFO": "1"
+        },
+        "disable_environment": {
+            "DISABLE_WFINFO": "1"
+        }
+    }
+}

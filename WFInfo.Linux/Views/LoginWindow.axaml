@@ -10,27 +10,28 @@
     <Border BorderBrush="#FF707070" BorderThickness="1">
     <Grid PointerPressed="OnPointerPressed">
         <!-- Title bar -->
-        <Rectangle Fill="#FF0F0F0F" Height="26" VerticalAlignment="Top" />
-        <Rectangle Stroke="#FF646464" Margin="0,25,0,0" />
-        <Rectangle Fill="#FF646464" Height="1" Margin="0,25,0,0" VerticalAlignment="Top" />
-        <Image Margin="1,0,0,0" Source="avares://WFInfo.Linux/Resources/WFLogo.png"
-               Height="24" VerticalAlignment="Top" HorizontalAlignment="Left" Width="24" />
-        <TextBlock Text="Warframe.Market login" Margin="30,4,0,0" FontSize="16" FontWeight="Bold"
+        <Rectangle Fill="#FF0F0F0F" Height="22" VerticalAlignment="Top" />
+        <Rectangle Stroke="#FF646464" Margin="0,22,0,0" />
+        <Rectangle Fill="#FF646464" Height="1" Margin="0,22,0,0" VerticalAlignment="Top" />
+        <Image Margin="2,0,0,0" Source="avares://WFInfo.Linux/Resources/WFLogo.png"
+               Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Width="20" />
+        <TextBlock Text="Warframe.Market login" Margin="28,1,0,0" FontSize="14" FontWeight="Bold"
                    FontFamily="{StaticResource RobotoBlack}"
                    VerticalAlignment="Top" HorizontalAlignment="Left" />
+        <Rectangle Fill="#FF646464" Width="1" Margin="0,0,22,0" Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" />
         <Button Content="x" Click="Close_Click" Classes="linkButton"
-                Height="26" VerticalAlignment="Top" HorizontalAlignment="Right" Width="29"
+                Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" Width="22"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
 
         <!-- Email row -->
-        <TextBlock Text="Email:" Margin="20,43,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" />
-        <TextBox x:Name="EmailBox" Watermark="Email" Margin="93,34,20,0"
+        <TextBlock Text="Email:" Margin="20,39,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" />
+        <TextBox x:Name="EmailBox" Watermark="Email" Margin="93,30,20,0"
                  VerticalAlignment="Top" VerticalContentAlignment="Center"
                  BorderBrush="#FF646464" FontSize="12" Padding="2,2" />
 
         <!-- Password row -->
-        <TextBlock Text="Password:" Margin="20,81,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" />
-        <TextBox x:Name="PasswordBox" PasswordChar="●" Margin="93,72,20,0"
+        <TextBlock Text="Password:" Margin="20,77,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" />
+        <TextBox x:Name="PasswordBox" PasswordChar="●" Margin="93,68,20,0"
                  VerticalAlignment="Top" VerticalContentAlignment="Center"
                  BorderBrush="#FF646464" FontSize="12" Padding="2,2" />
 

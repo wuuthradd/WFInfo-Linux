@@ -146,10 +146,6 @@ namespace WFInfo.Linux.Views
             return "activate";
         }
 
-        private void SocketCmdCombo_Changed(object sender, SelectionChangedEventArgs e)
-        {
-        }
-
         private async void CopySetupCmd_Click(object sender, RoutedEventArgs e)
         {
             var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
@@ -219,9 +215,6 @@ namespace WFInfo.Linux.Views
                 EfficiencyMaxBox.Text = _settings.MaximumEfficiencyValue.ToString();
             }
 
-            // Theme (handled in OnThemeChanged)
-            // Locale (handled in OnLocaleChanged)
-
             _settings.Clipboard = ClipboardCheckbox.IsChecked == true;
 
             _settings.AutoList = AutoListCheckbox.IsChecked == true;
@@ -238,7 +231,7 @@ namespace WFInfo.Linux.Views
             try
             {
                 var windowSvc = App.Services.GetRequiredService<IWindowInfoService>();
-                return windowSvc.Window.Width > 0 ? windowSvc.Window.Width / 2 : 1000;
+                return windowSvc.Window.Width > 0 ? windowSvc.Window.Width / 2 : 1000; // 1000 fallback for 1080p half-width
             }
             catch { return 1000; }
         }
@@ -495,8 +488,6 @@ namespace WFInfo.Linux.Views
             });
         }
 
-        // --- Key capture for all key bindings ---
-
         private void ActivationKey_Click(object sender, RoutedEventArgs e)
         {
             StartKeyCapture(KeyCaptureTarget.Activation, ActivationKeyBtn,
@@ -562,12 +553,10 @@ namespace WFInfo.Linux.Views
                 return;
             }
 
-            // In Avalonia, Alt+key reports the actual key in e.Key,
-            // but check for LeftAlt/RightAlt directly
+            // If key is None but Alt is held, treat Alt as the pressed key
             Key actualKey = e.Key;
             if (actualKey == Key.None && e.KeyModifiers.HasFlag(KeyModifiers.Alt))
             {
-                // Fallback: if key is None with Alt held, treat Alt itself as the key
                 actualKey = Key.LeftAlt;
             }
 
@@ -623,6 +612,7 @@ namespace WFInfo.Linux.Views
             }
 
             _captureTarget = KeyCaptureTarget.None;
+            SaveSettings();
         }
 
         private void CancelCapture()

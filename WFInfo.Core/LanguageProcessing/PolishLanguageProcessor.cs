@@ -47,23 +47,15 @@ namespace WFInfo.LanguageProcessing
         {
             if (string.IsNullOrEmpty(input)) return input;
 
-            // Basic cleanup for Polish
             string normalized = input.ToLower(_culture).Trim();
-
-            // Add spaces around "Prime" to match database format better
             normalized = normalized.Replace("prime", " prime ");
-
-            // Remove accents (not typically needed for Polish as it has specific diacritics)
             normalized = RemoveAccents(normalized);
-
-            // Remove extra spaces
             var parts = normalized.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             return string.Join(" ", parts);
         }
 
         public override bool IsPartNameValid(string partName)
         {
-            // Polish requires minimum of 8 characters
             return !string.IsNullOrEmpty(partName) && partName.Length >= 8;
         }
 
