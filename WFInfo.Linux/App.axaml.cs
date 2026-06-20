@@ -324,7 +324,7 @@ namespace WFInfo.Linux
                         var processFinder = Services.GetRequiredService<IProcessFinder>();
                         if (processFinder.IsRunning && _vulkanLayer != null && !_vulkanLayer.IsConnected && !_vulkanLayer.IsAvailable)
                         {
-                            AppMain.StatusUpdate("Vulkan layer not connected, add WFINFO=1 to game launch options", 1);
+                            AppMain.StatusUpdate("Vulkan layer not connected, add WFINFO=1 to game launch options and restart the game", 1);
                             AppMain.AddLog("WFInfo initialized but Vulkan layer not available, overlay system won't work");
                         }
                         else if (_vulkanLayer?.IsStale == true)

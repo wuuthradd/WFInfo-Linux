@@ -10,8 +10,9 @@
 set -euo pipefail
 
 if [ "$(id -u)" -ne 0 ]; then
+    SELF="${APPIMAGE:-$0}"
     echo "This script must be run with sudo:"
-    echo "  sudo $0"
+    echo "  sudo ${SELF} --setup-input"
     exit 1
 fi
 
