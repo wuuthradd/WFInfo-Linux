@@ -90,7 +90,11 @@ namespace WFInfo.Linux.Services
                     _wineEnv = ReadWineEnvironment(_warframe.Id);
                     _logger.AddLog($"LinuxProcessFinder: Found Warframe PID={_warframe.Id}");
                     if (_wineEnv != null)
+                    {
                         _logger.AddLog($"LinuxProcessFinder: Wine env, prefix={_wineEnv.WinePrefix}, EE.log={_wineEnv.EELogPath}");
+                        if (_wineEnv.ProtonVersion != null)
+                            _logger.AddLog($"LinuxProcessFinder: Proton={_wineEnv.ProtonVersion}");
+                    }
                 }
                 else
                 {
@@ -143,6 +147,7 @@ namespace WFInfo.Linux.Services
 
                 var env = new WineEnvironmentInfo();
 
+                string compatToolPaths = null;
                 foreach (string entry in entries)
                 {
                     int eq = entry.IndexOf('=');
@@ -155,6 +160,43 @@ namespace WFInfo.Linux.Services
                         case "WINEPREFIX": env.WinePrefix = val; break;
                         case "STEAM_COMPAT_DATA_PATH": env.CompatDataPath = val; break;
                         case "WINELOADER": env.WineLoaderPath = val; break;
+                        case "STEAM_COMPAT_TOOL_PATHS": compatToolPaths = val; env.CompatToolPaths = val; break;
+                    }
+                }
+
+                // Derive Proton version from STEAM_COMPAT_TOOL_PATHS or WINELOADER path
+                if (compatToolPaths != null)
+                {
+                    // e.g. "/home/user/.steam/steam/steamapps/common/Proton - Experimental"
+                    string protonDir = compatToolPaths.Split(':')[0];
+                    string versionFile = Path.Combine(protonDir, "version");
+                    if (File.Exists(versionFile))
+                    {
+                        try { env.ProtonVersion = File.ReadAllLines(versionFile)[0].Trim(); }
+                        catch { env.ProtonVersion = Path.GetFileName(protonDir); }
+                    }
+                    else
+                    {
+                        env.ProtonVersion = Path.GetFileName(protonDir);
+                    }
+                }
+                else if (env.WineLoaderPath != null)
+                {
+                    // e.g. "/path/to/Proton - Experimental/files/bin/wine"
+                    string filesDir = Path.GetDirectoryName(Path.GetDirectoryName(env.WineLoaderPath));
+                    string protonDir = Path.GetDirectoryName(filesDir);
+                    if (protonDir != null)
+                    {
+                        string versionFile = Path.Combine(protonDir, "version");
+                        if (File.Exists(versionFile))
+                        {
+                            try { env.ProtonVersion = File.ReadAllLines(versionFile)[0].Trim(); }
+                            catch { env.ProtonVersion = Path.GetFileName(protonDir); }
+                        }
+                        else
+                        {
+                            env.ProtonVersion = Path.GetFileName(protonDir);
+                        }
                     }
                 }
 

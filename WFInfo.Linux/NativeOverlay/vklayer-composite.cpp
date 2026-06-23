@@ -696,6 +696,14 @@ VkCommandBuffer composite_record_overlays(DeviceData *dd,
     if (sc_idx >= dd->sc.framebuffers.size() || !dd->sc.framebuffers[sc_idx])
         return VK_NULL_HANDLE;
 
+    /* Nothing visible, skip the entire render pass + submit */
+    int has_visible_panel = 0;
+    for (size_t i = 0; i < panels.size(); i++) {
+        if (panels[i].visible) { has_visible_panel = 1; break; }
+    }
+    if (!has_visible_panel && !rw.visible && !snapit.active)
+        return VK_NULL_HANDLE;
+
     /* Ensure per-frame command pool and draw resources */
     if (!dd->composite_cmd_pool) {
         VkCommandPoolCreateInfo cpci{};
@@ -730,20 +738,12 @@ VkCommandBuffer composite_record_overlays(DeviceData *dd,
     DrawResources &dr = dd->sc.draws[sc_idx];
     if (!dr.cmd) return VK_NULL_HANDLE;
 
-    /* Wait on all composite fences before recording */
-    {
-        std::vector<VkFence> fences;
-        for (auto &d : dd->sc.draws)
-            if (d.fence) fences.push_back(d.fence);
-        if (!fences.empty()) {
-            VkResult fence_res = dd->dt.WaitForFences(dd->device,
-                static_cast<uint32_t>(fences.size()),
-                fences.data(), VK_TRUE, 1000000000ULL);
-            if (fence_res == VK_TIMEOUT) {
-                layer_log("composite fence wait timed out, skipping overlay this frame");
-                return VK_NULL_HANDLE;
-            }
-        }
+    /* Wait for this image's previous overlay submission to finish */
+    VkResult fence_res = dd->dt.WaitForFences(dd->device, 1,
+        &dr.fence, VK_TRUE, 1000000000ULL);
+    if (fence_res == VK_TIMEOUT) {
+        layer_log("composite fence wait timed out, skipping overlay this frame");
+        return VK_NULL_HANDLE;
     }
     dd->dt.ResetFences(dd->device, 1, &dr.fence);
 

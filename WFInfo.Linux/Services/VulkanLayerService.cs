@@ -59,6 +59,19 @@ namespace WFInfo.Linux.Services
         }
 
         /// <summary>
+        /// Force disconnect and reconnect to the layer socket.
+        /// Use when the game has restarted and the old socket may be stale.
+        /// </summary>
+        public bool Reconnect()
+        {
+            lock (_lock)
+            {
+                Disconnect();
+            }
+            return Connect();
+        }
+
+        /// <summary>
         /// Attempt to connect to the layer socket. Returns true if connected.
         /// </summary>
         public bool Connect()
@@ -105,16 +118,7 @@ namespace WFInfo.Linux.Services
         private bool EnsureConnected()
         {
             if (IsStale)
-            {
-                // Game may have restarted with the new layer, try reconnecting.
-                Disconnect();
-                if (!Connect())
-                    return false;
-                // Connect() re-runs CheckStaleness. If still stale, bail.
-                if (IsStale)
-                    return false;
-                return true;
-            }
+                return false;
             if (_socket != null && _socket.Connected)
                 return true;
             return Connect();

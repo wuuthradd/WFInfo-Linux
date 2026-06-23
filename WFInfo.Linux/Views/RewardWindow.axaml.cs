@@ -63,7 +63,10 @@ public partial class RewardWindow : Window
         _panels[partNumber].SetData(name, plat, setPlat, ducats, volume,
             vaulted, mastered, owned, hideInfo, highlight);
 
+        var pinPos = IsVisible ? Position : (PixelPoint?)null;
         Width = 250 * (partNumber + 1) + 2; // 250px per panel, 2px for border
+        if (pinPos.HasValue)
+            Position = pinPos.Value;
     }
 
     /// <summary>

@@ -49,6 +49,12 @@ namespace WFInfo.Services.WarframeProcess
         /// <summary>Wine loader binary path (WINELOADER env var).</summary>
         public string WineLoaderPath { get; set; }
 
+        /// <summary>STEAM_COMPAT_TOOL_PATHS env var (Proton directory path).</summary>
+        public string CompatToolPaths { get; set; }
+
+        /// <summary>Proton version string from STEAM_COMPAT_TOOL_PATHS or config_info.</summary>
+        public string ProtonVersion { get; set; }
+
         /// <summary>Derived EE.log path from the prefix.</summary>
         public string EELogPath
         {

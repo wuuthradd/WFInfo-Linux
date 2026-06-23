@@ -128,6 +128,7 @@ namespace WFInfo.Linux
 
         private static VerifyCountWindow _verifyCountWindow;
         private static VulkanLayerService _vulkanLayer;
+        private static string _lastStatusMessage;
         private static SocketCommandServer _socketServer;
 
         internal static void HideNativeOverlays()
@@ -225,6 +226,7 @@ namespace WFInfo.Linux
 
             AppMain.OnStatusUpdate += (message, severity) =>
             {
+                _lastStatusMessage = message;
                 Dispatcher.UIThread.Post(() => MainWindowInstance?.ChangeStatus(message, severity));
             };
 
@@ -336,6 +338,9 @@ namespace WFInfo.Linux
                             AppMain.StatusUpdate("WFInfo Initialization Complete", 0);
                         }
                         AppMain.AddLog("WFInfo Linux initialized successfully");
+
+                        processFinder.OnProcessChanged -= OnWarframeProcessChanged;
+                        processFinder.OnProcessChanged += OnWarframeProcessChanged;
                     }
                     catch (Exception ex)
                     {
@@ -1062,6 +1067,40 @@ namespace WFInfo.Linux
                 if (!string.IsNullOrEmpty(de))
                     AppMain.AddLog("Desktop: " + de);
 
+                // GPU info from DRM subsystem
+                string gpuInfo = "unknown";
+                try
+                {
+                    var gpuParts = new System.Collections.Generic.List<string>();
+                    foreach (string cardDir in Directory.GetDirectories("/sys/class/drm", "card*"))
+                    {
+                        string cn = Path.GetFileName(cardDir);
+                        if (cn.Length < 5 || !char.IsDigit(cn[4]) || cn.Contains('-'))
+                            continue;
+
+                        string deviceDir = Path.Combine(cardDir, "device");
+                        if (!Directory.Exists(deviceDir)) continue;
+
+                        string vendorFile = Path.Combine(deviceDir, "vendor");
+                        string deviceFile = Path.Combine(deviceDir, "device");
+                        if (!File.Exists(vendorFile)) continue;
+
+                        string vendor = File.ReadAllText(vendorFile).Trim();
+                        string deviceId = File.Exists(deviceFile) ? File.ReadAllText(deviceFile).Trim() : "?";
+                        string drmDriver = "";
+                        string driverLink = Path.Combine(deviceDir, "driver");
+                        var driverDirInfo = new DirectoryInfo(driverLink);
+                        if (driverDirInfo.Exists && driverDirInfo.LinkTarget != null)
+                            drmDriver = Path.GetFileName(driverDirInfo.LinkTarget);
+
+                        gpuParts.Add($"{cn}: vendor={vendor} device={deviceId} driver={drmDriver}");
+                    }
+                    if (gpuParts.Count > 0)
+                        gpuInfo = string.Join(", ", gpuParts);
+                }
+                catch { }
+                AppMain.AddLog("GPU: " + gpuInfo);
+
                 AppMain.AddLog("=== End System Info ===");
             }
             catch (Exception ex)
@@ -1152,13 +1191,6 @@ namespace WFInfo.Linux
             _afkTimer?.Dispose();
             _afkTimer = new System.Threading.Timer(_ => AfkTimeoutCheck(), null, TimeSpan.Zero, TimeSpan.FromMinutes(1));
 
-            var process = Services?.GetService<IProcessFinder>();
-            if (process != null)
-            {
-                process.OnProcessChanged -= OnWarframeProcessChanged;
-                process.OnProcessChanged += OnWarframeProcessChanged;
-            }
-
             AppMain.AddLog("AFK timer started");
         }
 
@@ -1166,6 +1198,18 @@ namespace WFInfo.Linux
         {
             try
             {
+                if (proc != null && _vulkanLayer != null)
+                {
+                    await Task.Delay(2000).ConfigureAwait(false);
+                    if (_vulkanLayer.Reconnect() && !_vulkanLayer.IsStale)
+                    {
+                        AppMain.AddLog("VulkanLayerService: reconnected after game restart");
+                        if (_lastStatusMessage != null &&
+                            (_lastStatusMessage.Contains("WFINFO=1") || _lastStatusMessage.Contains("outdated")))
+                            AppMain.StatusUpdate("WFInfo Initialization Complete", 0);
+                    }
+                }
+
                 if (proc != null && AppMain.dataBase != null && AppMain.dataBase.IsJwtLoggedIn())
                 {
                     var settings = Services?.GetService<IReadOnlyApplicationSettings>();

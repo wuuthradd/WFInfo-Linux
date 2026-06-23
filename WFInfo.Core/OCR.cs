@@ -813,7 +813,14 @@ namespace WFInfo
             AppMain.AddLog("Grabbed images " + (end - start) + "ms");
             start = watch.ElapsedMilliseconds;
 
-            active = GetThemeWeighted(out _, fullScreen);
+            if (_settings.ThemeSelection != WFtheme.AUTO)
+            {
+                active = _settings.ThemeSelection;
+            }
+            else
+            {
+                active = GetThemeWeighted(out _, fullScreen);
+            }
 
             end = watch.ElapsedMilliseconds;
             AppMain.AddLog("Got theme " + (end - start) + "ms");
@@ -2245,12 +2252,20 @@ namespace WFInfo
             watch.Start();
             long start = watch.ElapsedMilliseconds;
 
-            WFtheme theme = GetThemeWeighted(out _, fullShot);
-            if (theme == WFtheme.UNKNOWN)
+            WFtheme theme;
+            if (_settings.ThemeSelection != WFtheme.AUTO)
             {
-                AppMain.AddLog("SnapIt: Theme detection failed");
-                AppMain.StatusUpdate("Snap-It: theme detection failed", 1);
-                return;
+                theme = _settings.ThemeSelection;
+            }
+            else
+            {
+                theme = GetThemeWeighted(out _, fullShot);
+                if (theme == WFtheme.UNKNOWN)
+                {
+                    AppMain.AddLog("SnapIt: Theme detection failed");
+                    AppMain.StatusUpdate("Snap-It: theme detection failed", 1);
+                    return;
+                }
             }
 
             string timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH-mm-ssff", AppMain.culture);

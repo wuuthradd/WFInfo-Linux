@@ -944,7 +944,7 @@ namespace WFInfo
             autoThread?.Dispose();
             autoThread = null;
 
-            if (line.Contains("Pause countdown done") || line.Contains("Got rewards"))
+            if (line.Contains("Got rewards"))
             {
                 _autoE2eWatch.Restart();
                 AppMain.AddLog($"Auto: trigger detected, \"{(line.Length > 80 ? line.Substring(0, 80) + "..." : line)}\"");
@@ -985,7 +985,33 @@ namespace WFInfo
                 _window.UpdateWindow();
                 AppMain.AddLog($"Auto: UpdateWindow took {watch.ElapsedMilliseconds}ms");
 
-                if (_settings.ThemeSelection == WFtheme.AUTO)
+                if (_settings.ThemeSelection != WFtheme.AUTO)
+                {
+                    long stop = watch.ElapsedMilliseconds + 5000;
+                    await Task.Delay((int)_settings.AutoDelay).ConfigureAwait(false);
+                    int attempts = 0;
+
+                    while (watch.ElapsedMilliseconds < stop)
+                    {
+                        attempts++;
+
+                        if (OCR.LastRewardProcessedTicks > triggerTicks)
+                        {
+                            AppMain.AddLog("Auto: skipping, rewards already processed by manual scan");
+                            return;
+                        }
+
+                        AppMain.AddLog($"Auto: theme preset, attempt {attempts}, {watch.ElapsedMilliseconds}ms, processing");
+                        if (OCR.ProcessRewardScreen())
+                        {
+                            AppMain.AddLog($"Auto: total {watch.ElapsedMilliseconds}ms");
+                            break;
+                        }
+
+                        await Task.Delay((int)_settings.AutoDelay).ConfigureAwait(false);
+                    }
+                }
+                else
                 {
                     long stop = watch.ElapsedMilliseconds + 5000;
                     int checks = 0;
@@ -1001,7 +1027,6 @@ namespace WFInfo
                         wait += _settings.AutoDelay;
                         checks++;
 
-                        // If manual scan already processed since this trigger, bail out
                         if (OCR.LastRewardProcessedTicks > triggerTicks)
                         {
                             AppMain.AddLog("Auto: skipping, rewards already processed by manual scan");
@@ -1020,22 +1045,6 @@ namespace WFInfo
                         AppMain.AddLog($"Auto: total {watch.ElapsedMilliseconds}ms");
                         break;
                     }
-                }
-                else
-                {
-                    long fixedStop = _settings.FixedAutoDelay;
-                    long remaining = fixedStop - watch.ElapsedMilliseconds;
-                    if (remaining > 0) await Task.Delay((int)remaining).ConfigureAwait(false);
-
-                    if (OCR.LastRewardProcessedTicks > triggerTicks)
-                    {
-                        AppMain.AddLog("Auto: skipping, rewards already processed by manual scan");
-                        return;
-                    }
-
-                    AppMain.AddLog($"Auto: fixed delay {watch.ElapsedMilliseconds}ms, processing");
-                    OCR.ProcessRewardScreen();
-                    AppMain.AddLog($"Auto: total {watch.ElapsedMilliseconds}ms");
                 }
                 watch.Stop();
             }

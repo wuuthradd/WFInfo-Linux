@@ -222,7 +222,7 @@ namespace WFInfo.Linux.Services
                             ParseCursorResponse(line);
                             continue;
                         }
-                        if (line.Contains("Got rewards") || line.Contains("Pause countdown done"))
+                        if (line.Contains("Got rewards"))
                             _logger.AddLog("DBMON: trigger line detected");
                         TextChanged?.Invoke(this, line);
                     }
@@ -332,18 +332,48 @@ namespace WFInfo.Linux.Services
 
         private string FindWineBinary()
         {
-            // 1. WINELOADER from the game process environ (most reliable)
-            string loader = _processFinder?.WineEnvironment?.WineLoaderPath;
-            if (loader != null && File.Exists(loader))
-                return loader;
+            var wineEnv = _processFinder?.WineEnvironment;
+            int? pid = _processFinder?.Warframe?.Id;
 
-            // 2. Derive from compat data config_info, or infer from EE.log path
-            string compatData = _processFinder?.WineEnvironment?.CompatDataPath;
+            if (pid != null)
+            {
+                string wine = FindWineFromProcExe(pid.Value);
+                if (wine != null)
+                {
+                    _logger.AddLog($"FileLogCapture: Wine binary from /proc/{pid}/exe: {wine}");
+                    return wine;
+                }
+            }
+
+            string loader = wineEnv?.WineLoaderPath;
+            if (loader != null)
+            {
+                loader = StripContainerPrefix(loader);
+                if (File.Exists(loader))
+                {
+                    _logger.AddLog($"FileLogCapture: Wine binary from WINELOADER: {loader}");
+                    return loader;
+                }
+            }
+
+            string compatToolPaths = wineEnv?.CompatToolPaths;
+            if (compatToolPaths != null)
+            {
+                string protonDir = StripContainerPrefix(compatToolPaths.Split(':')[0]);
+                string wine = FindWineInProtonDir(protonDir);
+                if (wine != null)
+                {
+                    _logger.AddLog($"FileLogCapture: Wine binary from STEAM_COMPAT_TOOL_PATHS: {wine}");
+                    return wine;
+                }
+            }
+
+            string compatData = wineEnv?.CompatDataPath;
             if (compatData == null && _logPath != null)
             {
                 int pfxIdx = _logPath.IndexOf(Path.Combine("pfx", "drive_c"), StringComparison.Ordinal);
                 if (pfxIdx > 0)
-                    compatData = _logPath.Substring(0, pfxIdx - 1); // strip separator before "pfx"
+                    compatData = _logPath.Substring(0, pfxIdx - 1);
             }
             if (compatData != null)
             {
@@ -353,15 +383,22 @@ namespace WFInfo.Linux.Services
                     try
                     {
                         string[] lines = File.ReadAllLines(configInfo);
-                        // Extract Proton base path from font paths in config_info
                         foreach (string cfgLine in lines)
                         {
-                            int idx = cfgLine.IndexOf("/files/");
-                            if (idx > 0)
+                            foreach (string marker in new[] { "/files/", "/dist/" })
                             {
-                                string protonFiles = cfgLine.Substring(0, idx + 6); // include "/files"
-                                string wine = Path.Combine(protonFiles, "bin", "wine");
-                                if (File.Exists(wine)) return wine;
+                                int idx = cfgLine.IndexOf(marker);
+                                if (idx > 0)
+                                {
+                                    string protonSubdir = cfgLine.Substring(0, idx + marker.Length - 1);
+                                    protonSubdir = StripContainerPrefix(protonSubdir);
+                                    string wine = Path.Combine(protonSubdir, "bin", "wine");
+                                    if (File.Exists(wine))
+                                    {
+                                        _logger.AddLog($"FileLogCapture: Wine binary from config_info: {wine}");
+                                        return wine;
+                                    }
+                                }
                             }
                         }
                     }
@@ -369,12 +406,59 @@ namespace WFInfo.Linux.Services
                 }
             }
 
-            // 3. System wine
-            string systemWine = "/usr/bin/wine";
-            if (File.Exists(systemWine))
-                return systemWine;
-
+            _logger.AddLog("FileLogCapture: Could not find Proton wine binary");
             return null;
+        }
+
+        private static string FindWineInProtonDir(string protonDir)
+        {
+            foreach (string subdir in new[] { "files", "dist", "" })
+            {
+                string binDir = subdir.Length > 0 ? Path.Combine(protonDir, subdir, "bin") : Path.Combine(protonDir, "bin");
+                foreach (string name in new[] { "wine", "wine64" })
+                {
+                    string path = Path.Combine(binDir, name);
+                    if (File.Exists(path)) return path;
+                }
+            }
+            return null;
+        }
+
+        private string FindWineFromProcExe(int pid)
+        {
+            try
+            {
+                var link = File.ResolveLinkTarget($"/proc/{pid}/exe", returnFinalTarget: true);
+                string target = link?.FullName;
+                if (target == null) return null;
+                target = StripContainerPrefix(target);
+
+                string dir = Path.GetDirectoryName(target);
+                for (int i = 0; i < 6 && dir != null && dir != "/"; i++)
+                {
+                    foreach (string name in new[] { "wine", "wine64" })
+                    {
+                        string binPath = Path.Combine(dir, "bin", name);
+                        if (File.Exists(binPath)) return binPath;
+                    }
+                    dir = Path.GetDirectoryName(dir);
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>
+        /// Steam pressure-vessel maps the host filesystem under /run/host/ inside the container.
+        /// Paths from the game process env vars and /proc/pid/exe use container paths that
+        /// don't exist on the host. Strip the prefix so the path resolves on the host.
+        /// </summary>
+        private static string StripContainerPrefix(string path)
+        {
+            const string prefix = "/run/host";
+            if (path.StartsWith(prefix) && !File.Exists(path) && !Directory.Exists(path))
+                return path.Substring(prefix.Length);
+            return path;
         }
 
         private void KillDbMon()
