@@ -168,6 +168,12 @@ struct DeviceData {
 
     SwapchainData sc;
     VkPhysicalDeviceMemoryProperties mem_props{};
+
+    std::atomic<uint64_t> composite_submits{0};
+    std::atomic<uint64_t> composite_completes{0};
+    std::atomic<uint64_t> capture_submits{0};
+    std::atomic<uint64_t> capture_completes{0};
+    std::atomic<int> device_lost{0};
 };
 
 /* ---- Per-instance state ---- */
@@ -197,5 +203,6 @@ uint32_t find_memory_type(const VkPhysicalDeviceMemoryProperties *props,
                           uint32_t type_bits, VkMemoryPropertyFlags flags);
 
 void layer_log(const char *fmt, ...);
+void layer_log_sync(void);
 
 #endif

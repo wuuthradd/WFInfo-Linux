@@ -97,6 +97,32 @@ void layer_log(const char *fmt, ...)
     fflush(cached_fp);
 }
 
+void layer_log_sync(void)
+{
+    const char *home = getenv("HOME");
+    if (!home) home = "/tmp";
+    char path[512];
+    snprintf(path, sizeof(path), "%s/.local/share/WFInfo/vklayer.log", home);
+    int fd = open(path, O_WRONLY | O_APPEND);
+    if (fd >= 0) {
+        fsync(fd);
+        close(fd);
+    }
+}
+
+static void log_gpu_state(DeviceData *dd, const char *context)
+{
+    uint64_t cs = dd->composite_submits.load(std::memory_order_acquire);
+    uint64_t cc = dd->composite_completes.load(std::memory_order_acquire);
+    uint64_t xs = dd->capture_submits.load(std::memory_order_acquire);
+    uint64_t xc = dd->capture_completes.load(std::memory_order_acquire);
+    int cp = dd->capture_pending.load(std::memory_order_acquire);
+    layer_log("GPU_STATE [%s] composite: %lu submitted / %lu completed (%lu in-flight), "
+              "capture: %lu submitted / %lu completed (%lu in-flight), capture_pending=%d",
+              context, cs, cc, cs - cc, xs, xc, xs - xc, cp);
+    layer_log_sync();
+}
+
 /* ---- globals ---- */
 
 /* Build ID embedded as a searchable marker in the .so binary.
@@ -824,6 +850,12 @@ static int do_capture(DeviceData *dd, VkQueue queue, VkImage sc_image,
 
     dd->dt.ResetFences(dd->device, 1, &dd->capture_fence);
     res = dd->dt.QueueSubmit(queue, 1, &si, dd->capture_fence);
+    dd->capture_submits.fetch_add(1, std::memory_order_release);
+    if (res == VK_ERROR_DEVICE_LOST) {
+        dd->device_lost.store(1, std::memory_order_release);
+        layer_log("DEVICE_LOST on capture QueueSubmit");
+        log_gpu_state(dd, "capture_submit_lost");
+    }
     if (res != VK_SUCCESS) {
         fprintf(stderr, "wfinfo-vklayer: QueueSubmit failed: %d\n", res);
         ipc_send_str("{\"error\":\"queue submit failed\"}\n");
@@ -854,6 +886,11 @@ static void capture_worker(DeviceData *dd)
 {
     VkResult res = dd->dt.WaitForFences(dd->device, 1, &dd->capture_fence,
                                          VK_TRUE, 5000000000ULL);
+    if (res == VK_ERROR_DEVICE_LOST) {
+        dd->device_lost.store(1, std::memory_order_release);
+        layer_log("DEVICE_LOST during capture fence wait");
+        log_gpu_state(dd, "capture_fence_lost");
+    }
     if (res != VK_SUCCESS) {
         fprintf(stderr, "wfinfo-vklayer: capture fence error: %d\n", res);
         layer_log("capture fence wait failed: %d, cmd buffer still in-flight", res);
@@ -861,6 +898,7 @@ static void capture_worker(DeviceData *dd)
         ipc_send_str("{\"error\":\"fence wait failed\"}\n");
         return;
     }
+    dd->capture_completes.fetch_add(1, std::memory_order_release);
 
     uint32_t w = dd->capture_w, h = dd->capture_h;
 
@@ -1582,6 +1620,12 @@ layer_QueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPresentInfo)
         si.pSignalSemaphores = &dr.semaphore;
 
         VkResult comp_res = dd->dt.QueueSubmit(dd->gfx_queue, 1, &si, dr.fence);
+        dd->composite_submits.fetch_add(1, std::memory_order_release);
+        if (comp_res == VK_ERROR_DEVICE_LOST) {
+            dd->device_lost.store(1, std::memory_order_release);
+            layer_log("DEVICE_LOST on composite QueueSubmit");
+            log_gpu_state(dd, "composite_submit_lost");
+        }
         if (comp_res != VK_SUCCESS) {
             layer_log("composite QueueSubmit failed: %d", comp_res);
             dd->dt.DestroyFence(dd->device, dr.fence, nullptr);
@@ -1595,18 +1639,34 @@ layer_QueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPresentInfo)
         VkPresentInfoKHR mod = *pPresentInfo;
         mod.waitSemaphoreCount = 1;
         mod.pWaitSemaphores = &dr.semaphore;
-        return dd->dt.QueuePresentKHR(queue, &mod);
+        VkResult present_res = dd->dt.QueuePresentKHR(queue, &mod);
+        if (present_res == VK_ERROR_DEVICE_LOST) {
+            dd->device_lost.store(1, std::memory_order_release);
+            layer_log("DEVICE_LOST on QueuePresentKHR (with overlay)");
+            log_gpu_state(dd, "present_overlay_lost");
+        }
+        return present_res;
     }
 
 passthrough_present:
-    if (capture_done) {
-        VkPresentInfoKHR mod = *pPresentInfo;
-        mod.waitSemaphoreCount = 1;
-        mod.pWaitSemaphores = &dd->capture_sem;
-        return dd->dt.QueuePresentKHR(queue, &mod);
+    {
+        VkResult present_res;
+        if (capture_done) {
+            VkPresentInfoKHR mod = *pPresentInfo;
+            mod.waitSemaphoreCount = 1;
+            mod.pWaitSemaphores = &dd->capture_sem;
+            present_res = dd->dt.QueuePresentKHR(queue, &mod);
+        } else {
+            present_res = dd->dt.QueuePresentKHR(queue, pPresentInfo);
+        }
+        if (present_res == VK_ERROR_DEVICE_LOST) {
+            dd->device_lost.store(1, std::memory_order_release);
+            layer_log("DEVICE_LOST on QueuePresentKHR (passthrough, capture=%d)",
+                      capture_done);
+            log_gpu_state(dd, "present_passthrough_lost");
+        }
+        return present_res;
     }
-
-    return dd->dt.QueuePresentKHR(queue, pPresentInfo);
 }
 
 /* ---- dispatch: vkGetDeviceProcAddr / vkGetInstanceProcAddr ---- */
@@ -1665,6 +1725,7 @@ extern "C" VKAPI_ATTR VkResult VKAPI_CALL
 vkNegotiateLoaderLayerInterfaceVersion(VkNegotiateLayerInterface *pVersionStruct)
 {
     fprintf(stderr, "wfinfo-vklayer: negotiate called, pid=%d\n", getpid());
+    layer_log("negotiate called, pid=%d", getpid());
 
     if (pVersionStruct->sType != LAYER_NEGOTIATE_INTERFACE_STRUCT)
         return VK_ERROR_INITIALIZATION_FAILED;

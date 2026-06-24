@@ -1,5 +1,12 @@
 # Changelog
 
+## 9.8.1.4
+
+- Fix Tesseract failing to load on Fedora 39+ and other modern glibc systems (libdl.so merged into libc)
+- Fix Tesseract and Leptonica library discovery on distros with non-standard soname versions
+- AppImage now supports both FUSE2 and FUSE3
+- Fix Vulkan layer log missing for some game sessions
+
 ## 9.8.1.3
 
 ### Vulkan layer migration

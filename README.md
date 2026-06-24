@@ -23,7 +23,7 @@ chmod +x WFInfo.AppImage
 ./WFInfo.AppImage
 ```
 
-Requires `libfuse2` and `tesseract` (see [Dependencies](#dependencies) below).
+Requires FUSE (`libfuse2` or `libfuse3`) and `tesseract` (see [Dependencies](#dependencies) below).
 
 ### Option 2: Tarball
 
@@ -175,4 +175,4 @@ dotnet run --project WFInfo.Linux
 - **.NET app**: .NET 10+ SDK. At runtime, requires `tesseract` and `leptonica` (see [Dependencies](#dependencies)).
 - **Vulkan layer**: `pkg-config`, Vulkan headers (`vulkan-headers`), `glslangValidator` (shader compilation, from `glslang`), `xxd` (from `vim` or `xxd`), and development packages for `cairo`, `pangocairo`, `fontconfig`.
 - **DBMON bridge**: A C cross-compiler targeting Windows. The Makefile uses `zig cc -target x86_64-windows-gnu` by default. Alternatively, `x86_64-w64-mingw32-gcc` works.
-- **AppImage**: `appimagetool` (auto-downloaded if not found) and `libfuse2`.
+- **AppImage**: `appimagetool` (auto-downloaded if not found).

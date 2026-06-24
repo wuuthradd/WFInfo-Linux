@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 using Tesseract;
@@ -164,8 +165,51 @@ namespace WFInfo.Services
         /// But the names don't match system libs (e.g. libleptonica-1.82.0.so vs libleptonica.so.6).
         /// We create symlinks in all directories InteropDotNet searches and pre-load them.
         /// </summary>
+        private static readonly string[] LibDirs =
+            { "/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/lib64", "/lib/x86_64-linux-gnu" };
+
+        private static string[] FindNativeLib(string baseName)
+        {
+            var candidates = new List<string>();
+            string pattern = baseName + ".so*";
+            string prefix = baseName + ".so";
+            foreach (string dir in LibDirs)
+            {
+                if (!Directory.Exists(dir)) continue;
+                try
+                {
+                    foreach (string f in Directory.GetFiles(dir, pattern))
+                    {
+                        string name = Path.GetFileName(f);
+                        if (name == prefix || name.StartsWith(prefix + "."))
+                            candidates.Add(f);
+                    }
+                }
+                catch { }
+            }
+            candidates.Sort((a, b) => b.Length.CompareTo(a.Length));
+            return candidates.ToArray();
+        }
+
+        private static bool _resolverRegistered;
+
         private void SetupLinuxNativeLibs()
         {
+            if (!_resolverRegistered)
+            {
+                _resolverRegistered = true;
+                NativeLibrary.SetDllImportResolver(typeof(Tesseract.TesseractEngine).Assembly,
+                    (name, asm, paths) =>
+                    {
+                        if (name == "libdl" || name == "libdl.so")
+                        {
+                            if (NativeLibrary.TryLoad("libdl.so.2", out IntPtr handle))
+                                return handle;
+                        }
+                        return IntPtr.Zero;
+                    });
+            }
+
             string exeDir = AppContext.BaseDirectory;
 
             // Check if exe directory is writable (AppImage mounts read-only SquashFS)
@@ -182,8 +226,8 @@ namespace WFInfo.Services
             var libMappings = new (string Expected, string[] SystemPaths)[]
             {
                 ("libdl.so", new[] { "/usr/lib/libdl.so.2", "/usr/lib/x86_64-linux-gnu/libdl.so.2", "/lib/x86_64-linux-gnu/libdl.so.2", "/usr/lib64/libdl.so.2" }),
-                ("libleptonica-1.82.0.so", new[] { "/usr/lib/libleptonica.so.6", "/usr/lib/libleptonica.so.5", "/usr/lib/libleptonica.so", "/usr/lib/x86_64-linux-gnu/libleptonica.so.6", "/usr/lib/x86_64-linux-gnu/libleptonica.so.5", "/usr/lib64/libleptonica.so.6", "/usr/lib64/libleptonica.so.5", "/usr/lib64/libleptonica.so" }),
-                ("libtesseract50.so", new[] { "/usr/lib/libtesseract.so.5", "/usr/lib/libtesseract.so.4", "/usr/lib/libtesseract.so", "/usr/lib/x86_64-linux-gnu/libtesseract.so.5", "/usr/lib/x86_64-linux-gnu/libtesseract.so.4", "/usr/lib64/libtesseract.so.5", "/usr/lib64/libtesseract.so.4", "/usr/lib64/libtesseract.so" }),
+                ("libleptonica-1.82.0.so", FindNativeLib("libleptonica")),
+                ("libtesseract50.so", FindNativeLib("libtesseract")),
             };
 
             if (!exeDirWritable)

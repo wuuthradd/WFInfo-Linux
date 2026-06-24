@@ -741,10 +741,24 @@ VkCommandBuffer composite_record_overlays(DeviceData *dd,
     /* Wait for this image's previous overlay submission to finish */
     VkResult fence_res = dd->dt.WaitForFences(dd->device, 1,
         &dr.fence, VK_TRUE, 1000000000ULL);
+    if (fence_res == VK_ERROR_DEVICE_LOST) {
+        dd->device_lost.store(1, std::memory_order_release);
+        layer_log("DEVICE_LOST during composite fence wait (image %u)", sc_idx);
+        uint64_t cs = dd->composite_submits.load(std::memory_order_acquire);
+        uint64_t cc = dd->composite_completes.load(std::memory_order_acquire);
+        uint64_t xs = dd->capture_submits.load(std::memory_order_acquire);
+        uint64_t xc = dd->capture_completes.load(std::memory_order_acquire);
+        layer_log("DEVICE_LOST composite: %lu/%lu in-flight, capture: %lu/%lu in-flight",
+                  cs - cc, cs, xs - xc, xs);
+        layer_log_sync();
+        return VK_NULL_HANDLE;
+    }
     if (fence_res == VK_TIMEOUT) {
         layer_log("composite fence wait timed out, skipping overlay this frame");
         return VK_NULL_HANDLE;
     }
+    if (fence_res == VK_SUCCESS)
+        dd->composite_completes.fetch_add(1, std::memory_order_release);
     dd->dt.ResetFences(dd->device, 1, &dr.fence);
 
     /* Render + upload dirty panel textures */

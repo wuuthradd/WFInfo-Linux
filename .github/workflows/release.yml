@@ -45,7 +45,7 @@ jobs:
             glslang-tools \
             xxd \
             pkg-config \
-            libfuse2
+            libfuse3-dev
 
       - name: Publish .NET app
         run: |
@@ -100,7 +100,7 @@ jobs:
             cp WFInfo.Linux/Resources/WFLogo.png $APPDIR/usr/share/icons/hicolor/256x256/apps/WFInfo.png
           fi
 
-          wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
+          wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
           chmod +x appimagetool
           ARCH=x86_64 ./appimagetool $APPDIR WFInfo.AppImage
 

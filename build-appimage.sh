@@ -74,7 +74,7 @@ APPIMAGETOOL=$(command -v appimagetool 2>/dev/null || true)
 if [ -z "$APPIMAGETOOL" ]; then
     echo "  appimagetool not found. Downloading..."
     APPIMAGETOOL="${BUILD_DIR}/appimagetool"
-    wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" \
+    wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" \
         -O "$APPIMAGETOOL"
     chmod +x "$APPIMAGETOOL"
 fi
