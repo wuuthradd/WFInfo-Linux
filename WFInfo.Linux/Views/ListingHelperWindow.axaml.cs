@@ -4,9 +4,13 @@ using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Threading;
 using Newtonsoft.Json.Linq;
 using WFInfo.Models;
 
@@ -18,86 +22,84 @@ namespace WFInfo.Linux.Views
         private int _pageIndex = 0;
         private bool _updating = false;
         private bool _posting = false;
-
-        private readonly TextBlock[] _plats;
-        private readonly TextBlock[] _amts;
-        private readonly TextBlock[] _reps;
         private List<int> _comboIndexMap = new();
 
-        private static readonly Avalonia.Media.SolidColorBrush InfoBrush =
-            new(Avalonia.Media.Color.FromRgb(0xB1, 0xD0, 0xD9));
-        private static readonly Avalonia.Media.SolidColorBrush SuccessBrush =
-            new(Avalonia.Media.Color.FromRgb(0, 200, 0));
-        private static readonly Avalonia.Media.SolidColorBrush ErrorBrush =
-            new(Avalonia.Media.Color.FromRgb(255, 80, 80));
+
+
+        private static readonly SolidColorBrush SellPlatFg = new(Color.FromRgb(0xCB, 0x4A, 0x9E));
+        private static readonly SolidColorBrush RepGoodFg = new(Color.FromRgb(0x00, 0xA9, 0x6C));
+        private static readonly SolidColorBrush RepNeutralFg = new(Color.FromRgb(0x73, 0x90, 0x98));
+        private static readonly SolidColorBrush RepBadFg = new(Color.FromRgb(0xA9, 0x41, 0x00));
+        private static readonly SolidColorBrush DimFg = new(Color.FromRgb(0x88, 0x88, 0x88));
+        private static readonly SolidColorBrush LightFg = new(Color.FromRgb(0xCC, 0xCC, 0xCC));
+        private static readonly SolidColorBrush InfoBrush = new(Color.FromRgb(0xB1, 0xD0, 0xD9));
+        private static readonly SolidColorBrush SuccessBrush = new(Color.FromRgb(0, 200, 0));
+        private static readonly SolidColorBrush ErrorBrush = new(Color.FromRgb(255, 80, 80));
 
         public ListingHelperWindow()
         {
             InitializeComponent();
-            _plats = new[] { Plat0, Plat1, Plat2, Plat3, Plat4 };
-            _amts = new[] { Amt0, Amt1, Amt2, Amt3, Amt4 };
-            _reps = new[] { Rep0, Rep1, Rep2, Rep3, Rep4 };
         }
 
-        /// <summary>Fetch market data for rewards and populate UI.</summary>
         public void LoadRewards(List<List<string>> rewards, short selectedIdx)
         {
-            StatusText.Text = "Loading market data...";
-            StatusText.Foreground = InfoBrush;
-            RewardCombo.IsEnabled = false;
+            foreach (var screen in rewards)
+            {
+                if (screen.Count == 0) continue;
+                var platValues = new List<short>(new short[screen.Count]);
+                var marketResults = new List<JObject>(new JObject[screen.Count]);
+                var collection = new RewardCollection(screen, platValues, marketResults,
+                    (short)Math.Min(selectedIdx, screen.Count - 1));
+                _screens.Add(new ScreenEntry { Status = "", Rewards = collection });
+            }
+
+            if (_screens.Count > 0)
+            {
+                SetScreen(0);
+                UpdateNavigation();
+                LoadSelectedItemListings();
+            }
+        }
+
+        private void LoadSelectedItemListings()
+        {
+            if (_pageIndex >= _screens.Count) return;
+            var screen = _screens[_pageIndex];
+            int comboIdx = RewardCombo.SelectedIndex;
+            int rewardIdx = comboIdx >= 0 && comboIdx < _comboIndexMap.Count
+                ? _comboIndexMap[comboIdx] : 0;
+            if (rewardIdx < 0 || rewardIdx >= screen.Rewards.PrimeNames.Count) return;
+
+            string primeName = screen.Rewards.PrimeNames[rewardIdx];
+            if (IsItemBanned(primeName)) return;
+
+            if (screen.Rewards.MarketResults[rewardIdx] != null) return;
+
             ConfirmButton.IsEnabled = false;
-            PriceBox.IsEnabled = false;
 
             Task.Run(async () =>
             {
-                foreach (var screen in rewards)
-                {
-                    if (screen.Count == 0) continue;
-                    try
-                    {
-                        var collection = await GetRewardCollection(screen, selectedIdx);
-                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                        {
-                            _screens.Add(new ScreenEntry { Status = "", Rewards = collection });
-                            SetScreen(_screens.Count == 1 ? 0 : _pageIndex);
-                            UpdateNavigation();
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        AppMain.AddLog($"AutoList: failed to load screen: {ex.Message}");
-                    }
-                }
-            });
-        }
-
-        private async Task<RewardCollection> GetRewardCollection(List<string> primeNames, short selectedIdx)
-        {
-            var tasks = primeNames.Select(async primeName =>
-            {
                 try
                 {
-                    return await GetMarketListings(primeName);
+                    var result = await AppMain.dataBase.GetTopListings(primeName);
+                    short topPlat = 0;
+                    var sellOrders = result?["data"]?["sell"];
+                    if (sellOrders != null && sellOrders.HasValues)
+                        topPlat = sellOrders.First.Value<short>("platinum");
+
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        screen.Rewards.MarketResults[rewardIdx] = result;
+                        screen.Rewards.PlatinumValues[rewardIdx] = topPlat;
+                        SetListings(comboIdx);
+                    });
                 }
                 catch (Exception ex)
                 {
-                    AppMain.AddLog($"AutoList: GetMarketListings failed for {primeName}: {ex.Message}");
-                    return EmptyListings();
+                    AppMain.AddLog($"AutoList: GetTopListings failed for {primeName}: {ex.Message}");
+                    Dispatcher.UIThread.Post(() => ConfirmButton.IsEnabled = true);
                 }
-            }).ToList();
-
-            var results = await Task.WhenAll(tasks);
-            var platinumValues = new List<short>(results.Length);
-            var marketListings = new List<List<MarketListing>>(results.Length);
-
-            foreach (var listings in results)
-            {
-                marketListings.Add(listings);
-                platinumValues.Add(listings.Count > 0 ? listings[0].Platinum : (short)0);
-            }
-
-            return new RewardCollection(primeNames, platinumValues, marketListings,
-                (short)Math.Min(selectedIdx, primeNames.Count - 1));
+            });
         }
 
         private static readonly string[] _bannedKeywords = { "kuva", "exilus", "riven", "ayatan", "forma" };
@@ -106,42 +108,6 @@ namespace WFInfo.Linux.Views
         {
             string lower = item.ToLower(CultureInfo.InvariantCulture);
             return _bannedKeywords.Any(k => lower.Contains(k));
-        }
-
-        private async Task<List<MarketListing>> GetMarketListings(string primeName)
-        {
-            if (IsItemBanned(primeName))
-                return EmptyListings();
-
-            var results = await AppMain.dataBase.GetTopListings(primeName);
-            if (results == null) return EmptyListings();
-
-            var listings = new List<MarketListing>();
-            var sellOrders = results["data"]?["sell"];
-            if (sellOrders != null)
-            {
-                foreach (var item in sellOrders)
-                {
-                    listings.Add(new MarketListing(
-                        item.Value<short>("platinum"),
-                        item.Value<short>("quantity"),
-                        item["user"]?.Value<short>("reputation") ?? 0
-                    ));
-                }
-            }
-
-            // Pad to 5 entries
-            while (listings.Count < 5)
-                listings.Add(new MarketListing(0, 0, 0));
-            return listings;
-        }
-
-        private static List<MarketListing> EmptyListings()
-        {
-            var list = new List<MarketListing>(5);
-            for (int i = 0; i < 5; i++)
-                list.Add(new MarketListing(0, 0, 0));
-            return list;
         }
 
         private void SetScreen(int index)
@@ -162,10 +128,17 @@ namespace WFInfo.Linux.Views
                 }
             }
             RewardCombo.ItemsSource = filtered;
-            int origIdx = Math.Min(screen.Rewards.RewardIndex, screen.Rewards.PrimeNames.Count - 1);
-            int filteredIdx = _comboIndexMap.IndexOf(origIdx);
-            if (filteredIdx < 0) filteredIdx = 0;
-            RewardCombo.SelectedIndex = Math.Min(filteredIdx, filtered.Count - 1);
+            if (screen.ListedComboIndex >= 0 && screen.ListedComboIndex < filtered.Count)
+            {
+                RewardCombo.SelectedIndex = screen.ListedComboIndex;
+            }
+            else
+            {
+                int origIdx = Math.Min(screen.Rewards.RewardIndex, screen.Rewards.PrimeNames.Count - 1);
+                int filteredIdx = _comboIndexMap.IndexOf(origIdx);
+                if (filteredIdx < 0) filteredIdx = 0;
+                RewardCombo.SelectedIndex = Math.Min(filteredIdx, filtered.Count - 1);
+            }
 
             UpdateStatus(screen.Status);
             SetListings(RewardCombo.SelectedIndex);
@@ -178,50 +151,168 @@ namespace WFInfo.Linux.Views
             var screen = _screens[_pageIndex];
             int index = comboIndex >= 0 && comboIndex < _comboIndexMap.Count
                 ? _comboIndexMap[comboIndex] : comboIndex;
-            if (index < 0 || index >= screen.Rewards.MarketListings.Count) return;
+            if (index < 0 || index >= screen.Rewards.MarketResults.Count) return;
 
-            var listings = screen.Rewards.MarketListings[index];
-            PriceBox.Text = screen.Rewards.PlatinumValues[index].ToString(CultureInfo.InvariantCulture);
+            bool listed = screen.Status == "successful";
 
-            for (int i = 0; i < 5 && i < listings.Count; i++)
-            {
-                _plats[i].Text = listings[i].Platinum.ToString();
-                _amts[i].Text = listings[i].Amount.ToString();
-                _reps[i].Text = listings[i].Reputation.ToString();
-            }
+            if (listed && screen.ListedPrice > 0)
+                PriceBox.Text = screen.ListedPrice.ToString(CultureInfo.InvariantCulture);
+            else
+                PriceBox.Text = screen.Rewards.PlatinumValues[index].ToString(CultureInfo.InvariantCulture);
+
+            PopulateTopListings(screen.Rewards.MarketResults[index]);
 
             bool banned = IsItemBanned(screen.Rewards.PrimeNames[index]);
-            ConfirmButton.IsEnabled = !banned && screen.Status != "successful" && !_posting;
-            PriceBox.IsEnabled = !banned && screen.Status != "successful";
+            ConfirmButton.IsEnabled = !banned && !listed && !_posting;
+            PriceBox.IsEnabled = !banned && !listed;
+
             if (banned)
-                StatusText.Text = "Cannot list this item";
+            {
+                ErrorText.Text = "Cannot list this item";
+                ErrorText.Foreground = ErrorBrush;
+            }
+            else if (!listed)
+            {
+                ErrorText.Text = "";
+            }
         }
+
+        private void PopulateTopListings(JObject results)
+        {
+            TopOrdersPanel.Children.Clear();
+            TopOrdersPanel.RowDefinitions.Clear();
+            TopOrdersPanel.ColumnDefinitions.Clear();
+
+            var orders = results?["data"]?["sell"];
+            if (orders == null || !orders.HasValues)
+            {
+                TopOrdersPanel.Children.Add(new TextBlock
+                {
+                    Text = "Orders not found",
+                    Foreground = DimFg, FontSize = 11,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 8)
+                });
+                return;
+            }
+
+            var platIcon = Application.Current.FindResource("IconPlatinum") as StreamGeometry;
+            var cubesIcon = Application.Current.FindResource("IconCubes") as StreamGeometry;
+            var smileIcon = Application.Current.FindResource("IconSmile") as StreamGeometry;
+            var mehIcon = Application.Current.FindResource("IconMeh") as StreamGeometry;
+            var frownIcon = Application.Current.FindResource("IconFrown") as StreamGeometry;
+
+            for (int c = 0; c < 3; c++)
+                TopOrdersPanel.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
+
+            int maxPlatLen = 0;
+            int scanCount = 0;
+            foreach (var o in orders)
+            {
+                if (scanCount >= 5) break;
+                int p = o.Value<int?>("platinum") ?? 0;
+                int len = p.ToString().Length;
+                if (len > maxPlatLen) maxPlatLen = len;
+                scanCount++;
+            }
+            double platTextWidth = maxPlatLen * 7.0;
+
+            int rowIdx = 0;
+            foreach (var item in orders)
+            {
+                if (rowIdx >= 5) break;
+
+                int rep = item["user"]?.Value<int?>("reputation") ?? 0;
+                int plat = item.Value<int?>("platinum") ?? 0;
+                int qty = item.Value<int?>("quantity") ?? 1;
+
+                TopOrdersPanel.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+
+                // Reputation
+                var repFg = rep >= 5 ? RepGoodFg : (rep < -5 ? RepBadFg : RepNeutralFg);
+                var repPanel = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal, Spacing = 2,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 2)
+                };
+                repPanel.Children.Add(new TextBlock { Text = rep.ToString(), Foreground = repFg, FontSize = 11 });
+                var faceIcon = rep >= 5 ? smileIcon : (rep < -5 ? frownIcon : mehIcon);
+                if (faceIcon != null)
+                    repPanel.Children.Add(new PathIcon { Data = faceIcon, Foreground = repFg, Width = 11, Height = 11 });
+                Grid.SetRow(repPanel, rowIdx);
+                Grid.SetColumn(repPanel, 0);
+                TopOrdersPanel.Children.Add(repPanel);
+
+                // Platinum
+                var platPanel = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal, Spacing = 2,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 2)
+                };
+                platPanel.Children.Add(new TextBlock
+                {
+                    Text = plat.ToString(), FontWeight = FontWeight.Bold,
+                    Foreground = SellPlatFg, FontSize = 11,
+                    MinWidth = platTextWidth, TextAlignment = TextAlignment.Right
+                });
+                if (platIcon != null)
+                    platPanel.Children.Add(new PathIcon { Data = platIcon, Foreground = SellPlatFg, Width = 10, Height = 10 });
+                Grid.SetRow(platPanel, rowIdx);
+                Grid.SetColumn(platPanel, 1);
+                TopOrdersPanel.Children.Add(platPanel);
+
+                // Quantity
+                var qtyPanel = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal, Spacing = 2,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 2)
+                };
+                qtyPanel.Children.Add(new TextBlock { Text = qty.ToString(), Foreground = LightFg, FontSize = 11 });
+                if (cubesIcon != null)
+                    qtyPanel.Children.Add(new PathIcon { Data = cubesIcon, Foreground = LightFg, Width = 10, Height = 10 });
+                Grid.SetRow(qtyPanel, rowIdx);
+                Grid.SetColumn(qtyPanel, 2);
+                TopOrdersPanel.Children.Add(qtyPanel);
+
+                rowIdx++;
+            }
+        }
+
+
 
         private void UpdateStatus(string status)
         {
             switch (status)
             {
                 case "successful":
-                    StatusText.Text = "Listing already successfully posted";
-                    StatusText.Foreground = SuccessBrush;
+                    ErrorText.Text = "Listed successfully";
+                    ErrorText.Foreground = SuccessBrush;
                     ConfirmButton.IsEnabled = false;
                     RewardCombo.IsEnabled = false;
                     PriceBox.IsEnabled = false;
+                    TopOrdersLabel.IsVisible = false;
                     ListingsBorder.IsVisible = false;
                     break;
                 case "":
-                    StatusText.Text = "";
+                    ErrorText.Text = "";
                     ConfirmButton.IsEnabled = !_posting;
                     RewardCombo.IsEnabled = true;
                     PriceBox.IsEnabled = true;
+                    TopOrdersLabel.IsVisible = true;
                     ListingsBorder.IsVisible = true;
                     break;
                 default:
-                    StatusText.Text = status;
-                    StatusText.Foreground = ErrorBrush;
+                    ErrorText.Text = status;
+                    ErrorText.Foreground = ErrorBrush;
                     ConfirmButton.IsEnabled = !_posting;
                     RewardCombo.IsEnabled = true;
                     PriceBox.IsEnabled = true;
+                    TopOrdersLabel.IsVisible = true;
                     ListingsBorder.IsVisible = true;
                     break;
             }
@@ -234,11 +325,39 @@ namespace WFInfo.Linux.Views
             NextButton.IsEnabled = _pageIndex < _screens.Count - 1;
         }
 
+        private void AdjustField(TextBox box, int delta, int min, int max)
+        {
+            int val = int.TryParse(box.Text, out int v) ? v : min;
+            val = Math.Clamp(val + delta, min, max);
+            _updating = true;
+            box.Text = val.ToString();
+            _updating = false;
+        }
+
+        private void PricePlus_Click(object sender, RoutedEventArgs e) { if (PriceBox.IsEnabled) AdjustField(PriceBox, 1, 1, 900000); }
+        private void PriceMinus_Click(object sender, RoutedEventArgs e) { if (PriceBox.IsEnabled) AdjustField(PriceBox, -1, 1, 900000); }
+
+
+        private void NumberBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_updating || sender is not TextBox tb) return;
+            string text = tb.Text;
+            if (string.IsNullOrEmpty(text)) return;
+            string cleaned = Regex.Replace(text, "[^0-9]", "");
+            if (cleaned != text)
+            {
+                _updating = true;
+                tb.Text = cleaned;
+                tb.CaretIndex = cleaned.Length;
+                _updating = false;
+            }
+        }
+
         private void OnPointerPressed(object sender, PointerPressedEventArgs e)
         {
             if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             {
-                var pos = e.GetPosition((Avalonia.Visual)sender);
+                var pos = e.GetPosition((Visual)sender);
                 if (pos.Y > 22) return;
                 try { BeginMoveDrag(e); }
                 catch (InvalidOperationException) { }
@@ -253,6 +372,7 @@ namespace WFInfo.Linux.Views
         {
             if (_updating || RewardCombo.SelectedIndex < 0) return;
             SetListings(RewardCombo.SelectedIndex);
+            LoadSelectedItemListings();
         }
 
         private void Confirm_Click(object sender, RoutedEventArgs e)
@@ -264,28 +384,35 @@ namespace WFInfo.Linux.Views
             string primeItem = RewardCombo.SelectedItem as string;
             if (string.IsNullOrEmpty(primeItem)) return;
 
-            if (!int.TryParse(Regex.Replace(PriceBox.Text ?? "", "[^0-9]", ""),
-                    out int platinum) || platinum <= 0)
+            if (!int.TryParse(PriceBox.Text, out int platinum) || platinum <= 0)
             {
-                StatusText.Text = "Invalid price";
+                ErrorText.Text = "Invalid price";
+                ErrorText.Foreground = ErrorBrush;
                 return;
             }
+
+            int quantity = 1;
 
             _posting = true;
             ConfirmButton.IsEnabled = false;
             ConfirmButton.Content = "...";
-
             ShowLoading();
 
             Task.Run(async () =>
             {
                 try
                 {
-                    bool success = await PlaceListing(primeItem, platinum);
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    bool success = await PlaceListing(primeItem, platinum, quantity);
+                    Dispatcher.UIThread.Post(() =>
                     {
                         _posting = false;
                         screen.Status = success ? "successful" : "Failed to post listing";
+                        if (success)
+                        {
+                            screen.ListedPrice = platinum;
+                            screen.ListedComboIndex = RewardCombo.SelectedIndex;
+                            MyListingsWindow.ReloadIfOpen();
+                        }
                         UpdateStatus(screen.Status);
                         ConfirmButton.Content = "Confirm Listing";
                         ShowFinished();
@@ -293,7 +420,7 @@ namespace WFInfo.Linux.Views
                 }
                 catch (Exception ex)
                 {
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    Dispatcher.UIThread.Post(() =>
                     {
                         _posting = false;
                         screen.Status = ex.Message;
@@ -306,16 +433,16 @@ namespace WFInfo.Linux.Views
             });
         }
 
-        private async Task<bool> PlaceListing(string primeItem, int platinum)
+        private async Task<bool> PlaceListing(string primeItem, int platinum, int quantity)
         {
             var existing = await AppMain.dataBase.GetCurrentListing(primeItem);
             if (existing == null)
-                return await AppMain.dataBase.ListItem(primeItem, platinum, 1);
+                return await AppMain.dataBase.ListItem(primeItem, platinum, quantity);
             else
             {
                 string listingId = (string)existing["id"];
-                int quantity = (int)existing["quantity"];
-                return await AppMain.dataBase.UpdateListing(listingId, platinum, quantity + 1);
+                int existingQty = (int)existing["quantity"];
+                return await AppMain.dataBase.UpdateListing(listingId, platinum, existingQty + quantity);
             }
         }
 
@@ -349,6 +476,7 @@ namespace WFInfo.Linux.Views
                 _pageIndex--;
                 SetScreen(_pageIndex);
                 UpdateNavigation();
+                LoadSelectedItemListings();
             }
         }
 
@@ -359,6 +487,7 @@ namespace WFInfo.Linux.Views
                 _pageIndex++;
                 SetScreen(_pageIndex);
                 UpdateNavigation();
+                LoadSelectedItemListings();
             }
         }
 
@@ -371,28 +500,15 @@ namespace WFInfo.Linux.Views
 
         private void ShowFinished()
         {
-            CancelButton.Content = "Cancel";
+            CancelButton.Content = "Skip";
             UpdateNavigation();
-        }
-
-        private void PriceBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (_updating) return;
-            string text = PriceBox.Text;
-            if (string.IsNullOrEmpty(text)) return;
-            string cleaned = Regex.Replace(text, "[^0-9]", "");
-            if (cleaned != text)
-            {
-                _updating = true;
-                PriceBox.Text = cleaned;
-                PriceBox.CaretIndex = cleaned.Length; // keep caret at end after stripping non-digits
-                _updating = false;
-            }
         }
 
         private class ScreenEntry
         {
             public string Status { get; set; } = "";
+            public int ListedPrice { get; set; } = 0;
+            public int ListedComboIndex { get; set; } = -1;
             public RewardCollection Rewards { get; set; }
         }
     }

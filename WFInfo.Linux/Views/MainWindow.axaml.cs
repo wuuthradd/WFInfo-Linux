@@ -259,6 +259,7 @@ namespace WFInfo.Linux.Views
             CreateListingBtn.IsVisible = true;
             PlusOneBtn.IsVisible = true;
             SearchItBtn.IsVisible = true;
+            MyListingsBtn.IsVisible = true;
             ChangeStatus("Logged in", 0);
         }
 
@@ -269,6 +270,7 @@ namespace WFInfo.Linux.Views
             CreateListingBtn.IsVisible = false;
             PlusOneBtn.IsVisible = false;
             SearchItBtn.IsVisible = false;
+            MyListingsBtn.IsVisible = false;
         }
 
         private void LoggOut()
@@ -379,6 +381,36 @@ namespace WFInfo.Linux.Views
             AppMain.AddLog("Starting search it");
             AppMain.StatusUpdate("Starting search it", 0);
             App.LaunchSearchIt();
+        }
+
+        private MyListingsWindow _myListingsWindow;
+
+        private void MyListings_Click(object sender, RoutedEventArgs e)
+        {
+            if (AppMain.dataBase == null || !AppMain.dataBase.IsJwtLoggedIn())
+            {
+                AppMain.StatusUpdate("Please log in first", 1);
+                return;
+            }
+
+            try
+            {
+                if (_myListingsWindow == null || !_myListingsWindow.IsVisible)
+                {
+                    _myListingsWindow = new MyListingsWindow();
+                    _myListingsWindow.Closed += (_, _) => _myListingsWindow = null;
+                    _myListingsWindow.Show();
+                    _myListingsWindow.LoadOrders();
+                }
+                else
+                {
+                    _myListingsWindow.Activate();
+                }
+            }
+            catch (Exception ex)
+            {
+                AppMain.AddLog($"Failed to open My Listings window: {ex}");
+            }
         }
 
         private PlusOneWindow _plusOneWindow;

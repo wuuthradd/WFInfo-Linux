@@ -2,9 +2,9 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <Version>9.8.1.4</Version>
-    <AssemblyVersion>9.8.1.4</AssemblyVersion>
-    <FileVersion>9.8.1.4</FileVersion>
+    <Version>9.8.2.0</Version>
+    <AssemblyVersion>9.8.2.0</AssemblyVersion>
+    <FileVersion>9.8.2.0</FileVersion>
     <RootNamespace>WFInfo.Linux</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon>Resources/WFLogo.ico</ApplicationIcon>
@@ -29,11 +29,17 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Resources\**" />
-    <AvaloniaResource Include="Styles\**" />
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Resources\WFLogo.png" />
     <EmbeddedResource Include="Resources\achievment_03.wav" />
+    <EmbeddedResource Include="Resources\Notifications\anxious.ogg" />
+    <EmbeddedResource Include="Resources\Notifications\bubbling-up.ogg" />
+    <EmbeddedResource Include="Resources\Notifications\hold-on.ogg" />
+    <EmbeddedResource Include="Resources\Notifications\maybe-one-day.ogg" />
+    <EmbeddedResource Include="Resources\Notifications\slow-spring-board.ogg" />
+    <EmbeddedResource Include="Resources\Notifications\time-is-now.ogg" />
   </ItemGroup>
 
   <ItemGroup>

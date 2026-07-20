@@ -1,5 +1,24 @@
 # Changelog
 
+## 9.8.2
+
+- Ported WPF 9.8.2 changes (Full Changelog [WFInfo 9.8.2](https://github.com/WFCD/WFinfo/releases/tag/v9.8.2))
+
+### New Feature - Warframe Market Orders
+- View, edit, and delete your warframe.market orders. Accesible from main window, new icon at right panel
+- Place Order window: post new sell/buy orders directly from the app
+- Transaction History window: browse past trades with date grouping
+- Trade detection: DBMON bridge now parses trade confirmations and fires events on successful trades. To activate go to settings, enable "Auto trade done"
+- Trade Done window: after a completed trade, prompts to mark matching orders as sold and optionally decrement inventory
+
+### New Feature - Desktop Notifications
+- Whisper detection and desktop notifications via notify-send while game is not focused, with selectable notification sounds. Enabled by default, with 6 different notfication sound to choose from settings.
+
+### Other
+- Main window title changed to WFInfo-Linux
+- Updated looks of Auto-List window, matching new style.
+- Cleaning, small fixes and QoL adjustments.
+
 ## 9.8.1.4
 
 - Fix Tesseract failing to load on Fedora 39+ and other modern glibc systems (libdl.so merged into libc)

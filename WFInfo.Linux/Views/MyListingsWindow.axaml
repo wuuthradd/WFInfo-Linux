@@ -1,0 +1,332 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:WFInfo.Linux.Views"
+
+        x:Class="WFInfo.Linux.Views.MyListingsWindow"
+        Title="WFMarket Orders" Width="1125" Height="530"
+        MinWidth="680" MinHeight="300"
+        WindowStartupLocation="CenterScreen"
+        SystemDecorations="None"
+        Background="#FF1B1B1B">
+
+    <Window.Styles>
+        <Style Selector="Button.cardBtn">
+            <Setter Property="Background" Value="#FF333333" />
+            <Setter Property="Foreground" Value="#FFB1D0D9" />
+            <Setter Property="BorderBrush" Value="#FF555555" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="4,2" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="MinHeight" Value="24" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.cardBtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#FF444444" />
+        </Style>
+
+        <Style Selector="Button.sortBtn">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Foreground" Value="#FF888888" />
+        </Style>
+        <Style Selector="Button.sortBtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#FF333333" />
+        </Style>
+
+        <Style Selector="Button.deleteBtn">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#FFA52F31" />
+            <Setter Property="BorderBrush" Value="#40A52F31" />
+        </Style>
+        <Style Selector="Button.deleteBtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#20FF6969" />
+            <Setter Property="Foreground" Value="#FFFF6969" />
+            <Setter Property="BorderBrush" Value="#80FF6969" />
+        </Style>
+
+        <Style Selector="Button.confirmYes">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#FFA52F31" />
+            <Setter Property="BorderBrush" Value="#40A52F31" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="14,4" />
+            <Setter Property="MinHeight" Value="30" />
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+        <Style Selector="Button.confirmYes:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#30FF6969" />
+            <Setter Property="Foreground" Value="#FFFF6969" />
+            <Setter Property="BorderBrush" Value="#80FF6969" />
+        </Style>
+        <Style Selector="Button.confirmNo">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#FFB1D0D9" />
+            <Setter Property="BorderBrush" Value="#40B1D0D9" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="14,4" />
+            <Setter Property="MinHeight" Value="30" />
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+        <Style Selector="Button.confirmNo:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#20B1D0D9" />
+            <Setter Property="Foreground" Value="#FFDDEEFF" />
+            <Setter Property="BorderBrush" Value="#80B1D0D9" />
+        </Style>
+
+        <Style Selector="Button#PlaceOrderBtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#FFE64400" />
+        </Style>
+    </Window.Styles>
+
+    <Border BorderBrush="#FF707070" BorderThickness="1">
+    <Grid RowDefinitions="23,Auto,*" PointerPressed="OnPointerPressed">
+        <!-- Title bar -->
+        <Grid Grid.Row="0">
+            <Rectangle Fill="#FF0F0F0F" />
+            <Image Margin="2,0,0,0" Source="avares://WFInfo.Linux/Resources/WFLogo.png"
+                   Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Width="18" />
+            <TextBlock Text="WFMarket Orders" Margin="24,1,0,0" FontSize="14" FontWeight="Bold"
+                       FontFamily="{StaticResource RobotoBlack}"
+                       VerticalAlignment="Center" />
+            <TextBlock x:Name="CountText" Margin="0,1,50,0" FontSize="11"
+                       Foreground="#FFCCCCCC" VerticalAlignment="Center" HorizontalAlignment="Right" />
+            <Rectangle Fill="#FF646464" Width="1" Margin="0,0,43,0" Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" />
+            <Button Content="_" Click="Minimize_Click" Classes="linkButton"
+                    Height="22" HorizontalAlignment="Right" Width="22"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Margin="0,0,21,0" />
+            <Rectangle Fill="#FF646464" Width="1" Margin="0,0,21,0" Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" />
+            <Button Content="x" Click="Close_Click" Classes="linkButton"
+                    Height="22" HorizontalAlignment="Right" Width="22"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+            <Rectangle Height="1" Fill="#FF646464" VerticalAlignment="Bottom" />
+        </Grid>
+
+        <!-- Filter bar -->
+        <StackPanel Grid.Row="1" Margin="8,6,8,2" Spacing="4">
+            <!-- Row 1: type filter, search, history, refresh -->
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto">
+                <TextBlock Text="Filter:" Foreground="#FFB1D0D9" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <ComboBox x:Name="TypeFilter" Grid.Column="1" SelectedIndex="0"
+                          Background="#FF333333" Foreground="#FFB1D0D9" MinWidth="80"
+                          SelectionChanged="TypeFilter_Changed">
+                    <ComboBoxItem Content="All" />
+                    <ComboBoxItem Content="Sell" />
+                    <ComboBoxItem Content="Buy" />
+                </ComboBox>
+                <TextBox x:Name="SearchBox" Grid.Column="2" Margin="8,0,0,0"
+                         Watermark="Search by name" Height="30"
+                         Background="#FF333333" Foreground="#FFB1D0D9"
+                         BorderBrush="#FF555555" Padding="4,0"
+                         VerticalContentAlignment="Center"
+                         TextChanged="SearchBox_TextChanged" />
+                <Button x:Name="PlaceOrderBtn" Grid.Column="3" Click="PlaceOrder_Click"
+                        Background="#FFB53600" Foreground="#FFF5F5F5" Padding="0" Margin="8,0,0,0"
+                        Height="30" Width="95" BorderBrush="Transparent" BorderThickness="1"
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <PathIcon Width="11" Height="11"
+                                  Data="{StaticResource IconPlusSquare}"
+                                  Foreground="#FFF5F5F5" />
+                        <TextBlock Text="Place Order" Foreground="#FFF5F5F5" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="4" Content="Trades" Click="Trades_Click" Height="30" Width="95"
+                        Background="#FF333333" Foreground="#FFB1D0D9" Padding="0" Margin="6,0,0,0"
+                        BorderBrush="#FF555555" BorderThickness="1"
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center" />
+                <Button x:Name="HistoryBtn" Grid.Column="5" Content="History" Click="History_Click" Height="30" Width="95"
+                        Background="#FF333333" Foreground="#FFB1D0D9" Padding="0" Margin="6,0,0,0"
+                        BorderBrush="#FF555555" BorderThickness="1"
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center" />
+                <Button x:Name="RefreshBtn" Grid.Column="6" Content="Refresh" Click="Refresh_Click" Height="30" Width="95"
+                        Background="#FF333333" Foreground="#FFB1D0D9" Padding="0" Margin="6,0,0,0"
+                        BorderBrush="#FF555555" BorderThickness="1"
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center" />
+            </Grid>
+            <!-- Row 2: sort buttons + price range -->
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4,0,4">
+                <StackPanel Orientation="Horizontal" Spacing="0">
+                    <TextBlock Text="Sort by:" Foreground="#FFB1D0D9" FontSize="14"
+                               VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <Button x:Name="SortName" Content="Name" Classes="cardBtn sortBtn" Padding="8,2" FontSize="14"
+                            Click="Sort_Click" Tag="name" />
+                    <Button x:Name="SortPrice" Content="Unit price" Classes="cardBtn sortBtn" Padding="8,2" FontSize="14"
+                            Margin="2,0,0,0" Click="Sort_Click" Tag="price" />
+                    <Button x:Name="SortQty" Content="Quantity" Classes="cardBtn sortBtn" Padding="8,2" FontSize="14"
+                            Margin="2,0,0,0" Click="Sort_Click" Tag="quantity" />
+                    <Button x:Name="SortUpdated" Content="Last update" Classes="cardBtn sortBtn" Padding="8,2" FontSize="14"
+                            Margin="2,0,0,0" Click="Sort_Click" Tag="updated" />
+                    <Button x:Name="SortCreated" Content="Creation date" Classes="cardBtn sortBtn" Padding="8,2" FontSize="14"
+                            Margin="2,0,0,0" Click="Sort_Click" Tag="created" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <TextBlock Text="Min" Foreground="#FFB1D0D9" FontSize="14" VerticalAlignment="Center" />
+                    <TextBox x:Name="MinPriceBox" Width="50" Background="#FF333333" Foreground="#FFB1D0D9"
+                             BorderBrush="#FF555555" Padding="4,2" FontSize="14" Watermark="0"
+                             MinHeight="0" Height="28" VerticalContentAlignment="Center"
+                             TextChanged="PriceFilter_Changed" />
+                    <TextBlock Text="Max" Foreground="#FFB1D0D9" FontSize="14" VerticalAlignment="Center" Margin="4,0,0,0" />
+                    <TextBox x:Name="MaxPriceBox" Width="50" Background="#FF333333" Foreground="#FFB1D0D9"
+                             BorderBrush="#FF555555" Padding="4,2" FontSize="14" Watermark="Max"
+                             MinHeight="0" Height="28" VerticalContentAlignment="Center"
+                             TextChanged="PriceFilter_Changed" />
+                    <TextBlock Text="Platinum" Foreground="#FFB1D0D9" FontSize="14" VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+
+        <!-- Separator -->
+        <Rectangle Grid.Row="1" Height="1" Fill="#FF646464" VerticalAlignment="Bottom" />
+
+        <!-- Listings grid -->
+        <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="ListingsPanel" Margin="4,0,4,4">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:OrderViewModel">
+                        <Border Background="#FF222222" CornerRadius="4" Margin="4"
+                                Padding="10,8" Width="545">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <!-- Left: text content -->
+                                <StackPanel Grid.Column="0" Spacing="3">
+                                    <TextBlock Text="{Binding ItemName}"
+                                               Foreground="#FF5BC0DE" FontSize="15" FontWeight="Bold"
+                                               TextTrimming="CharacterEllipsis"
+                                               TextDecorations="Underline"
+                                               Cursor="Hand" Tag="{Binding}"
+                                               Margin="0,0,0,3"
+                                               PointerPressed="ItemName_PointerPressed" />
+                                    <StackPanel Orientation="Horizontal" Spacing="5">
+                                        <Border CornerRadius="3" Padding="5,1"
+                                                Name="TypeBadgeBorder" Loaded="TypeBadge_Loaded"
+                                                Tag="{Binding}">
+                                            <TextBlock Text="{Binding TypeBadge}" FontSize="11" FontWeight="Bold"
+                                                       Foreground="White" />
+                                        </Border>
+                                        <TextBlock Text="|" Foreground="#FF555555" FontSize="13" VerticalAlignment="Center" />
+                                        <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Quantity}" FontSize="13" Foreground="#FFB1D0D9"
+                                                       VerticalAlignment="Center" />
+                                            <PathIcon Width="12" Height="12" Data="{StaticResource IconCubes}"
+                                                      Foreground="#BFA4A9AA"
+                                                      VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        <TextBlock Text="|" Foreground="#FF555555" FontSize="13" VerticalAlignment="Center"
+                                                   IsVisible="{Binding IsBulk}" />
+                                        <Border CornerRadius="0" Padding="0"
+                                                IsVisible="{Binding IsBulk}">
+                                            <TextBlock Tag="{Binding}" Loaded="PerTradeText_Loaded"
+                                                       FontSize="13" FontWeight="Bold" Foreground="#FFE64400" />
+                                        </Border>
+                                        <TextBlock Text="|" Foreground="#FF555555" FontSize="13" VerticalAlignment="Center"
+                                                   IsVisible="{Binding HasSubtype}" />
+                                        <TextBlock Text="{Binding SubtypeDisplay}" Foreground="#FFB1D0D9" FontSize="13"
+                                                   VerticalAlignment="Center"
+                                                   IsVisible="{Binding HasSubtype}" />
+                                        <TextBlock Text="|" Foreground="#FF555555" FontSize="13" VerticalAlignment="Center"
+                                                   IsVisible="{Binding Vaulted}" />
+                                        <TextBlock Text="Vaulted" Foreground="#FFD69F00" FontSize="13"
+                                                   VerticalAlignment="Center"
+                                                   IsVisible="{Binding Vaulted}" />
+                                        <TextBlock Text="|" Foreground="#FF555555" FontSize="13" VerticalAlignment="Center"
+                                                   IsVisible="{Binding HasInfoText}" />
+                                        <TextBlock Text="{Binding InfoText}" Foreground="#FFB1D0D9" FontSize="13"
+                                                   VerticalAlignment="Center"
+                                                   IsVisible="{Binding HasInfoText}" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal"
+                                                Tag="{Binding}" Loaded="PriceRow_Loaded" />
+                                </StackPanel>
+
+                                <!-- Right: action buttons or delete confirmation -->
+                                <Panel Grid.Column="1" Margin="6,0,0,0" Width="200">
+                                    <StackPanel Spacing="3" VerticalAlignment="Top">
+                                        <!-- Top row: Sold/Bought + Edit -->
+                                        <Grid ColumnDefinitions="*,3,*">
+                                            <Button Grid.Column="0" Classes="cardBtn"
+                                                    HorizontalAlignment="Stretch"
+                                                    Click="Sold_Click" Tag="{Binding}">
+                                                <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                                                    <PathIcon Width="12" Height="12" Data="{StaticResource IconCheck}"
+                                                               Foreground="#FFB1D0D9" />
+                                                    <TextBlock Text="{Binding SoldButtonText}" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Button>
+                                            <Button Grid.Column="2" Classes="cardBtn"
+                                                    HorizontalAlignment="Stretch"
+                                                    Click="Edit_Click" Tag="{Binding}">
+                                                <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                                                    <PathIcon Width="12" Height="12" Data="{StaticResource IconEdit}"
+                                                               Foreground="#FFB1D0D9" />
+                                                    <TextBlock Text="Edit" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Button>
+                                        </Grid>
+                                        <!-- Bottom row: +N + Visible + Delete -->
+                                        <Grid ColumnDefinitions="20*,3,60*,3,20*">
+                                            <Button Grid.Column="0" Content="{Binding PlusButtonText}" Classes="cardBtn"
+                                                    HorizontalAlignment="Stretch"
+                                                    Click="PlusOne_Click" Tag="{Binding}" />
+                                            <Button Grid.Column="2" Classes="cardBtn"
+                                                    HorizontalAlignment="Stretch"
+                                                    Click="Visibility_Click" Tag="{Binding}">
+                                                <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                                                    <PathIcon Width="12" Height="12" Tag="{Binding}"
+                                                              Loaded="VisibilityIcon_Loaded"
+                                                              Foreground="#FFB1D0D9" />
+                                                    <TextBlock Text="{Binding VisibilityText}" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Button>
+                                            <Button Grid.Column="4" Classes="deleteBtn"
+                                                    HorizontalAlignment="Stretch"
+                                                    Padding="4,2"
+                                                    BorderThickness="1" MinHeight="24"
+                                                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                                    Click="DeleteAsk_Click" Tag="{Binding}">
+                                                <PathIcon Width="12" Height="12" Data="{StaticResource IconTrash}"
+                                                          Foreground="{Binding $parent[Button].Foreground}" />
+                                            </Button>
+                                        </Grid>
+                                    </StackPanel>
+                                </Panel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Empty state overlay -->
+        <Border x:Name="EmptyOverlay" Grid.Row="2" IsVisible="False" IsHitTestVisible="False">
+            <TextBlock Text="No matching orders" Foreground="#FFB1D0D9" FontSize="14"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+
+        <!-- Loading overlay -->
+        <Border x:Name="LoadingOverlay" Grid.Row="2" Background="#CC1B1B1B" IsVisible="True">
+            <TextBlock Text="Loading orders..." Foreground="#FFB1D0D9" FontSize="14"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+
+        <!-- WFM data unavailable overlay -->
+        <Border x:Name="WfmErrorOverlay" Grid.Row="2" Background="#CC1B1B1B" IsVisible="False">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+                <TextBlock Text="Warframe.market item data is not available."
+                           Foreground="#FFDE5B5B" FontSize="16" HorizontalAlignment="Center" />
+                <TextBlock Text="Could not connect to warframe.market API."
+                           Foreground="#FFB1B1B1" FontSize="14" HorizontalAlignment="Center" />
+                <Button x:Name="RetryWfmBtn" Content="Retry" Click="RetryWfm_Click"
+                        Background="#FF333333" Foreground="#FFB1D0D9" Padding="16,6"
+                        BorderBrush="#FF555555" BorderThickness="1"
+                        HorizontalAlignment="Center" FontSize="13" />
+            </StackPanel>
+        </Border>
+    </Grid>
+    </Border>
+</Window>

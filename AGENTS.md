@@ -22,7 +22,9 @@ Linux port of WFInfo. Avalonia/.NET 10 desktop app for Warframe. OCR + market pr
 - **Dependency Injection** via `Microsoft.Extensions.DependencyInjection` in `App.axaml.cs`
 - **OCR** → `WFInfo.Core/OCR.cs`: screenshot → `ExtractPartBoxAutomatically` → Tesseract → Levenshtein `GetPartName()`
 - **Data** → `WFInfo.Core/Data.cs`: JSON from `api.warframestat.us/wfinfo/prices`, JWT auth, WebSocket for warframe.market
-- **Auto-mode** → `WFInfo.Linux/Services/FileLogCapture.cs`: launches DBMON bridge under Wine to capture `OutputDebugString` messages, triggers on `"Got rewards"`
+- **Auto-mode** → `WFInfo.Linux/Services/FileLogCapture.cs`: launches DBMON bridge under Wine to capture `OutputDebugString` messages, triggers on `"Got rewards"`, detects whispers and completed trades
+- **Trading** → `MyListingsWindow`, `PlaceOrderWindow`, `EditOrderWindow`, `TransactionHistoryWindow`, `TradeDoneWindow`: warframe.market order management, trade confirmation, transaction history
+- **Notifications** → `DesktopNotificationService.cs`: whisper alerts via `notify-send`, `CrossPlatformSoundPlayer.cs`: selectable notification sounds
 - **Screenshots + Overlay** → Vulkan implicit layer (`WFInfo.Linux/NativeOverlay/libwfinfo_vk.so`), hooks swapchain for capture and composites overlays via graphics pipeline. Cairo/Pango for panel rendering. Communicates with .NET app via Unix socket (`VulkanLayerService.cs`)
 - **Input** → evdev `/dev/input/event*` or Unix socket IPC (`LinuxInputListener.cs`, `SocketCommandServer.cs`)
 - **Languages** → `WFInfo.Core/LanguageProcessing/`: 15 processors (CJK, Cyrillic, Latin, Thai, Turkish, Polish, European)

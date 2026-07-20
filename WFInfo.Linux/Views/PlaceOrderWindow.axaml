@@ -1,0 +1,319 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WFInfo.Linux.Views.PlaceOrderWindow"
+        Title="Place Order" Width="460"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        SystemDecorations="None"
+        Background="#FF1B1B1B">
+
+    <Window.Styles>
+        <Style Selector="Button.visBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{TemplateBinding Background}" />
+        </Style>
+        <Style Selector="RepeatButton.spin">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border x:Name="SpinBorder"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Padding="0" Margin="0" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="RepeatButton.spin:pointerover /template/ Border#SpinBorder">
+            <Setter Property="Background" Value="#FF4A4A4A" />
+        </Style>
+        <Style Selector="RepeatButton.spin:pressed /template/ Border#SpinBorder">
+            <Setter Property="Background" Value="#FF606060" />
+        </Style>
+        <Style Selector="AutoCompleteBox /template/ Popup#PART_Popup">
+            <Setter Property="PlacementMode" Value="Bottom" />
+            <Setter Property="WindowManagerAddShadowHint" Value="False" />
+        </Style>
+    </Window.Styles>
+
+    <Border BorderBrush="#FF707070" BorderThickness="1">
+    <Grid RowDefinitions="23,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*" MinHeight="370" PointerPressed="OnPointerPressed">
+        <!-- Title bar -->
+        <Grid Grid.Row="0">
+            <Rectangle Fill="#FF0F0F0F" />
+            <Image Margin="2,0,0,0" Source="avares://WFInfo.Linux/Resources/WFLogo.png"
+                   Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Width="18" />
+            <TextBlock Text="Place Order" Margin="24,1,0,0" FontSize="14" FontWeight="Bold"
+                       FontFamily="{StaticResource RobotoBlack}"
+                       VerticalAlignment="Center" />
+            <Button Content="x" Click="Close_Click" Classes="linkButton"
+                    Height="22" HorizontalAlignment="Right" Width="22"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+            <Rectangle Height="1" Fill="#FF646464" VerticalAlignment="Bottom" />
+        </Grid>
+
+        <!-- Order Type + Visibility -->
+        <Grid Grid.Row="1" Margin="10,8,10,0" ColumnDefinitions="*,*">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Order Type" Foreground="#FFB1D0D9" FontSize="12" />
+                <Border Background="#FF2A2A2A" CornerRadius="4" HorizontalAlignment="Stretch"
+                        BorderBrush="#FF444444" BorderThickness="1" Padding="2">
+                    <Grid ColumnDefinitions="*,*">
+                        <Button x:Name="SellBtn" Classes="visBtn" Click="TypeSell_Click"
+                                PointerEntered="TypeBtn_PointerEntered" PointerExited="TypeBtn_PointerExited"
+                                Padding="10,5" FontSize="12" CornerRadius="3"
+                                Background="#FFCB4A9E" Foreground="#FF161E21"
+                                BorderThickness="0" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center">
+                            <TextBlock Text="Want to Sell" FontSize="12" FontWeight="Bold" Foreground="#FF161E21" />
+                        </Button>
+                        <Button x:Name="BuyBtn" Grid.Column="1" Classes="visBtn" Click="TypeBuy_Click"
+                                PointerEntered="TypeBtn_PointerEntered" PointerExited="TypeBtn_PointerExited"
+                                Padding="10,5" FontSize="12" CornerRadius="3"
+                                Background="#FF418FA5" Foreground="#FF161E21"
+                                BorderThickness="0" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center">
+                            <TextBlock Text="Want to Buy" FontSize="12" FontWeight="Bold" Foreground="#FF161E21" />
+                        </Button>
+                    </Grid>
+                </Border>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="4" Margin="10,0,0,0">
+                <TextBlock Text="Initial Visibility" Foreground="#FFB1D0D9" FontSize="12" />
+                <Border Background="#FF2A2A2A" CornerRadius="4" HorizontalAlignment="Stretch"
+                        BorderBrush="#FF444444" BorderThickness="1" Padding="2">
+                    <Grid ColumnDefinitions="*,*">
+                        <Button x:Name="VisibleBtn" Classes="visBtn" Click="Visible_Click"
+                                PointerEntered="VisBtn_PointerEntered" PointerExited="VisBtn_PointerExited"
+                                Padding="10,5" FontSize="12" CornerRadius="3"
+                                Background="#FF1BB194" Foreground="#FF161E21"
+                                BorderThickness="0" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="Visible" FontSize="12" FontWeight="Bold" Foreground="#FF161E21" VerticalAlignment="Center" />
+                                <PathIcon Width="11" Height="11" Data="{StaticResource IconEye}" Foreground="#FF161E21" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="HiddenBtn" Grid.Column="1" Classes="visBtn" Click="Hidden_Click"
+                                PointerEntered="VisBtn_PointerEntered" PointerExited="VisBtn_PointerExited"
+                                Padding="10,5" FontSize="12" CornerRadius="3"
+                                Background="#FF418FA5" Foreground="#FF161E21"
+                                BorderThickness="0" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="Hidden" FontSize="12" FontWeight="Bold" Foreground="#FF161E21" VerticalAlignment="Center" />
+                                <PathIcon Width="11" Height="11" Data="{StaticResource IconEyeSlash}" Foreground="#FF161E21" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <!-- Item Name -->
+        <StackPanel Grid.Row="2" Margin="10,6,10,0" Spacing="4">
+            <TextBlock Text="Item Name" Foreground="#FFB1D0D9" FontSize="12" />
+            <AutoCompleteBox x:Name="ItemSearch" Watermark="Select Item"
+                             FilterMode="None"
+                             Background="#FF2A2A2A" Foreground="#FFB1D0D9"
+                             FontSize="12" MaxDropDownHeight="180"
+                             TextChanged="ItemSearch_TextChanged"
+                             SelectionChanged="ItemSearch_SelectionChanged" />
+        </StackPanel>
+
+        <!-- Rank (conditional) -->
+        <StackPanel x:Name="RankPanel" Grid.Row="3" Margin="10,6,10,0" IsVisible="False" Spacing="4">
+            <TextBlock Text="Rank" Foreground="#FFB1D0D9" FontSize="12" />
+            <Border Background="#FF2A2A2A" BorderBrush="#FF444444" BorderThickness="1"
+                    CornerRadius="0" Width="110" HorizontalAlignment="Left">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBox x:Name="RankBox" Background="Transparent"
+                             Foreground="#FFB1D0D9" Padding="8,4" FontSize="12"
+                             VerticalContentAlignment="Center"
+                             BorderThickness="0" Watermark="0-5" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="0" HorizontalAlignment="Right">
+                        <RepeatButton Classes="spin" Click="RankPlus_Click" Interval="30" Delay="150"
+                                      Width="14" Height="15" Padding="0" Background="#FF333333"
+                                      BorderBrush="#FF555555" BorderThickness="1" CornerRadius="1">
+                            <Path Data="M 0,6 L 5,0 L 10,6 Z" Fill="#FFB1D0D9" Stretch="Uniform"
+                                  Width="9" Height="6" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </RepeatButton>
+                        <RepeatButton Classes="spin" Click="RankMinus_Click" Interval="30" Delay="150"
+                                      Width="14" Height="15" Padding="0" Background="#FF333333"
+                                      BorderBrush="#FF555555" BorderThickness="1" CornerRadius="1">
+                            <Path Data="M 0,0 L 5,6 L 10,0 Z" Fill="#FFB1D0D9" Stretch="Uniform"
+                                  Width="9" Height="6" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </RepeatButton>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </StackPanel>
+
+        <!-- Subtype (conditional for items with subtypes, e.g. relic refinement) -->
+        <StackPanel x:Name="SubtypePanel" Grid.Row="4" Margin="10,6,10,0" IsVisible="False" Spacing="4">
+            <TextBlock Text="Subtype" Foreground="#FFB1D0D9" FontSize="12" />
+            <ComboBox x:Name="SubtypeBox" Background="#FF2A2A2A" Foreground="#FFB1D0D9"
+                      FontSize="12" Width="110" HorizontalAlignment="Left"
+                      BorderBrush="#FF444444" BorderThickness="1" />
+        </StackPanel>
+
+        <!-- Trade in bulk (conditional for bulk-tradable items) -->
+        <StackPanel x:Name="BulkPanel" Grid.Row="5" Margin="10,6,10,0" IsVisible="False" Spacing="4">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="Trade in bulk" Foreground="#FFB1D0D9" FontSize="12" VerticalAlignment="Center" />
+                <PathIcon Width="12" Height="12" Data="{StaticResource IconQuestionCircle}"
+                          Foreground="#FF888888" VerticalAlignment="Center" Cursor="Hand"
+                          ToolTip.Tip="How does bulk trade work?&#x0a;&#x0a;Bulk trade - you transfer multiple items in a single trade operation&#x0a;&#x0a;Batch size - number of items transferred per trade&#x0a;&#x0a;Price per batch - total cost for all items in one trade&#x0a;&#x0a;Price per unit - auto-calculated cost of a single item&#x0a;&#x0a;Quantity - total items across all trades. Must be a multiple of batch size"
+                          ToolTip.HorizontalOffset="12" ToolTip.VerticalOffset="8" />
+                <ToggleSwitch x:Name="BulkToggle" IsChecked="False"
+                              OnContent="" OffContent=""
+                              Margin="0,-4,0,0"
+                              IsCheckedChanged="BulkToggle_Changed" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Price per unit (non-bulk mode) -->
+        <StackPanel x:Name="PriceUnitPanel" Grid.Row="6" Margin="10,6,10,0" Spacing="4">
+            <TextBlock Text="Price per unit" Foreground="#FFB1D0D9" FontSize="12" />
+            <Border Background="#FF2A2A2A" BorderBrush="#FF444444" BorderThickness="1"
+                    CornerRadius="0" Width="110" HorizontalAlignment="Left">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBox x:Name="PriceBox" Background="Transparent"
+                             Foreground="#FFB1D0D9" Padding="8,4" FontSize="12"
+                             VerticalContentAlignment="Center"
+                             BorderThickness="0" Watermark="e.g. 120" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="0" HorizontalAlignment="Right">
+                        <RepeatButton Classes="spin" Click="PricePlus_Click" Interval="30" Delay="150"
+                                      Width="14" Height="15" Padding="0" Background="#FF333333"
+                                      BorderBrush="#FF555555" BorderThickness="1" CornerRadius="1">
+                            <Path Data="M 0,6 L 5,0 L 10,6 Z" Fill="#FFB1D0D9" Stretch="Uniform"
+                                  Width="9" Height="6" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </RepeatButton>
+                        <RepeatButton Classes="spin" Click="PriceMinus_Click" Interval="30" Delay="150"
+                                      Width="14" Height="15" Padding="0" Background="#FF333333"
+                                      BorderBrush="#FF555555" BorderThickness="1" CornerRadius="1">
+                            <Path Data="M 0,0 L 5,6 L 10,0 Z" Fill="#FFB1D0D9" Stretch="Uniform"
+                                  Width="9" Height="6" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </RepeatButton>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </StackPanel>
+
+        <!-- Price per batch row (bulk mode) -->
+        <StackPanel x:Name="PriceBatchPanel" Grid.Row="6" Margin="10,6,10,0" IsVisible="False" Spacing="4">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto">
+                <StackPanel>
+                    <TextBlock Text="Price per batch" Foreground="#FFB1D0D9" FontSize="12" Margin="0,0,0,4" />
+                    <Border Background="#FF2A2A2A" BorderBrush="#FF444444" BorderThickness="1" CornerRadius="0" Width="110">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox x:Name="BatchPriceBox" Background="Transparent"
+                                     Foreground="#FFB1D0D9" Padding="8,4" FontSize="12"
+                                     VerticalContentAlignment="Center"
+                                     BorderThickness="0" Watermark="e.g. 15"
+                                     TextChanged="BatchField_TextChanged" />
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="0" HorizontalAlignment="Right">
+                                <RepeatButton Classes="spin" Click="BatchPricePlus_Click" Interval="30" Delay="150"
+                                              Width="14" Height="15" Padding="0" Background="#FF333333"
+                                              BorderBrush="#FF555555" BorderThickness="1" CornerRadius="1">
+                                    <Path Data="M 0,6 L 5,0 L 10,6 Z" Fill="#FFB1D0D9" Stretch="Uniform"
+                                          Width="9" Height="6" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </RepeatButton>
+                                <RepeatButton Classes="spin" Click="BatchPriceMinus_Click" Interval="30" Delay="150"
+                                              Width="14" Height="15" Padding="0" Background="#FF333333"
+                                              BorderBrush="#FF555555" BorderThickness="1" CornerRadius="1">
+                                    <Path Data="M 0,0 L 5,6 L 10,0 Z" Fill="#FFB1D0D9" Stretch="Uniform"
+                                          Width="9" Height="6" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </RepeatButton>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+                <TextBlock Grid.Column="1" Text="=" Foreground="#FF888888" FontSize="16"
+                           VerticalAlignment="Bottom" Margin="10,0,10,6" />
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Batch size" Foreground="#FFB1D0D9" FontSize="12" Margin="0,0,0,4" />
+                    <Border Background="#FF2A2A2A" BorderBrush="#FF444444" BorderThickness="1" CornerRadius="0" Width="110">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox x:Name="BatchSizeBox" Background="Transparent"
+                                     Foreground="#FFB1D0D9" Padding="8,4" FontSize="12"
+                                     VerticalContentAlignment="Center"
+                                     BorderThickness="0" Text="1"
+                                     TextChanged="BatchField_TextChanged" />
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="0" HorizontalAlignment="Right">
+                                <RepeatButton Classes="spin" Click="BatchSizePlus_Click" Interval="30" Delay="150"
+                                              Width="14" Height="15" Padding="0" Background="#FF333333"
+                                              BorderBrush="#FF555555" BorderThickness="1" CornerRadius="1">
+                                    <Path Data="M 0,6 L 5,0 L 10,6 Z" Fill="#FFB1D0D9" Stretch="Uniform"
+                                          Width="9" Height="6" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </RepeatButton>
+                                <RepeatButton Classes="spin" Click="BatchSizeMinus_Click" Interval="30" Delay="150"
+                                              Width="14" Height="15" Padding="0" Background="#FF333333"
+                                              BorderBrush="#FF555555" BorderThickness="1" CornerRadius="1">
+                                    <Path Data="M 0,0 L 5,6 L 10,0 Z" Fill="#FFB1D0D9" Stretch="Uniform"
+                                          Width="9" Height="6" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </RepeatButton>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+                <TextBlock Grid.Column="3" Text="x" Foreground="#FF888888" FontSize="14"
+                           VerticalAlignment="Bottom" Margin="10,0,10,6" />
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="Price per unit" Foreground="#FFB1D0D9" FontSize="12" Margin="0,0,0,4" />
+                    <Border Background="#FF2A2A2A" BorderBrush="#FF444444" BorderThickness="1" CornerRadius="0"
+                            Width="110" Height="35">
+                        <TextBlock x:Name="UnitPriceLabel" Text="0"
+                                   Foreground="#FF888888" FontSize="12"
+                                   Margin="8,0,0,0"
+                                   VerticalAlignment="Center" />
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+
+        <!-- Quantity -->
+        <StackPanel Grid.Row="7" Margin="10,6,10,0" Spacing="4">
+            <TextBlock Text="Quantity" Foreground="#FFB1D0D9" FontSize="12" />
+            <Border Background="#FF2A2A2A" BorderBrush="#FF444444" BorderThickness="1"
+                    CornerRadius="0" Width="110" HorizontalAlignment="Left">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBox x:Name="QuantityBox" Background="Transparent"
+                             Foreground="#FFB1D0D9" Padding="8,4" FontSize="12"
+                             VerticalContentAlignment="Center"
+                             BorderThickness="0" Watermark="e.g. 3" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="0" HorizontalAlignment="Right">
+                        <RepeatButton Classes="spin" Click="QtyPlus_Click" Interval="30" Delay="150"
+                                      Width="14" Height="15" Padding="0" Background="#FF333333"
+                                      BorderBrush="#FF555555" BorderThickness="1" CornerRadius="1">
+                            <Path Data="M 0,6 L 5,0 L 10,6 Z" Fill="#FFB1D0D9" Stretch="Uniform"
+                                  Width="9" Height="6" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </RepeatButton>
+                        <RepeatButton Classes="spin" Click="QtyMinus_Click" Interval="30" Delay="150"
+                                      Width="14" Height="15" Padding="0" Background="#FF333333"
+                                      BorderBrush="#FF555555" BorderThickness="1" CornerRadius="1">
+                            <Path Data="M 0,0 L 5,6 L 10,0 Z" Fill="#FFB1D0D9" Stretch="Uniform"
+                                  Width="9" Height="6" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </RepeatButton>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </StackPanel>
+
+        <!-- Error display -->
+        <TextBlock x:Name="ErrorText" Grid.Row="8" Margin="10,4,10,0"
+                   Foreground="#FFEF5350" FontSize="11"
+                   IsVisible="False" TextWrapping="Wrap" />
+
+        <!-- Post button -->
+        <Button x:Name="PostBtn" Grid.Row="9" Content="Post" Click="Post_Click"
+                Background="#FF2D5A2D" Foreground="#FFB1D0D9" Padding="16,6"
+                HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,4,10,10"
+                FontWeight="Bold" />
+    </Grid>
+    </Border>
+</Window>

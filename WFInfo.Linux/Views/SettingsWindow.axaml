@@ -243,11 +243,27 @@
                     </Grid>
                 </Border>
 
-                <!-- Market Status -->
+                <!-- Market Status & Notifications -->
                 <Border Classes="section">
-                    <CheckBox x:Name="ManualMarketCheckbox" Content="Manual market status"
-                              ToolTip.Tip="Lock the current warframe.market status. When enabled, the status you selected in the main window persists across restarts."
-                              IsCheckedChanged="OnManualMarketChanged" />
+                    <StackPanel>
+                        <CheckBox x:Name="ManualMarketCheckbox" Content="Manual market status"
+                                  ToolTip.Tip="Lock the current warframe.market status. When enabled, the status you selected in the main window persists across restarts."
+                                  IsCheckedChanged="OnManualMarketChanged" />
+                        <CheckBox x:Name="WhisperNotifCheckbox" Content="Desktop notifications for whispers"
+                                  ToolTip.Tip="Show a desktop notification when someone whispers you in-game and the game is not focused."
+                                  IsCheckedChanged="OnWhisperNotifChanged" />
+                        <StackPanel x:Name="WhisperSoundPanel" Orientation="Horizontal" Margin="24,0,0,4">
+                            <TextBlock Text="Sound:" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="13" />
+                            <ComboBox x:Name="WhisperSoundCombo" Width="160" FontSize="13"
+                                      SelectionChanged="OnWhisperSoundChanged" />
+                            <Button x:Name="WhisperSoundPreview" Content="&#x25B6;" Margin="6,0,0,0"
+                                    FontSize="12" Padding="6,2" Click="OnWhisperSoundPreview"
+                                    ToolTip.Tip="Preview sound" />
+                        </StackPanel>
+                        <CheckBox x:Name="AutoTradeDoneCheckbox" Content="Auto trade done"
+                                  ToolTip.Tip="When a trade completes, show a window to mark the matching WFMarket order as sold and optionally decrement inventory."
+                                  IsCheckedChanged="OnAutoTradeDoneChanged" />
+                    </StackPanel>
                 </Border>
 
                 <!-- Check for Updates -->
@@ -327,6 +343,26 @@
                                     <CheckBox x:Name="AutoAddCheckbox" Content="Auto Add" Grid.Row="1" Grid.Column="1"
                                               ToolTip.Tip="Spawns a dialogue for increasing owned item count whenever the end of mission is detected, requires auto"
                                               IsCheckedChanged="OnCheckChanged" />
+                                </Grid>
+                            </Border>
+                            <Border BorderBrush="#FF646464" BorderThickness="0,1,0,0" Padding="5,2">
+                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                                    <TextBlock Text="Initial delay (ms)" Grid.Row="0" Grid.Column="0"
+                                               VerticalAlignment="Center" FontSize="13"
+                                               ToolTip.Tip="Time in milliseconds to wait before polling for reward screen, only used when Auto is enabled"
+                                               ToolTip.Placement="Bottom" ToolTip.VerticalOffset="4" ToolTip.ShowDelay="400" />
+                                    <TextBox x:Name="FixedAutoDelayBox" Grid.Row="0" Grid.Column="1"
+                                             ToolTip.Tip="Time in milliseconds to wait before polling for reward screen, only used when Auto is enabled"
+                                             Width="60" HorizontalAlignment="Right" Margin="0,2"
+                                             LostFocus="OnDelayBoxLostFocus" />
+                                    <TextBlock Text="Poll interval (ms)" Grid.Row="1" Grid.Column="0"
+                                               VerticalAlignment="Center" FontSize="13"
+                                               ToolTip.Tip="Time in milliseconds between theme detection polls, only used when Auto is enabled"
+                                               ToolTip.Placement="Bottom" ToolTip.VerticalOffset="4" ToolTip.ShowDelay="400" />
+                                    <TextBox x:Name="AutoDelayBox" Grid.Row="1" Grid.Column="1"
+                                             ToolTip.Tip="Time in milliseconds between theme detection polls, only used when Auto is enabled"
+                                             Width="60" HorizontalAlignment="Right" Margin="0,2"
+                                             LostFocus="OnDelayBoxLostFocus" />
                                 </Grid>
                             </Border>
                         </StackPanel>

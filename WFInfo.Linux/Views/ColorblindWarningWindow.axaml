@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WFInfo.Linux.Views.ColorblindWarningWindow"
+        Title="Colorblind Filters Detected" Height="175" Width="440"
+        CanResize="False"
+        SystemDecorations="None"
+        TransparencyLevelHint="None"
+        Background="#FF1B1B1B"
+        PointerPressed="Window_PointerPressed">
+
+    <Border BorderBrush="#FF707070" BorderThickness="1">
+        <Grid RowDefinitions="26,*">
+            <Border Background="#FF0F0F0F" BorderBrush="#FF646464" BorderThickness="0,0,0,1">
+                <Grid ColumnDefinitions="27,*,27">
+                    <Image Source="avares://WFInfo.Linux/Resources/WFLogo.png"
+                           Height="20" Margin="3,0" />
+                    <TextBlock Grid.Column="1" Text="Colorblind Filters Detected"
+                               Margin="7,3,0,0" FontSize="16" FontWeight="Bold"
+                               VerticalAlignment="Top" />
+                    <Button Grid.Column="2" Content="x" Click="Close_Click"
+                            Classes="linkButton" HorizontalAlignment="Center"
+                            VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+            <StackPanel Grid.Row="1" Margin="12,10,12,10">
+                <TextBlock TextWrapping="Wrap"
+                           Text="Warframe has colorblind filters enabled, which changes the in-game colors WFInfo relies on for theme detection. For accurate results, configure a Custom theme using the calibration guide." />
+                <TextBlock Margin="0,6,0,0" Foreground="#FF4A90D9" Cursor="Hand"
+                           Text="Open Calibration Guide"
+                           PointerPressed="OpenGuide_Click"
+                           TextDecorations="Underline" />
+                <Button Content="Dismiss" Click="Close_Click"
+                        Margin="0,10,0,4" Padding="20,4" HorizontalAlignment="Center"
+                        Background="#FF333333" Foreground="#FFB1D0D9"
+                        BorderBrush="#FF555555" BorderThickness="1" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

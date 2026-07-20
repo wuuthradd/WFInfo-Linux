@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Newtonsoft.Json.Linq;
 
 namespace WFInfo.Models
 {
@@ -21,15 +22,15 @@ namespace WFInfo.Models
     {
         public List<string> PrimeNames { get; set; } = new(4);
         public List<short> PlatinumValues { get; set; } = new(4);
-        public List<List<MarketListing>> MarketListings { get; set; } = new(4);
+        public List<JObject> MarketResults { get; set; } = new(4);
         public short RewardIndex { get; set; } = 0;
 
         public RewardCollection(List<string> primeNames, List<short> platinumValues,
-            List<List<MarketListing>> marketListings, short rewardIndex)
+            List<JObject> marketResults, short rewardIndex)
         {
             PrimeNames = primeNames;
             PlatinumValues = platinumValues;
-            MarketListings = marketListings;
+            MarketResults = marketResults;
             RewardIndex = rewardIndex;
         }
 

@@ -51,7 +51,7 @@ namespace WFInfo.Settings
         public bool Debug { get; set; } = false;
         public string Locale { get; set; } = "en";
         public bool Clipboard { get; set; } = false;
-        public long AutoDelay { get; set; } = 250L;
+        public long AutoDelay { get; set; } = 500L;
         public int ImageRetentionTime { get; set; } = 12;
         public string ClipboardTemplate { get; set; } = "-- PC 48 hours avg price by WFM (c) WFInfo";
         public bool SnapitExport { get; set; } = false;
@@ -108,10 +108,14 @@ namespace WFInfo.Settings
         public int CF_sGMin { get; set; } = 0;
         public int CF_sBMax { get; set; } = 255;
         public int CF_sBMin { get; set; } = 0;
-        public long FixedAutoDelay { get; set; } = 2000L;
+        public long FixedAutoDelay { get; set; } = 500L;
         public string IgnoredUpdate { get; set; } = null;
         public bool ManualMarketStatus { get; set; } = false;
         public string MarketStatus { get; set; } = "ingame";
+        public bool WhisperNotifications { get; set; } = true;
+        public string WhisperSound { get; set; } = "Time Is Now";
+        public bool AutoTradeDone { get; set; } = false;
+        public bool TradeDecrementInventory { get; set; } = true;
         public void Load()
         {
             try

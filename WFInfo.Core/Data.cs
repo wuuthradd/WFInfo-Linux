@@ -37,8 +37,12 @@ namespace WFInfo
         private readonly string equipmentDataPath;
         private readonly string relicDataPath;
         private readonly string nameDataPath;
+        private readonly string wfmItemsPath;
         private readonly string filterAllJsonFallbackPath;
         private readonly string sheetJsonFallbackPath;
+        private readonly string etagsPath;
+        private string filterAllETag;
+        private string sheetJsonETag;
         public string JWT;
         private ClientWebSocket marketSocket = new ClientWebSocket();
         private CancellationTokenSource marketSocketCancellation = new CancellationTokenSource();
@@ -48,6 +52,8 @@ namespace WFInfo
         private Task _webSocketListenerTask;
         private const string filterAllJSON = "https://api.warframestat.us/wfinfo/filtered_items";
         private const string sheetJsonUrl = "https://api.warframestat.us/wfinfo/prices";
+        private const string filterAllJSONFallback = "https://wfinfo.duckdns.org:21606/wfinfo/filtered-items";
+        private const string sheetJsonUrlFallback = "https://wfinfo.duckdns.org:21606/wfinfo/prices";
         private const string wfmItemsUrl = "https://api.warframe.market/v2/items";
         public string inGameName { get; private set; } = string.Empty;
         readonly HttpClient client;
@@ -61,6 +67,119 @@ namespace WFInfo
         private readonly object _rewardsLock = new object();
 
         private static readonly object marketItemsLock = new object();
+        private Dictionary<string, (string Name, string Slug)> _allItemNamesById = new();
+        public bool HasItemNames => _allItemNamesById.Count > 0;
+
+        public record WfmItemInfo(string Id, string Name, string Slug, int? MaxRank, bool BulkTradable, string[] Tags, string[] Subtypes, bool Vaulted);
+        private List<WfmItemInfo> _allItems = new();
+        public bool HasWfmItems => _allItems.Count > 0;
+
+        public async Task<bool> TryReloadWfmItems()
+        {
+            try
+            {
+                var enItems = await GetWfmItemList("en");
+                if (enItems.IsFallback)
+                    return false;
+                JArray items = JArray.FromObject(enItems.Data["data"]);
+                var allNames = new Dictionary<string, (string Name, string Slug)>();
+                var allItemsList = new List<WfmItemInfo>();
+                foreach (var item in items)
+                {
+                    string id = item["id"]?.ToString();
+                    string enName = item["i18n"]?["en"]?["name"]?.ToString();
+                    string slug = item["slug"]?.ToString();
+                    if (id != null && enName != null)
+                    {
+                        allNames[id] = (enName, slug ?? "");
+                        int? maxRank = item["maxRank"]?.Value<int>();
+                        bool bulk = item["bulkTradable"]?.Value<bool>() ?? false;
+                        string[] tags = item["tags"]?.Values<string>().ToArray() ?? Array.Empty<string>();
+                        string[] subtypes = item["subtypes"]?.Values<string>().ToArray();
+                        bool vaulted = item["vaulted"]?.Value<bool>() ?? false;
+                        allItemsList.Add(new WfmItemInfo(id, enName, slug ?? "", maxRank, bulk, tags, subtypes, vaulted));
+                    }
+                }
+                _allItemNamesById = allNames;
+                _allItems = allItemsList;
+                SaveWfmItems(allItemsList);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                AppMain.AddLog("TryReloadWfmItems failed: " + ex.Message);
+                return false;
+            }
+        }
+
+        private void SaveWfmItems(List<WfmItemInfo> items)
+        {
+            try
+            {
+                var arr = new JArray();
+                foreach (var item in items)
+                {
+                    var obj = new JObject
+                    {
+                        ["id"] = item.Id,
+                        ["name"] = item.Name,
+                        ["slug"] = item.Slug,
+                        ["bulkTradable"] = item.BulkTradable,
+                        ["vaulted"] = item.Vaulted,
+                    };
+                    if (item.MaxRank.HasValue) obj["maxRank"] = item.MaxRank.Value;
+                    if (item.Subtypes != null && item.Subtypes.Length > 0) obj["subtypes"] = new JArray(item.Subtypes);
+                    arr.Add(obj);
+                }
+                File.WriteAllText(wfmItemsPath, arr.ToString(Formatting.None));
+            }
+            catch (Exception ex)
+            {
+                AppMain.AddLog($"SaveWfmItems failed: {ex.Message}");
+            }
+        }
+
+        private void LoadWfmItems()
+        {
+            if (!File.Exists(wfmItemsPath)) return;
+            try
+            {
+                var arr = JsonConvert.DeserializeObject<JArray>(File.ReadAllText(wfmItemsPath));
+                if (arr != null && arr.Count > 0)
+                    LoadWfmItemsFromArray(arr, useNestedI18n: false);
+            }
+            catch (Exception ex)
+            {
+                AppMain.AddLog($"LoadWfmItems failed: {ex.Message}");
+            }
+        }
+
+        private void LoadWfmItemsFromArray(JArray items, bool useNestedI18n)
+        {
+            var dict = new Dictionary<string, (string Name, string Slug)>();
+            var itemsList = new List<WfmItemInfo>();
+            foreach (var item in items)
+            {
+                string id = item["id"]?.ToString();
+                string name = useNestedI18n
+                    ? item["i18n"]?["en"]?["name"]?.ToString()
+                    : item["name"]?.ToString();
+                string slug = item["slug"]?.ToString();
+                if (id != null && name != null)
+                {
+                    dict[id] = (name, slug ?? "");
+                    int? maxRank = item["maxRank"]?.Value<int>();
+                    bool bulk = item["bulkTradable"]?.Value<bool>() ?? false;
+                    string[] tags = item["tags"]?.Values<string>().ToArray() ?? Array.Empty<string>();
+                    string[] subtypes = item["subtypes"]?.Values<string>().ToArray();
+                    bool vaulted = item["vaulted"]?.Value<bool>() ?? false;
+                    itemsList.Add(new WfmItemInfo(id, name, slug ?? "", maxRank, bulk, tags, subtypes, vaulted));
+                }
+            }
+            _allItemNamesById = dict;
+            _allItems = itemsList;
+        }
+
         private List<Tuple<string, string>> _nonEnglishSnapshotCache;
         private string _nonEnglishSnapshotLocale;
 
@@ -106,10 +225,13 @@ namespace WFInfo
             equipmentDataPath = Path.Combine(applicationDirectory, "eqmt_data.json");
             relicDataPath = Path.Combine(applicationDirectory, "relic_data.json");
             nameDataPath = Path.Combine(applicationDirectory, "name_data.json");
+            wfmItemsPath = Path.Combine(applicationDirectory, "wfm_items.json");
             filterAllJsonFallbackPath = Path.Combine(applicationDirectory, "fallback_equipment_list.json");
             sheetJsonFallbackPath = Path.Combine(applicationDirectory, "fallback_price_sheet.json");
+            etagsPath = Path.Combine(applicationDirectory, "etags.json");
 
             Directory.CreateDirectory(applicationDirectory);
+            LoadAllETags();
 
             WebProxy proxy = null;
             string proxy_string = Environment.GetEnvironmentVariable("https_proxy")
@@ -119,7 +241,12 @@ namespace WFInfo
             if (proxy_string != null)
                 proxy = new WebProxy(new Uri(proxy_string));
 
-            HttpClientHandler handler = new HttpClientHandler { Proxy = proxy, UseCookies = false };
+            HttpClientHandler handler = new HttpClientHandler
+            {
+                Proxy = proxy,
+                UseCookies = false,
+                AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate
+            };
             client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(15) };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("WFInfo/" + AppMain.BuildVersion);
 
@@ -168,6 +295,45 @@ namespace WFInfo
             File.Move(tmp, path, overwrite: true);
         }
 
+        private void LoadAllETags()
+        {
+            filterAllETag = null;
+            sheetJsonETag = null;
+            try
+            {
+                if (File.Exists(etagsPath))
+                {
+                    var obj = JsonConvert.DeserializeObject<JObject>(File.ReadAllText(etagsPath));
+                    if (obj != null)
+                    {
+                        filterAllETag = obj["filtered-items"]?.ToObject<string>();
+                        sheetJsonETag = obj["prices"]?.ToObject<string>();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                AppMain.AddLog($"Failed to load ETags from {etagsPath}: {ex.Message}");
+            }
+        }
+
+        private void SaveAllETags()
+        {
+            try
+            {
+                var obj = new JObject
+                {
+                    ["filtered-items"] = filterAllETag,
+                    ["prices"] = sheetJsonETag
+                };
+                File.WriteAllText(etagsPath, obj.ToString(Formatting.None));
+            }
+            catch (Exception ex)
+            {
+                AppMain.AddLog($"Failed to save ETags to {etagsPath}: {ex.Message}");
+            }
+        }
+
         public bool IsJwtLoggedIn()
         {
             // WFM JWT tokens are >300 chars
@@ -176,12 +342,44 @@ namespace WFInfo
 
         public async Task<bool> ReloadItems()
         {
-            var enItems = await GetWfmItemList("en");
-            var localizedItems = _settings.Locale == "en" ? enItems : await GetWfmItemList(_settings.Locale);
+            (JObject Data, bool IsFallback) enItems;
+            (JObject Data, bool IsFallback) localizedItems;
+            try
+            {
+                enItems = await GetWfmItemList("en");
+                localizedItems = _settings.Locale == "en" ? enItems : await GetWfmItemList(_settings.Locale);
+            }
+            catch (Exception ex)
+            {
+                AppMain.AddLog("WFM items API unavailable, order window will not work: " + ex.Message);
+                return true;
+            }
 
             JObject tempMarketItems = new JObject();
             JArray items = JArray.FromObject(enItems.Data["data"]);
             int primeCount = 0;
+
+            var allNames = new Dictionary<string, (string Name, string Slug)>();
+            var allItemsList = new List<WfmItemInfo>();
+            foreach (var item in items)
+            {
+                string id = item["id"]?.ToString();
+                string enName = item["i18n"]?["en"]?["name"]?.ToString();
+                string slug = item["slug"]?.ToString();
+                if (id != null && enName != null)
+                {
+                    allNames[id] = (enName, slug ?? "");
+                    int? maxRank = item["maxRank"]?.Value<int>();
+                    bool bulk = item["bulkTradable"]?.Value<bool>() ?? false;
+                    string[] tags = item["tags"]?.Values<string>().ToArray() ?? Array.Empty<string>();
+                    string[] subtypes = item["subtypes"]?.Values<string>().ToArray();
+                    bool vaulted = item["vaulted"]?.Value<bool>() ?? false;
+                    allItemsList.Add(new WfmItemInfo(id, enName, slug ?? "", maxRank, bulk, tags, subtypes, vaulted));
+                }
+            }
+            _allItemNamesById = allNames;
+            _allItems = allItemsList;
+            SaveWfmItems(allItemsList);
 
             foreach (var item in items)
             {
@@ -399,40 +597,147 @@ namespace WFInfo
             }
         }
 
-        private async Task<(JObject Data, bool IsFallback)> GetAllFiltered()
+        private async Task<(T Data, bool IsFallback, bool IsLocalFallback, string NewETag)> GetTieredData<T>(
+            string upstreamUrl,
+            string fallbackUrl,
+            string localCachePath,
+            string label,
+            Func<T, bool> validate,
+            string currentETag = null) where T : JToken
         {
+            // Tier 1: upstream api.warframestat.us (no ETag support)
             try
             {
-                string response = await client.GetStringAsync(filterAllJSON);
-                JObject data = JsonConvert.DeserializeObject<JObject>(response);
-                File.WriteAllText(filterAllJsonFallbackPath, response);
-                return (data, false);
+                using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                using (var upstreamResp = await client.GetAsync(upstreamUrl, cts.Token).ConfigureAwait(false))
+                {
+                    if (upstreamResp.IsSuccessStatusCode)
+                    {
+                        string response = await upstreamResp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        T data = JsonConvert.DeserializeObject<T>(response);
+                        if (validate(data))
+                        {
+                            File.WriteAllText(localCachePath, response);
+                            return (data, false, false, null);
+                        }
+                        AppMain.AddLog($"Upstream {upstreamUrl} returned invalid payload, trying fallback");
+                    }
+                    else
+                    {
+                        AppMain.AddLog($"Upstream {upstreamUrl} returned {(int)upstreamResp.StatusCode}, trying fallback");
+                    }
+                }
             }
             catch (Exception ex)
             {
-                AppMain.AddLog("Failed to fetch " + filterAllJSON + ", using fallback. " + ex.Message);
-                if (File.Exists(filterAllJsonFallbackPath))
-                    return (JsonConvert.DeserializeObject<JObject>(File.ReadAllText(filterAllJsonFallbackPath)), true);
-                throw;
+                AppMain.AddLog($"Upstream {upstreamUrl} unreachable: {ex.Message}, trying fallback");
             }
+
+            // Tier 2: WFInfoServer fallback (gzipped, User-Agent required, supports ETags)
+            try
+            {
+                using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                using (var fbReq = new HttpRequestMessage(HttpMethod.Get, fallbackUrl))
+                {
+                    if (!string.IsNullOrEmpty(currentETag))
+                    {
+                        fbReq.Headers.TryAddWithoutValidation("If-None-Match", currentETag);
+                    }
+                    using (var fbResp = await client.SendAsync(fbReq, cts.Token).ConfigureAwait(false))
+                    {
+                        // Handle 304 Not Modified - use cached data, retry without ETag if cache invalid
+                        if (fbResp.StatusCode == System.Net.HttpStatusCode.NotModified)
+                        {
+                            AppMain.AddLog($"Fallback {label} unchanged (304), using cached data");
+                            if (File.Exists(localCachePath))
+                            {
+                                string response = File.ReadAllText(localCachePath);
+                                T data = JsonConvert.DeserializeObject<T>(response);
+                                if (validate(data))
+                                    return (data, true, false, currentETag);
+                            }
+                            AppMain.AddLog($"Fallback {label} 304 but no valid cached data, retrying without ETag");
+                            using (var retryReq = new HttpRequestMessage(HttpMethod.Get, fallbackUrl))
+                            using (var retryResp = await client.SendAsync(retryReq, cts.Token).ConfigureAwait(false))
+                            {
+                                if (retryResp.IsSuccessStatusCode)
+                                {
+                                    string retryBody = await retryResp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                                    T retryData = JsonConvert.DeserializeObject<T>(retryBody);
+                                    if (validate(retryData))
+                                    {
+                                        File.WriteAllText(localCachePath, retryBody);
+                                        string newETag = retryResp.Headers.ETag?.Tag;
+                                        AppMain.AddLog($"Fallback {label} repaired from unconditional response");
+                                        return (retryData, true, false, newETag);
+                                    }
+                                }
+                                AppMain.AddLog($"Fallback {label} retry also failed or invalid");
+                            }
+                        }
+                        else if (fbResp.IsSuccessStatusCode)
+                        {
+                            string response = await fbResp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            T data = JsonConvert.DeserializeObject<T>(response);
+                            if (validate(data))
+                            {
+                                File.WriteAllText(localCachePath, response);
+                                string newETag = fbResp.Headers.ETag?.Tag;
+                                AppMain.AddLog($"Fallback {label} fetched successfully from {fallbackUrl}");
+                                return (data, true, false, newETag);
+                            }
+                            AppMain.AddLog($"Fallback {fallbackUrl} returned invalid payload");
+                        }
+                        else
+                        {
+                            AppMain.AddLog($"Fallback {fallbackUrl} returned {(int)fbResp.StatusCode}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                AppMain.AddLog($"Fallback {fallbackUrl} failed: {ex.Message}");
+            }
+
+            // Tier 3: local file
+            AppMain.AddLog("Using local fallback file " + localCachePath);
+            if (File.Exists(localCachePath))
+            {
+                string response = File.ReadAllText(localCachePath);
+                T data = JsonConvert.DeserializeObject<T>(response);
+                if (validate(data))
+                    return (data, true, true, currentETag);
+                AppMain.AddLog($"Local fallback {localCachePath} has invalid payload");
+            }
+            throw new AggregateException($"No data source available for {label}");
         }
 
-        private async Task<(JArray Data, bool IsFallback)> GetSheetData()
+        private static bool IsValidFilteredPayload(JObject data)
         {
-            try
-            {
-                string response = await client.GetStringAsync(sheetJsonUrl);
-                JArray data = JsonConvert.DeserializeObject<JArray>(response);
-                File.WriteAllText(sheetJsonFallbackPath, response);
-                return (data, false);
-            }
-            catch (Exception ex)
-            {
-                AppMain.AddLog("Failed to fetch " + sheetJsonUrl + ", using fallback. " + ex.Message);
-                if (File.Exists(sheetJsonFallbackPath))
-                    return (JsonConvert.DeserializeObject<JArray>(File.ReadAllText(sheetJsonFallbackPath)), true);
-                throw;
-            }
+            return data != null && data["relics"] != null && data["eqmt"] != null && data["ignored_items"] != null;
+        }
+
+        private async Task<(JObject Data, bool IsFallback, bool IsLocalFallback, string NewETag)> GetAllFiltered()
+        {
+            return await GetTieredData<JObject>(
+                filterAllJSON,
+                filterAllJSONFallback,
+                filterAllJsonFallbackPath,
+                "filtered-items",
+                IsValidFilteredPayload,
+                filterAllETag).ConfigureAwait(false);
+        }
+
+        private async Task<(JArray Data, bool IsFallback, bool IsLocalFallback, string NewETag)> GetSheetData()
+        {
+            return await GetTieredData<JArray>(
+                sheetJsonUrl,
+                sheetJsonUrlFallback,
+                sheetJsonFallbackPath,
+                "prices",
+                data => data != null && data.Count > 0,
+                sheetJsonETag).ConfigureAwait(false);
         }
 
         private SemaphoreSlim _DataUpdateSema = new SemaphoreSlim(1);
@@ -489,37 +794,64 @@ namespace WFInfo
             if (relicData == null) { relicData = ParseFileOrMakeNew(relicDataPath, ref parseHasFailed); }
             if (nameData == null) { nameData = ParseFileOrMakeNew(nameDataPath, ref parseHasFailed); }
 
-            bool marketIsRecent = false;
-            string oldMarketTimeText = "UNKNOWN";
-            if (marketData.TryGetValue("version", out _) && marketData["version"].ToObject<string>() == AppMain.BuildVersion
-                && marketData.TryGetValue("timestamp", out var timestamp) && timestamp.ToObject<DateTime>() > now.AddHours(-12))
-            {
-                marketIsRecent = true;
-                oldMarketTimeText = timestamp.ToObject<DateTime>().ToString("MMM dd - HH:mm", AppMain.culture);
-            }
+            string oldMarketTimeText;
+            string oldEquipmentTimeText;
 
+            // When ETags are available, always proceed to fetch (304 handling makes it cheap).
+            // Fall back to timestamp-based freshness check only when ETags are absent.
+            bool hasETags = !string.IsNullOrEmpty(filterAllETag) || !string.IsNullOrEmpty(sheetJsonETag);
+
+            bool marketIsRecent = false;
             bool equipmentIsRecent = false;
-            string oldEquipmentTimeText = "UNKNOWN";
-            if (equipmentData.TryGetValue("timestamp", out var eqTs) && eqTs.ToObject<DateTime>() > now.AddHours(-12))
+
+            if (!hasETags)
             {
-                equipmentIsRecent = true;
-                oldEquipmentTimeText = eqTs.ToObject<DateTime>().ToString("MMM dd - HH:mm", AppMain.culture);
+                if (marketData.TryGetValue("version", out _) && marketData["version"].ToObject<string>() == AppMain.BuildVersion
+                    && marketData.TryGetValue("timestamp", out var timestamp) && timestamp.ToObject<DateTime>() > now.AddHours(-12))
+                {
+                    marketIsRecent = true;
+                    oldMarketTimeText = timestamp.ToObject<DateTime>().ToString("MMM dd - HH:mm", AppMain.culture);
+                }
+                else
+                {
+                    oldMarketTimeText = "UNKNOWN";
+                }
+
+                if (equipmentData.TryGetValue("timestamp", out var eqTs) && eqTs.ToObject<DateTime>() > now.AddHours(-12))
+                {
+                    equipmentIsRecent = true;
+                    oldEquipmentTimeText = eqTs.ToObject<DateTime>().ToString("MMM dd - HH:mm", AppMain.culture);
+                }
+                else
+                {
+                    oldEquipmentTimeText = "UNKNOWN";
+                }
+            }
+            else
+            {
+                oldMarketTimeText = marketData.TryGetValue("timestamp", out var ts)
+                    ? ts.ToObject<DateTime>().ToString("MMM dd - HH:mm", AppMain.culture)
+                    : "UNKNOWN";
+                oldEquipmentTimeText = equipmentData.TryGetValue("timestamp", out var ets)
+                    ? ets.ToObject<DateTime>().ToString("MMM dd - HH:mm", AppMain.culture)
+                    : "UNKNOWN";
             }
 
             if (!parseHasFailed && !force && marketIsRecent && equipmentIsRecent)
             {
+                if (_allItemNamesById.Count == 0)
+                    LoadWfmItems();
                 OnMarketDataUpdated?.Invoke(oldMarketTimeText);
                 OnDropDataUpdated?.Invoke(oldEquipmentTimeText);
                 return;
             }
 
-            var allFilteredTask = GetAllFiltered();
-            var sheetDataTask = GetSheetData();
-            var marketItemsIsFallbackTask = ReloadItems();
-            await Task.WhenAll(allFilteredTask, sheetDataTask, marketItemsIsFallbackTask);
-            var allFiltered = allFilteredTask.Result;
-            var sheetData = sheetDataTask.Result;
-            var marketItemsIsFallback = marketItemsIsFallbackTask.Result;
+            var allFiltered = await GetAllFiltered();
+            var sheetData = await GetSheetData();
+            filterAllETag = allFiltered.NewETag;
+            sheetJsonETag = sheetData.NewETag;
+            SaveAllETags();
+            var marketItemsIsFallback = await ReloadItems();
             var newMarketData = LoadMarket(allFiltered.Data, sheetData.Data);
 
             var missing = new List<(string Name, string Url)>();
@@ -561,14 +893,14 @@ namespace WFInfo
 
             string marketTimeText;
             string equipmentTimeText;
-            if (!allFiltered.IsFallback && !sheetData.IsFallback && !marketItemsIsFallback)
+            if (!allFiltered.IsLocalFallback && !sheetData.IsLocalFallback && !marketItemsIsFallback)
             {
                 newMarketData["timestamp"] = now;
                 marketTimeText = now.ToString("MMM dd - HH:mm", AppMain.culture);
             }
             else { marketTimeText = "FALLBACK"; }
 
-            if (!allFiltered.IsFallback)
+            if (!allFiltered.IsLocalFallback)
             {
                 newEquipmentData["timestamp"] = now;
                 equipmentTimeText = now.ToString("MMM dd - HH:mm", AppMain.culture);
@@ -964,7 +1296,6 @@ namespace WFInfo
                 lock (_rewardsLock)
                 {
                     if (PrimeRewards.Count == 0) return;
-                    // Inner lists are already copies
                     rewards = new List<List<string>>(PrimeRewards);
                     selectedIdx = SelectedRewardIndex;
                     PrimeRewards.Clear();
@@ -979,72 +1310,63 @@ namespace WFInfo
         {
             try
             {
-                long triggerTicks = DateTime.UtcNow.Ticks;
                 var watch = Stopwatch.StartNew();
+                long fixedStop = watch.ElapsedMilliseconds + _settings.FixedAutoDelay;
+                long pollInterval = _settings.AutoDelay;
+                long maxWait = fixedStop + 5000;
+                long wait = fixedStop;
 
                 _window.UpdateWindow();
-                AppMain.AddLog($"Auto: UpdateWindow took {watch.ElapsedMilliseconds}ms");
 
-                if (_settings.ThemeSelection != WFtheme.AUTO)
+                double configScale = OCR.ReadUiScaleFromConfig();
+                if (configScale > 0)
                 {
-                    long stop = watch.ElapsedMilliseconds + 5000;
-                    await Task.Delay((int)_settings.AutoDelay).ConfigureAwait(false);
-                    int attempts = 0;
-
-                    while (watch.ElapsedMilliseconds < stop)
-                    {
-                        attempts++;
-
-                        if (OCR.LastRewardProcessedTicks > triggerTicks)
-                        {
-                            AppMain.AddLog("Auto: skipping, rewards already processed by manual scan");
-                            return;
-                        }
-
-                        AppMain.AddLog($"Auto: theme preset, attempt {attempts}, {watch.ElapsedMilliseconds}ms, processing");
-                        if (OCR.ProcessRewardScreen())
-                        {
-                            AppMain.AddLog($"Auto: total {watch.ElapsedMilliseconds}ms");
-                            break;
-                        }
-
-                        await Task.Delay((int)_settings.AutoDelay).ConfigureAwait(false);
-                    }
+                    OCR.uiScaling = configScale;
+                    AppMain.AddLog($"Auto: UI scaling {configScale:P0} from EE.cfg");
                 }
-                else
+
+                // Initial delay: wait FixedAutoDelay before polling
+                long initialRemaining = fixedStop - watch.ElapsedMilliseconds;
+                if (initialRemaining > 0)
+                    await Task.Delay((int)initialRemaining).ConfigureAwait(false);
+
+                // Poll at AutoDelay intervals until theme detected or timeout
+                SkiaSharp.SKBitmap pollShot = null;
+                while (watch.ElapsedMilliseconds < maxWait)
                 {
-                    long stop = watch.ElapsedMilliseconds + 5000;
-                    int checks = 0;
-                    long wait = watch.ElapsedMilliseconds;
+                    pollShot?.Dispose();
+                    pollShot = OCR.CaptureScreenshot();
+                    if (pollShot == null) break;
 
-                    while (watch.ElapsedMilliseconds < stop)
+                    OCR.GetThemeWeighted(out double diff, pollShot);
+                    if (diff > 0.005)
                     {
-                        if (watch.ElapsedMilliseconds <= wait)
-                        {
-                            await Task.Delay(10).ConfigureAwait(false);
-                            continue;
-                        }
-                        wait += _settings.AutoDelay;
-                        checks++;
-
-                        if (OCR.LastRewardProcessedTicks > triggerTicks)
-                        {
-                            AppMain.AddLog("Auto: skipping, rewards already processed by manual scan");
-                            return;
-                        }
-
-                        OCR.GetThemeWeighted(out double diff);
-                        if (!(diff > 40)) continue;
-
                         long remaining = wait - watch.ElapsedMilliseconds;
                         if (remaining > 0)
                             await Task.Delay((int)remaining).ConfigureAwait(false);
-
-                        AppMain.AddLog($"Auto: theme detected after {checks} checks, {watch.ElapsedMilliseconds}ms, processing");
-                        OCR.ProcessRewardScreen();
+                        AppMain.AddLog($"Auto: theme detected, {watch.ElapsedMilliseconds}ms, processing");
+                        OCR.ProcessRewardScreen(pollShot);
+                        pollShot = null;
                         AppMain.AddLog($"Auto: total {watch.ElapsedMilliseconds}ms");
-                        break;
+                        watch.Stop();
+                        return;
                     }
+                    wait += pollInterval;
+                    long delayMs = Math.Min(wait - watch.ElapsedMilliseconds, maxWait - watch.ElapsedMilliseconds);
+                    if (delayMs > 0)
+                        await Task.Delay((int)delayMs).ConfigureAwait(false);
+                }
+
+                // Timeout: process anyway with the last poll screenshot
+                AppMain.AddLog($"Auto: timeout after {watch.ElapsedMilliseconds}ms, processing anyway");
+                if (pollShot != null)
+                {
+                    OCR.ProcessRewardScreen(pollShot);
+                    pollShot = null;
+                }
+                else
+                {
+                    OCR.ProcessRewardScreen();
                 }
                 watch.Stop();
             }
@@ -1463,6 +1785,71 @@ namespace WFInfo
             }
         }
 
+        public async Task<JObject> GetTopListingsBySlug(string urlSlug, int? rank = null, int? rankLt = null, string subtype = null)
+        {
+            if (string.IsNullOrEmpty(urlSlug))
+                return null;
+            try
+            {
+                var url = "https://api.warframe.market/v2/orders/item/" + urlSlug + "/top";
+                var queryParts = new List<string>();
+                if (rankLt.HasValue)
+                    queryParts.Add("rankLt=" + rankLt.Value);
+                else if (rank.HasValue)
+                    queryParts.Add("rank=" + rank.Value);
+                if (!string.IsNullOrEmpty(subtype))
+                    queryParts.Add("subtype=" + Uri.EscapeDataString(subtype));
+                if (queryParts.Count > 0)
+                    url += "?" + string.Join("&", queryParts);
+                using (var request = new HttpRequestMessage
+                {
+                    RequestUri = new Uri(url),
+                    Method = HttpMethod.Get
+                })
+                {
+                    request.Headers.Add("Authorization", "Bearer " + JWT);
+                    request.Headers.Add("language", "en");
+                    request.Headers.Add("accept", "application/json");
+                    request.Headers.Add("platform", "pc");
+                    request.Headers.Add("auth_type", "header");
+                    var response = await client.SendAsync(request);
+                    var body = await response.Content.ReadAsStringAsync();
+                    if (body.Length < 3)
+                        throw new Exception("No sell orders found");
+                    return JsonConvert.DeserializeObject<JObject>(body);
+                }
+            }
+            catch (Exception e)
+            {
+                AppMain.AddLog("GetTopListingsBySlug: " + e.Message);
+                return null;
+            }
+        }
+
+        public async Task<JObject> GetItemInfoBySlug(string urlSlug)
+        {
+            if (string.IsNullOrEmpty(urlSlug))
+                return null;
+            try
+            {
+                using (var request = new HttpRequestMessage(HttpMethod.Get,
+                    "https://api.warframe.market/v2/items/" + urlSlug))
+                {
+                    request.Headers.Add("accept", "application/json");
+                    request.Headers.Add("platform", "pc");
+                    var response = await client.SendAsync(request);
+                    var body = await response.Content.ReadAsStringAsync();
+                    if (!response.IsSuccessStatusCode) return null;
+                    return JsonConvert.DeserializeObject<JObject>(body)?["data"] as JObject;
+                }
+            }
+            catch (Exception e)
+            {
+                AppMain.AddLog("GetItemInfoBySlug: " + e.Message);
+                return null;
+            }
+        }
+
         public async Task<bool> IsJWTvalid()
         {
             if (JWT == null) return false;
@@ -1571,22 +1958,26 @@ namespace WFInfo
             }
         }
 
-        public async Task<bool> UpdateListing(string listingId, int platinum, int quantity)
+        public async Task<bool> UpdateListing(string listingId, int platinum, int quantity, bool visible = true, int? rank = null, int? perTrade = null, string subtype = null)
         {
             try
             {
                 using (var request = new HttpRequestMessage
                 {
                     RequestUri = new Uri("https://api.warframe.market/v2/order/" + listingId),
-                    Method = HttpMethod.Put
+                    Method = HttpMethod.Patch
                 })
                 {
-                    var json = JsonConvert.SerializeObject(new
+                    var bodyObj = new JObject
                     {
-                        platinum,
-                        quantity,
-                        visible = true
-                    });
+                        ["platinum"] = platinum,
+                        ["quantity"] = quantity,
+                        ["visible"] = visible
+                    };
+                    if (rank.HasValue) bodyObj["rank"] = rank.Value;
+                    if (perTrade.HasValue) bodyObj["perTrade"] = perTrade.Value;
+                    if (!string.IsNullOrEmpty(subtype)) bodyObj["subtype"] = subtype;
+                    var json = bodyObj.ToString();
                     request.Content = new StringContent(json, Encoding.UTF8, "application/json");
                     request.Headers.Add("Authorization", "Bearer " + JWT);
                     request.Headers.Add("language", "en");
@@ -1596,14 +1987,333 @@ namespace WFInfo
 
                     var response = await client.SendAsync(request);
                     var responseBody = await response.Content.ReadAsStringAsync();
-                    if (!response.IsSuccessStatusCode) throw new Exception(responseBody);
+                    if (!response.IsSuccessStatusCode) throw new Exception($"{(int)response.StatusCode}: {responseBody}");
                     return true;
                 }
             }
             catch (Exception e)
             {
-                AppMain.AddLog($"UpdateListing: {e.Message}");
+                AppMain.AddLog($"UpdateListing (extended): {e.Message}");
                 return false;
+            }
+        }
+
+        public async Task<JArray> GetAllMyOrders()
+        {
+            try
+            {
+                using (var request = new HttpRequestMessage
+                {
+                    RequestUri = new Uri("https://api.warframe.market/v2/orders/my"),
+                    Method = HttpMethod.Get
+                })
+                {
+                    request.Headers.Add("Authorization", "Bearer " + JWT);
+                    request.Headers.Add("language", "en");
+                    request.Headers.Add("accept", "application/json");
+                    request.Headers.Add("platform", "pc");
+                    request.Headers.Add("auth_type", "header");
+                    var response = await client.SendAsync(request);
+                    var body = await response.Content.ReadAsStringAsync();
+                    var payload = JsonConvert.DeserializeObject<JObject>(body);
+                    return (JArray)payload?["data"];
+                }
+            }
+            catch (Exception e)
+            {
+                AppMain.AddLog($"GetAllMyOrders: {e.Message}");
+                return null;
+            }
+        }
+
+        public async Task<bool> CloseOrder(string orderId, int quantity = 1)
+        {
+            try
+            {
+                using (var request = new HttpRequestMessage
+                {
+                    RequestUri = new Uri("https://api.warframe.market/v2/order/" + orderId + "/close"),
+                    Method = HttpMethod.Post
+                })
+                {
+                    var json = JsonConvert.SerializeObject(new { quantity });
+                    request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+                    request.Headers.Add("Authorization", "Bearer " + JWT);
+                    request.Headers.Add("language", "en");
+                    request.Headers.Add("accept", "application/json");
+                    request.Headers.Add("platform", "pc");
+                    request.Headers.Add("auth_type", "header");
+                    var response = await client.SendAsync(request);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var responseBody = await response.Content.ReadAsStringAsync();
+                        throw new Exception($"{(int)response.StatusCode}: {responseBody}");
+                    }
+                    return true;
+                }
+            }
+            catch (Exception e)
+            {
+                AppMain.AddLog($"CloseOrder: {e.Message}");
+                return false;
+            }
+        }
+
+        public async Task<JArray> GetMyTransactionData()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(inGameName))
+                    await SetIngameName();
+                if (string.IsNullOrEmpty(inGameName))
+                {
+                    AppMain.AddLog("GetMyTransactionData: no ingame name available");
+                    return null;
+                }
+
+                using (var req = new HttpRequestMessage(HttpMethod.Get,
+                    $"https://api.warframe.market/v1/profile/{inGameName}/statistics"))
+                {
+                    req.Headers.Add("Authorization", "Bearer " + JWT);
+                    req.Headers.Add("language", "en");
+                    req.Headers.Add("accept", "application/json");
+                    req.Headers.Add("platform", "pc");
+                    var resp = await client.SendAsync(req);
+                    var body = await resp.Content.ReadAsStringAsync();
+                    if (!resp.IsSuccessStatusCode)
+                    {
+                        AppMain.AddLog($"GetMyTransactionData: {resp.StatusCode}");
+                        return null;
+                    }
+                    var payload = JsonConvert.DeserializeObject<JObject>(body);
+                    return payload?["payload"]?["closed_orders"] as JArray;
+                }
+            }
+            catch (Exception e)
+            {
+                AppMain.AddLog($"GetMyTransactionData: {e.Message}");
+                return null;
+            }
+        }
+
+        public async Task<bool> DeleteOrder(string orderId)
+        {
+            try
+            {
+                using (var request = new HttpRequestMessage
+                {
+                    RequestUri = new Uri("https://api.warframe.market/v2/order/" + orderId),
+                    Method = HttpMethod.Delete
+                })
+                {
+                    request.Headers.Add("Authorization", "Bearer " + JWT);
+                    request.Headers.Add("language", "en");
+                    request.Headers.Add("accept", "application/json");
+                    request.Headers.Add("platform", "pc");
+                    request.Headers.Add("auth_type", "header");
+                    var response = await client.SendAsync(request);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var responseBody = await response.Content.ReadAsStringAsync();
+                        throw new Exception(responseBody);
+                    }
+                    return true;
+                }
+            }
+            catch (Exception e)
+            {
+                AppMain.AddLog($"DeleteOrder: {e.Message}");
+                return false;
+            }
+        }
+
+        public async Task<string> DeleteClosedOrder(string orderId)
+        {
+            try
+            {
+                var url = "https://api.warframe.market/v1/profile/statistics/remove/" + orderId;
+                AppMain.AddLog($"DeleteClosedOrder: DELETE {url}");
+                using (var request = new HttpRequestMessage(HttpMethod.Delete, url))
+                {
+                    request.Headers.Add("Authorization", "JWT " + JWT);
+                    request.Headers.Add("language", "en");
+                    request.Headers.Add("accept", "application/json");
+                    request.Headers.Add("platform", "pc");
+                    var response = await client.SendAsync(request);
+                    string body = await response.Content.ReadAsStringAsync();
+                    AppMain.AddLog($"DeleteClosedOrder: {(int)response.StatusCode} method={response.RequestMessage?.Method} uri={response.RequestMessage?.RequestUri}");
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        AppMain.AddLog($"DeleteClosedOrder: {body}");
+                        return $"{(int)response.StatusCode}: {response.ReasonPhrase}";
+                    }
+                    return null;
+                }
+            }
+            catch (Exception e)
+            {
+                AppMain.AddLog($"DeleteClosedOrder: {e.Message}");
+                return e.Message;
+            }
+        }
+
+        public string ItemIdToDisplayName(string itemId)
+        {
+            if (_allItemNamesById.TryGetValue(itemId, out var entry))
+                return entry.Name;
+            lock (marketItemsLock)
+            {
+                if (marketItems != null && marketItems.TryGetValue(itemId, out var token))
+                {
+                    string[] vals = token.ToString().Split('|');
+                    if (vals.Length > 0) return vals[0];
+                }
+            }
+            return null;
+        }
+
+        public string ItemIdToUrlSlug(string itemId)
+        {
+            if (_allItemNamesById.TryGetValue(itemId, out var entry))
+                return entry.Slug;
+            lock (marketItemsLock)
+            {
+                if (marketItems != null && marketItems.TryGetValue(itemId, out var token))
+                {
+                    string[] vals = token.ToString().Split('|');
+                    if (vals.Length > 1) return vals[1];
+                }
+            }
+            return null;
+        }
+
+        public List<WfmItemInfo> SearchItems(string query, int limit = 15)
+        {
+            if (string.IsNullOrWhiteSpace(query) || _allItems.Count == 0)
+                return new List<WfmItemInfo>();
+            string q = query.Trim().ToLowerInvariant();
+            return _allItems
+                .Where(i => i.Name.ToLowerInvariant().Contains(q))
+                .OrderBy(i =>
+                {
+                    string lower = i.Name.ToLowerInvariant();
+                    if (lower == q) return 0;
+                    if (lower.StartsWith(q)) return 1;
+                    return 2;
+                })
+                .ThenBy(i => i.Name.Length)
+                .Take(limit)
+                .ToList();
+        }
+
+        public WfmItemInfo GetItemInfoById(string itemId)
+        {
+            return _allItems.FirstOrDefault(i => i.Id == itemId);
+        }
+
+        // Returns the total number of items needed for a set trade.
+        // Uses equipmentData part counts (e.g. Ankyros Prime: Blade x2 + Blueprint x1 + Gauntlet x2 = 5).
+        // Falls back to counting WFM items by slug prefix for non-prime sets.
+        // Returns -1 if the set is not found.
+        public int GetSetPartCount(string setName)
+        {
+            if (!setName.EndsWith(" Set"))
+                return -1;
+
+            // Try equipmentData first (covers primes, has per-part counts)
+            string primeName = setName.Substring(0, setName.Length - 4);
+            if (equipmentData != null && equipmentData.TryGetValue(primeName, out var val) && val is JObject obj)
+            {
+                var parts = obj["parts"] as JObject;
+                if (parts != null)
+                {
+                    int total = 0;
+                    foreach (var part in parts)
+                    {
+                        int cnt = (part.Value as JObject)?["count"]?.ToObject<int>() ?? 1;
+                        total += cnt;
+                    }
+                    return total > 0 ? total : -1;
+                }
+            }
+
+            // Non-prime sets where slug-based counting gives the wrong total.
+            var nonPrimeOverrides = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Broken War Set", 3 },       // 2x War Blade + 1x War Hilt (slugs don't match set prefix)
+                { "Dual Decurion Set", 4 },    // 2x Decurion Barrel + 2x Decurion Receiver
+                { "Dual Viciss Set", 4 },      // 2x Blade + 2x Hilt
+                { "Onorix Set", 3 },           // 2x Blade + 1x Handle
+                { "Pathocyst Set", 4 },        // 2x Blade + 1x Blueprint + 1x Subcortex
+            };
+
+            if (nonPrimeOverrides.TryGetValue(setName, out int overrideCount))
+                return overrideCount;
+
+            // Fallback: count WFM items sharing the base slug (covers non-prime sets)
+            var setItem = _allItems.FirstOrDefault(i => i.Name.Equals(setName, StringComparison.OrdinalIgnoreCase));
+            if (setItem == null)
+                return -1;
+            string baseSlug = setItem.Slug.Replace("_set", "");
+            int count = 0;
+            foreach (var item in _allItems)
+            {
+                if (item.Slug == setItem.Slug) continue;
+                if (!item.Slug.StartsWith(baseSlug + "_")) continue;
+                if (item.Slug.EndsWith("_set")) continue;
+                if (item.Name.Contains("Prime")) continue;
+                count++;
+            }
+            return count > 0 ? count : -1;
+        }
+
+        public async Task<string> CreateOrder(string itemId, string type, int platinum, int quantity,
+            bool visible, int? rank = null, int? perTrade = null, string subtype = null)
+        {
+            var (_, error) = await CreateOrderReturningId(itemId, type, platinum, quantity, visible, rank, perTrade, subtype);
+            return error;
+        }
+
+        // Returns (newOrderId, error). On success error is null; on failure newOrderId is null.
+        public async Task<(string newOrderId, string error)> CreateOrderReturningId(string itemId, string type, int platinum, int quantity,
+            bool visible, int? rank = null, int? perTrade = null, string subtype = null)
+        {
+            try
+            {
+                var body = new JObject
+                {
+                    ["itemId"] = itemId,
+                    ["type"] = type,
+                    ["platinum"] = platinum,
+                    ["quantity"] = quantity,
+                    ["visible"] = visible
+                };
+                if (rank.HasValue) body["rank"] = rank.Value;
+                if (perTrade.HasValue) body["perTrade"] = perTrade.Value;
+                if (!string.IsNullOrEmpty(subtype)) body["subtype"] = subtype;
+
+                using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.warframe.market/v2/order");
+                request.Content = new StringContent(body.ToString(), Encoding.UTF8, "application/json");
+                request.Headers.Add("Authorization", "Bearer " + JWT);
+                request.Headers.Add("language", "en");
+                request.Headers.Add("accept", "application/json");
+                request.Headers.Add("platform", "pc");
+                request.Headers.Add("auth_type", "header");
+                var response = await client.SendAsync(request);
+                var responseBody = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    AppMain.AddLog($"CreateOrder: {(int)response.StatusCode} {responseBody}");
+                    return (null, $"{(int)response.StatusCode}: {response.ReasonPhrase}");
+                }
+                var parsed = JsonConvert.DeserializeObject<JObject>(responseBody);
+                string newId = parsed?["data"]?["id"]?.ToString();
+                return (newId, null);
+            }
+            catch (Exception e)
+            {
+                AppMain.AddLog($"CreateOrder: {e.Message}");
+                return (null, e.Message);
             }
         }
 

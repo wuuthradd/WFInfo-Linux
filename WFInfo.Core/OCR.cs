@@ -63,55 +63,43 @@ namespace WFInfo
 
         #region variables and constants
 
-        // Primary colors for each Warframe UI theme
-        public static WFColor[] ThemePrimary = new WFColor[] {
-            WFColor.FromArgb(190, 169, 102),    //VITRUVIAN
-            WFColor.FromArgb(153,  31,  35),    //STALKER
-            WFColor.FromArgb(238, 193, 105),    //BARUUK
-            WFColor.FromArgb( 35, 201, 245),    //CORPUS
-            WFColor.FromArgb( 57, 105, 192),    //FORTUNA
-            WFColor.FromArgb(255, 189, 102),    //GRINEER
-            WFColor.FromArgb( 36, 184, 242),    //LOTUS
-            WFColor.FromArgb(140,  38,  92),    //NIDUS
-            WFColor.FromArgb( 20,  41,  29),    //OROKIN
-            WFColor.FromArgb(  9,  78, 106),    //TENNO
-            WFColor.FromArgb(102, 176, 255),    //HIGH_CONTRAST
-            WFColor.FromArgb(255, 255, 255),    //LEGACY
-            WFColor.FromArgb(158, 159, 167),    //EQUINOX
-            WFColor.FromArgb(140, 119, 147),    //DARK_LOTUS
-            WFColor.FromArgb(253, 132,   2),    //ZEPHYR
-            WFColor.FromArgb(200, 100, 200),    //CONQUERA
-            WFColor.FromArgb(25, 35, 60),       //DEADLOCK
-            WFColor.FromArgb(160, 40, 40),      //LUNAR_RENEWAL
-            WFColor.FromArgb(12, 45, 25),       //POM_2
+        private struct ThemeInfo
+        {
+            public WFColor Primary;
+            public WFColor Secondary;
+            public WFColor ProbeTop;
+            public WFColor ProbeBot;
+        }
+
+        private static readonly ThemeInfo[] AllThemes = new ThemeInfo[]
+        {
+            new ThemeInfo { Primary = WFColor.FromArgb(190, 169, 102), Secondary = WFColor.FromArgb(245, 227, 173), ProbeTop = WFColor.FromArgb(189, 168, 101), ProbeBot = WFColor.FromArgb( 26,  22,  24) }, //VITRUVIAN
+            new ThemeInfo { Primary = WFColor.FromArgb(153,  31,  35), Secondary = WFColor.FromArgb(255,  61,  51), ProbeTop = WFColor.FromArgb(152,  31,  35), ProbeBot = WFColor.FromArgb( 17,   4,   4) }, //STALKER
+            new ThemeInfo { Primary = WFColor.FromArgb(238, 193, 105), Secondary = WFColor.FromArgb(236, 211, 162), ProbeTop = WFColor.FromArgb(237, 192, 104), ProbeBot = WFColor.FromArgb( 60,  55,  43) }, //BARUUK
+            new ThemeInfo { Primary = WFColor.FromArgb( 35, 201, 245), Secondary = WFColor.FromArgb(111, 229, 253), ProbeTop = WFColor.FromArgb( 35, 200, 244), ProbeBot = WFColor.FromArgb(  7,  39,  63) }, //CORPUS
+            new ThemeInfo { Primary = WFColor.FromArgb( 57, 105, 192), Secondary = WFColor.FromArgb(255, 115, 230), ProbeTop = WFColor.FromArgb( 57, 105, 191), ProbeBot = WFColor.FromArgb(  7,   9,  34) }, //FORTUNA
+            new ThemeInfo { Primary = WFColor.FromArgb(255, 189, 102), Secondary = WFColor.FromArgb(255, 224, 153), ProbeTop = WFColor.FromArgb(254, 188, 101), ProbeBot = WFColor.FromArgb( 18,  27,  16) }, //GRINEER
+            new ThemeInfo { Primary = WFColor.FromArgb( 36, 184, 242), Secondary = WFColor.FromArgb(255, 241, 191), ProbeTop = WFColor.FromArgb( 36, 183, 241), ProbeBot = WFColor.FromArgb( 39,  53,  96) }, //LOTUS
+            new ThemeInfo { Primary = WFColor.FromArgb(140,  38,  92), Secondary = WFColor.FromArgb(245,  73,  93), ProbeTop = WFColor.FromArgb(139,  38,  91), ProbeBot = WFColor.FromArgb(220, 211, 197) }, //NIDUS
+            new ThemeInfo { Primary = WFColor.FromArgb( 20,  41,  29), Secondary = WFColor.FromArgb(178, 125,   5), ProbeTop = WFColor.FromArgb( 20,  41,  29), ProbeBot = WFColor.FromArgb(203, 209, 208) }, //OROKIN
+            new ThemeInfo { Primary = WFColor.FromArgb(  9,  78, 106), Secondary = WFColor.FromArgb(  6, 106,  74), ProbeTop = WFColor.FromArgb(  9,  78, 105), ProbeBot = WFColor.FromArgb(183, 204, 207) }, //TENNO
+            new ThemeInfo { Primary = WFColor.FromArgb(102, 176, 255), Secondary = WFColor.FromArgb(255, 255,   0), ProbeTop = WFColor.FromArgb(101, 175, 254), ProbeBot = WFColor.FromArgb( 15,  31,  61) }, //HIGH_CONTRAST
+            new ThemeInfo { Primary = WFColor.FromArgb(255, 255, 255), Secondary = WFColor.FromArgb(232, 213,  93), ProbeTop = WFColor.FromArgb(254, 254, 254), ProbeBot = WFColor.FromArgb( 35,  60,  70) }, //LEGACY
+            new ThemeInfo { Primary = WFColor.FromArgb(158, 159, 167), Secondary = WFColor.FromArgb(232, 227, 227), ProbeTop = WFColor.FromArgb(157, 159, 166), ProbeBot = WFColor.FromArgb( 19,  12,  21) }, //EQUINOX
+            new ThemeInfo { Primary = WFColor.FromArgb(140, 119, 147), Secondary = WFColor.FromArgb(200, 169, 237), ProbeTop = WFColor.FromArgb(139, 119, 146), ProbeBot = WFColor.FromArgb( 41,  11,  85) }, //DARK_LOTUS
+            new ThemeInfo { Primary = WFColor.FromArgb(253, 132,   2), Secondary = WFColor.FromArgb(255,  53,   0), ProbeTop = WFColor.FromArgb(252, 132,   2), ProbeBot = WFColor.FromArgb( 27,  26,  27) }, //ZEPHYR
+            new ThemeInfo { Primary = WFColor.FromArgb(200, 100, 200), Secondary = WFColor.FromArgb(255, 215,   0), ProbeTop = WFColor.FromArgb(254, 254, 254), ProbeBot = WFColor.FromArgb(177,  66, 182) }, //CONQUERA
+            new ThemeInfo { Primary = WFColor.FromArgb( 25,  35,  60), Secondary = WFColor.FromArgb(255, 255, 255), ProbeTop = WFColor.FromArgb(254, 254, 254), ProbeBot = WFColor.FromArgb( 30,  40,  62) }, //DEADLOCK
+            new ThemeInfo { Primary = WFColor.FromArgb(160,  40,  40), Secondary = WFColor.FromArgb(255, 200, 100), ProbeTop = WFColor.FromArgb(254, 254, 254), ProbeBot = WFColor.FromArgb(101,  28,  29) }, //LUNAR_RENEWAL
+            new ThemeInfo { Primary = WFColor.FromArgb(105, 185, 140), Secondary = WFColor.FromArgb(100, 255, 100), ProbeTop = WFColor.FromArgb(129, 223, 150), ProbeBot = WFColor.FromArgb( 11,  47,  31) }, //POM_2
         };
 
-        // Secondary colors for each Warframe UI theme
-        public static WFColor[] ThemeSecondary = new WFColor[] {
-            WFColor.FromArgb(245, 227, 173),    //VITRUVIAN
-            WFColor.FromArgb(255,  61,  51),    //STALKER
-            WFColor.FromArgb(236, 211, 162),    //BARUUK
-            WFColor.FromArgb(111, 229, 253),    //CORPUS
-            WFColor.FromArgb(255, 115, 230),    //FORTUNA
-            WFColor.FromArgb(255, 224, 153),    //GRINEER
-            WFColor.FromArgb(255, 241, 191),    //LOTUS
-            WFColor.FromArgb(245,  73,  93),    //NIDUS
-            WFColor.FromArgb(178, 125,   5),    //OROKIN
-            WFColor.FromArgb(  6, 106,  74),    //TENNO
-            WFColor.FromArgb(255, 255,   0),    //HIGH_CONTRAST
-            WFColor.FromArgb(232, 213,  93),    //LEGACY
-            WFColor.FromArgb(232, 227, 227),    //EQUINOX
-            WFColor.FromArgb(200, 169, 237),    //DARK_LOTUS
-            WFColor.FromArgb(255,  53,   0),    //ZEPHYR
-            WFColor.FromArgb(255, 215,   0),    //CONQUERA
-            WFColor.FromArgb(255, 255, 255),    //DEADLOCK
-            WFColor.FromArgb(255, 200, 100),    //LUNAR_RENEWAL
-            WFColor.FromArgb(100, 255, 100),    //POM_2
-        };
+        public static readonly WFColor[] ThemePrimary = AllThemes.Select(t => t.Primary).ToArray();
+        public static readonly WFColor[] ThemeSecondary = AllThemes.Select(t => t.Secondary).ToArray();
 
         private const NumberStyles styles = NumberStyles.AllowDecimalPoint | NumberStyles.AllowThousands | NumberStyles.AllowExponent;
 
-        public static double uiScaling;
+        public static double uiScaling = 1.0;
 
         // Pixel measurements for reward screen @ 1920 x 1080 with 100% scale
         public const int pixleRewardWidth = 968;
@@ -164,6 +152,10 @@ namespace WFInfo
         private static string timestamp;
         private static string clipboard;
         #endregion
+
+        private static readonly char[] WordSplitChars = { ' ' };
+        private static readonly string[] PrimeSplitChars = { "Prime" };
+        private static readonly char[] NewlineSplitChars = { '\r', '\n' };
 
         public const int SnapItOverlayHeight = 105;
 
@@ -269,9 +261,10 @@ namespace WFInfo
                 bigScreenshot = null;
             }
 
+            int engineCount = Math.Min(parts.Count, _tesseractService.Engines.Length);
             firstChecks = new string[parts.Count];
-            Task[] tasks = new Task[parts.Count];
-            for (int i = 0; i < parts.Count; i++)
+            Task[] tasks = new Task[engineCount];
+            for (int i = 0; i < engineCount; i++)
             {
                 int tempI = i;
                 tasks[i] = Task.Run(() => { firstChecks[tempI] = GetTextFromImage(parts[tempI], _tesseractService.Engines[tempI]); });
@@ -283,6 +276,10 @@ namespace WFInfo
             finally
             {
                 foreach (var part in parts) part?.Dispose();
+            }
+            for (int i = engineCount; i < parts.Count; i++)
+            {
+                firstChecks[i] = GetTextFromImage(parts[i], _tesseractService.Engines[0]);
             }
 
             firstChecks = firstChecks.Where(s => !string.IsNullOrEmpty(s) && PartNameValid(s)).ToArray();
@@ -572,10 +569,6 @@ namespace WFInfo
 
         public static WFtheme GetThemeWeighted(out double closestThresh, SKBitmap image = null)
         {
-            _themeCache.Clear();
-            int lineHeight = (int)(GetAdjustedLineHeight() / 2 * _window.ScreenScaling);
-            int mostWidth = (int)(pixleRewardWidth * _window.ScreenScaling);
-
             bool localImage = false;
             if (image == null)
             {
@@ -588,49 +581,31 @@ namespace WFInfo
                 localImage = true;
             }
 
-            double[] weights = new double[Enum.GetValues(typeof(WFtheme)).Cast<int>().Where(v => v >= 0).Max() + 1];
-            int minWidth = mostWidth / 4;
-
             try
             {
+                if (image.Height == 0)
+                    throw new Exception("Image height was 0");
 
-            if (image == null || image.Height == 0)
-                throw new Exception("Image height was 0");
+                double[] themeWeights = ComputeThemeWeights(image);
 
-            var pixelSpan = image.GetPixelSpan();
-            int imgWidth = image.Width;
-
-            for (int y = lineHeight; y < image.Height; y++)
-            {
-                double perc = (double)(y - lineHeight) / (image.Height - lineHeight);
-                int totWidth = (int)(minWidth * perc + minWidth);
-                for (int x = 0; x < totWidth; x++)
+                double maxWeight = 0;
+                WFtheme activeTheme = WFtheme.UNKNOWN;
+                for (int i = 0; i < themeWeights.Length; i++)
                 {
-                    int px = x + (mostWidth - totWidth) / 2;
-                    if (px < 0 || px >= imgWidth) continue;
-                    int byteIdx = (y * imgWidth + px) * 4;
-                    var clr = WFColor.FromArgb(pixelSpan[byteIdx + 2], pixelSpan[byteIdx + 1], pixelSpan[byteIdx]);
-                    int match = (int)GetClosestTheme(clr, out int thresh);
-                    if (match >= 0 && match < weights.Length)
-                        weights[match] += 1 / Math.Pow(thresh + 1, 4); // weight inversely proportional to color distance^4
+                    if (themeWeights[i] > maxWeight)
+                    {
+                        maxWeight = themeWeights[i];
+                        activeTheme = (WFtheme)i;
+                    }
                 }
-            }
-
-            double max = 0;
-            WFtheme active = WFtheme.UNKNOWN;
-            for (int i = 0; i < weights.Length; i++)
-            {
-                if (weights[i] > max) { max = weights[i]; active = (WFtheme)i; }
-            }
-            AppMain.AddLog("CLOSEST THEME(" + max.ToString("F2", AppMain.culture) + "): " + active.ToString());
-            closestThresh = max;
-            if (_settings.ThemeSelection != WFtheme.AUTO)
-            {
-                AppMain.AddLog("Theme overwrite present, setting to: " + _settings.ThemeSelection.ToString());
-                return _settings.ThemeSelection;
-            }
-            return active;
-
+                AppMain.AddLog("CLOSEST THEME(" + maxWeight.ToString("F2", AppMain.culture) + "): " + activeTheme.ToString());
+                closestThresh = maxWeight;
+                if (_settings.ThemeSelection != WFtheme.AUTO)
+                {
+                    AppMain.AddLog("Theme overwrite present, setting to: " + _settings.ThemeSelection.ToString());
+                    return _settings.ThemeSelection;
+                }
+                return activeTheme;
             }
             finally
             {
@@ -639,31 +614,65 @@ namespace WFInfo
             }
         }
 
-        private static readonly ConcurrentDictionary<int, (int theme, int threshold)> _themeCache =
-            new ConcurrentDictionary<int, (int theme, int threshold)>();
-
-        private static WFtheme GetClosestTheme(WFColor clr, out int threshold)
+        private static double[] ComputeThemeWeights(SKBitmap image)
         {
-            int key = (clr.R << 16) | (clr.G << 8) | clr.B;
-            if (_themeCache.TryGetValue(key, out var cached))
+            int nThemes = Enum.GetValues(typeof(WFtheme)).Cast<int>().Where(v => v >= 0).Max() + 1;
+            double[] weights = new double[nThemes];
+            if (image == null || image.Height == 0) return weights;
+
+            double sc = _window.ScreenScaling * Math.Max(uiScaling, 0.5);
+            int probeX = (int)Math.Round(150 * sc);
+            int probeY1 = (int)Math.Round(85 * sc);
+            int probeY2 = (int)Math.Round(93 * sc);
+            if (probeX >= image.Width || probeY1 >= image.Height) return weights;
+            probeY2 = Math.Min(probeY2, image.Height - 1);
+            int midY = (probeY1 + probeY2) / 2;
+
+            var pixelSpan = image.GetPixelSpan();
+            int imgWidth = image.Width;
+            int lineH = probeY2 - probeY1 + 1;
+
+            long tR = 0, tG = 0, tB = 0, tCnt = 0;
+            long bR = 0, bG = 0, bB = 0, bCnt = 0;
+            for (int row = 0; row < lineH; row++)
             {
-                threshold = cached.threshold;
-                return (WFtheme)cached.theme;
+                int y = probeY1 + row;
+                int byteIdx = (y * imgWidth + probeX) * 4;
+                int r = pixelSpan[byteIdx + 2];
+                int g = pixelSpan[byteIdx + 1];
+                int b = pixelSpan[byteIdx];
+                if (y < midY) { tR += r; tG += g; tB += b; tCnt++; }
+                else          { bR += r; bG += g; bB += b; bCnt++; }
             }
 
-            threshold = 999;
-            WFtheme minTheme = WFtheme.CORPUS;
-            foreach (WFtheme theme in (WFtheme[])Enum.GetValues(typeof(WFtheme)))
+            if (tCnt == 0) { tR = 0; tG = 0; tB = 0; tCnt = 1; }
+            if (bCnt == 0) { bR = 0; bG = 0; bB = 0; bCnt = 1; }
+            var avgTop = WFColor.FromArgb((int)(tR / tCnt), (int)(tG / tCnt), (int)(tB / tCnt));
+            var avgBot = WFColor.FromArgb((int)(bR / bCnt), (int)(bG / bCnt), (int)(bB / bCnt));
+
+            for (int i = 0; i < nThemes; i++)
             {
-                if ((int)theme >= 0)
-                {
-                    WFColor themeColor = ThemePrimary[(int)theme];
-                    int tempThresh = ColorDifference(clr, themeColor);
-                    if (tempThresh < threshold) { threshold = tempThresh; minTheme = theme; }
-                }
+                double dist = ColorDifference(avgTop, AllThemes[i].ProbeTop)
+                            + ColorDifference(avgBot, AllThemes[i].ProbeBot);
+                weights[i] = 1.0 / (dist + 1);
             }
-            _themeCache[key] = ((int)minTheme, threshold);
-            return minTheme;
+
+            if (_settings != null && _settings.Debug)
+            {
+                try
+                {
+                    int bestIdx = 0;
+                    for (int i = 1; i < nThemes; i++)
+                        if (weights[i] > weights[bestIdx]) bestIdx = i;
+                    AppMain.AddLog($"ProbeTheme: probe=({probeX},{probeY1}-{probeY2}) mid={midY} " +
+                        $"top=({avgTop.R},{avgTop.G},{avgTop.B}) bot=({avgBot.R},{avgBot.G},{avgBot.B}) " +
+                        $"scale={sc:F2} ui={uiScaling:F2} dpi={_window.ScreenScaling:F2} " +
+                        $"best={(WFtheme)bestIdx} score={weights[bestIdx]:F4}");
+                }
+                catch { }
+            }
+
+            return weights;
         }
 
         private static int ColorDifference(WFColor test, WFColor thresh)
@@ -1124,7 +1133,7 @@ namespace WFInfo
                 score += 20;
                 score += Math.Min(nonLatinChars * 2, 30);
             }
-            string[] lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] lines = text.Split(NewlineSplitChars, StringSplitOptions.RemoveEmptyEntries);
             score += Math.Min(lines.Length * 5, 25);
             if (mode == PageSegMode.SingleBlock)
             {
@@ -1178,6 +1187,105 @@ namespace WFInfo
                 AppMain.AddLog("Screenshot failed: " + ex.ToString());
                 return null;
             }
+        }
+
+        #endregion
+
+        #region UI Scale Config
+
+        /// <summary>
+        /// Reads the in-game UI scale from Warframe's EE.cfg (Flash.FlashDrawScale=VALUE).
+        /// Returns 0.5-1.25, or -1 if unavailable.
+        /// </summary>
+        internal static double ReadUiScaleFromConfig()
+        {
+            try
+            {
+                string eeLogPath = PlatformPaths.FindEELogPath();
+                if (eeLogPath == null) return -1;
+
+                string cfgPath = Path.Combine(Path.GetDirectoryName(eeLogPath), "EE.cfg");
+                if (!File.Exists(cfgPath)) return -1;
+
+                foreach (string line in File.ReadLines(cfgPath))
+                {
+                    if (line.StartsWith("Flash.FlashDrawScale=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string valStr = line.Substring("Flash.FlashDrawScale=".Length).Trim();
+                        if (double.TryParse(valStr, NumberStyles.Float,
+                            CultureInfo.InvariantCulture, out double raw))
+                        {
+                            int percent = (int)Math.Round(raw * 100.0 / 5.0) * 5;
+                            return Math.Max(0.5, Math.Min(1.25, percent / 100.0));
+                        }
+                        return -1;
+                    }
+                }
+                return 1.0;
+            }
+            catch (Exception ex)
+            {
+                AppMain.AddLog($"ReadUiScaleFromConfig failed: {ex.Message}");
+                return -1;
+            }
+        }
+
+        /// <summary>
+        /// Checks whether Warframe's colorblind filter is enabled in EE.cfg.
+        /// </summary>
+        public static bool IsColorblindFilterActive()
+        {
+            try
+            {
+                string eeLogPath = PlatformPaths.FindEELogPath();
+                if (eeLogPath == null) return false;
+
+                string cfgPath = Path.Combine(Path.GetDirectoryName(eeLogPath), "EE.cfg");
+                if (!File.Exists(cfgPath)) return false;
+
+                return File.ReadAllText(cfgPath).Contains("Graphics.ColorBlindCompensation");
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static double DetectUiScale(int[] rowHits, int imageWidth, int imageHeight, int fullShotHeight)
+        {
+            var rowHeights = new List<int>();
+            int i = 0;
+            while (i < imageHeight)
+            {
+                if ((double)rowHits[i] / imageWidth > _settings.SnapRowTextDensity)
+                {
+                    int j = 0;
+                    while (i + j < imageHeight && (double)rowHits[i + j] / imageWidth > _settings.SnapRowEmptyDensity)
+                        j++;
+                    if (j > 3)
+                        rowHeights.Add(j);
+                    i += j;
+                }
+                else
+                {
+                    i++;
+                }
+            }
+
+            if (rowHeights.Count < 3)
+                return -1;
+
+            double avgRowHeight = 0;
+            foreach (int h in rowHeights)
+                avgRowHeight += h;
+            avgRowHeight /= rowHeights.Count;
+
+            double referenceRowHeight = GetAdjustedLineHeight() * 0.4;
+            double resolutionRatio = (double)fullShotHeight / 1080.0;
+            double expectedRowHeight = referenceRowHeight * resolutionRatio;
+
+            double scale = avgRowHeight / expectedRowHeight;
+            return Math.Max(0.5, Math.Min(1.0, scale));
         }
 
         #endregion
@@ -1299,7 +1407,7 @@ namespace WFInfo
 
                 if (proximity < 3 && proximity < primeProximity && part.Name.Length > 6 && name.Contains("Prime"))
                 {
-                    string[] nameParts = name.Split(new[] { "Prime" }, 2, StringSplitOptions.None);
+                    string[] nameParts = name.Split(PrimeSplitChars, 2, StringSplitOptions.None);
                     string primeName = nameParts[0] + "Prime";
 
                     if (AppMain.dataBase.equipmentData[primeName]?.ToObject<JObject>()?.TryGetValue("mastered", out _) == true)
@@ -1847,7 +1955,7 @@ namespace WFInfo
                     SKRectI bounds = wordResult.Item2;
 
                     // Filter words
-                    var words = currentLine.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    var words = currentLine.Split(WordSplitChars, StringSplitOptions.RemoveEmptyEntries);
                     var filteredWords = new List<string>();
                     foreach (var word in words)
                     {
@@ -2252,6 +2360,13 @@ namespace WFInfo
             watch.Start();
             long start = watch.ElapsedMilliseconds;
 
+            double configScale = ReadUiScaleFromConfig();
+            if (configScale > 0)
+            {
+                uiScaling = configScale;
+                AppMain.AddLog($"SnapIt: UI scaling {configScale:P0} from EE.cfg");
+            }
+
             WFtheme theme;
             if (_settings.ThemeSelection != WFtheme.AUTO)
             {
@@ -2274,6 +2389,16 @@ namespace WFInfo
 
             using var snapItImageFiltered = ScaleUpAndFilter(snapItImage, theme, out int[] rowHits, out int[] colHits);
             SaveBitmap(snapItImageFiltered, Path.Combine(AppMain.AppPath, "debug", "SnapItImageFiltered " + timestamp + ".png"));
+
+            if (configScale <= 0)
+            {
+                double detectedScale = DetectUiScale(rowHits, snapItImageFiltered.Width, snapItImageFiltered.Height, fullShot.Height);
+                if (detectedScale > 0)
+                {
+                    uiScaling = detectedScale;
+                    AppMain.AddLog($"SnapIt: UI scaling {detectedScale:P0} from row analysis");
+                }
+            }
 
             double imageScale = (double)snapItImageFiltered.Height / snapItImage.Height;
             var foundParts = FindAllParts(snapItImageFiltered, snapItImage, rowHits, colHits);
@@ -2298,7 +2423,7 @@ namespace WFInfo
                 }
 
                 string name = AppMain.dataBase.GetPartName(part.Name, out int levenDist, false, out bool multipleLowest);
-                int ocrWordCount = part.Name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                int ocrWordCount = part.Name.Split(WordSplitChars, StringSplitOptions.RemoveEmptyEntries)
                     .Count(w => w.Length > 1);
                 if (ocrWordCount >= 3)
                 {

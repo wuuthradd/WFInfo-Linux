@@ -1,0 +1,125 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WFInfo.Linux.Views.TradeDoneWindow"
+        Title="Trade Done"
+        Width="380" MinWidth="380" MaxWidth="380"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        SystemDecorations="None"
+        Background="#FF1B1B1B">
+
+    <Window.Styles>
+        <Style Selector="Button.actionBtn">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#FF90B0B8" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.actionBtn:pointerover">
+            <Setter Property="Foreground" Value="#FFB1D0D9" />
+        </Style>
+        <Style Selector="Button.actionBtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="#FF506464" />
+        </Style>
+        <Style Selector="Button.greenBtn">
+            <Setter Property="Background" Value="#FF2D5A2D" />
+            <Setter Property="Foreground" Value="#FFB1D0D9" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#FF3D7A3D" />
+            <Setter Property="Padding" Value="12,4" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.greenBtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#FF3D7A3D" />
+        </Style>
+    </Window.Styles>
+
+    <Border BorderBrush="#FF707070" BorderThickness="1">
+        <Grid RowDefinitions="23,Auto,Auto,Auto,Auto,Auto" PointerPressed="OnPointerPressed">
+            <!-- Title bar -->
+            <Grid Grid.Row="0">
+                <Rectangle Fill="#FF0F0F0F" />
+                <Image Margin="2,0,0,0" Source="avares://WFInfo.Linux/Resources/WFLogo.png"
+                       Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Width="18" />
+                <TextBlock Text="Trade Done" Margin="24,1,0,0" FontSize="14" FontWeight="Bold"
+                           FontFamily="{StaticResource RobotoBlack}"
+                           VerticalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                    <Rectangle Fill="#FF646464" Width="1" Height="22" />
+                    <Button Content="_" Click="Minimize_Click" Classes="linkButton"
+                            Height="22" Width="22"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                    <Rectangle Fill="#FF646464" Width="1" Height="22" />
+                    <Button Content="x" Click="Close_Click" Classes="linkButton"
+                            Height="22" Width="22"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                </StackPanel>
+                <Rectangle Height="1" Fill="#FF646464" VerticalAlignment="Bottom" />
+            </Grid>
+
+            <!-- Trade info display -->
+            <Border Grid.Row="1" Background="#FF222222" Margin="10,8,10,0" Padding="10,8"
+                    BorderBrush="#FF444444" BorderThickness="1" CornerRadius="2">
+                <StackPanel>
+                    <TextBlock x:Name="ItemNameText" Text="-" FontSize="14" FontWeight="Bold"
+                               Foreground="#FF00BFFF" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBlock Text="Traded with: " FontSize="12" Foreground="#FF888888" />
+                        <TextBlock x:Name="PartnerText" Text="-" FontSize="12" Foreground="#FFB1D0D9" />
+                        <TextBlock x:Name="PlatformText" Text="" FontSize="10" Foreground="#FF888888"
+                                   Margin="4,2,0,0" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                        <TextBlock Text="Count: " FontSize="12" Foreground="#FF888888" />
+                        <TextBlock x:Name="CountText" Text="-" FontSize="12" Foreground="#FFB1D0D9" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Matched WFM order -->
+            <Border Grid.Row="2" Background="#FF222222" Margin="10,6,10,0" Padding="10,8"
+                    BorderBrush="#FF444444" BorderThickness="1" CornerRadius="2">
+                <StackPanel>
+                    <TextBlock Text="Matched WFMarket order:" FontSize="11" Foreground="#FF888888" Margin="0,0,0,4" />
+                    <TextBlock x:Name="MatchedOrderText" Text="No matching order found" FontSize="12"
+                               Foreground="#FFB1D0D9" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <!-- Status text -->
+            <TextBlock Grid.Row="3" x:Name="StatusText" Text="" FontSize="11"
+                       Foreground="#FF4CAF50" Margin="10,4,10,0"
+                       HorizontalAlignment="Center" />
+
+            <!-- Inventory checkbox + Mark Sold -->
+            <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="10,6,10,0">
+                <CheckBox x:Name="DecrementCheckbox" Content="Decrease inventory count"
+                          Foreground="#FFB1D0D9" FontSize="12"
+                          IsCheckedChanged="OnDecrementChanged" VerticalAlignment="Center" />
+                <Button Grid.Column="1" x:Name="MarkSoldBtn" Content="Mark Sold" Classes="greenBtn"
+                        Click="MarkSold_Click" Margin="6,0,0,0" />
+            </Grid>
+
+            <!-- Navigation footer -->
+            <Grid Grid.Row="5" ColumnDefinitions="Auto,Auto,*,Auto" Margin="10,6,10,8">
+                <Button Grid.Column="0" x:Name="BackBtn" Content="Back" Click="Back_Click"
+                        Background="#FF333333" Foreground="#FFB1D0D9" Padding="12,4" />
+                <Button Grid.Column="1" x:Name="SkipBtn" Content="Skip" Click="Skip_Click"
+                        Background="#FF5A2D2D" Foreground="#FFB1D0D9" Padding="12,4" Margin="4,0,0,0" />
+                <TextBlock Grid.Column="2" x:Name="PageText" Text="0 of 0"
+                           FontSize="12" Foreground="#FF888888"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <Button Grid.Column="3" x:Name="NextBtn" Content="Next" Click="Next_Click"
+                        Background="#FF333333" Foreground="#FFB1D0D9" Padding="12,4" />
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

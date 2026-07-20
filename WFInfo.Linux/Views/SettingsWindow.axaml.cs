@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -7,6 +8,7 @@ using Avalonia.Interactivity;
 using WFInfo.Models;
 using WFInfo.Services.WindowInfo;
 using WFInfo.Settings;
+using WFInfo.Linux.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace WFInfo.Linux.Views
@@ -17,6 +19,7 @@ namespace WFInfo.Linux.Views
         private enum KeyCaptureTarget { None, Activation, SearchIt, SnapIt, MasterIt }
         private KeyCaptureTarget _captureTarget = KeyCaptureTarget.None;
         private bool _loading = true;
+        private CancellationTokenSource _localeRefreshCts;
 
         public SettingsWindow()
         {
@@ -73,6 +76,13 @@ namespace WFInfo.Linux.Views
             EfficiencyMaxBox.Text = _settings.MaximumEfficiencyValue.ToString();
 
             ManualMarketCheckbox.IsChecked = _settings.ManualMarketStatus;
+            WhisperNotifCheckbox.IsChecked = _settings.WhisperNotifications;
+            AutoTradeDoneCheckbox.IsChecked = _settings.AutoTradeDone;
+
+            WhisperSoundCombo.ItemsSource = CrossPlatformSoundPlayer.AvailableSounds;
+            var idx = Array.IndexOf(CrossPlatformSoundPlayer.AvailableSounds, _settings.WhisperSound);
+            WhisperSoundCombo.SelectedIndex = idx >= 0 ? idx : 0;
+            WhisperSoundPanel.IsVisible = _settings.WhisperNotifications;
 
             for (int i = 0; i < ThemeCombo.Items.Count; i++)
             {
@@ -106,6 +116,9 @@ namespace WFInfo.Linux.Views
             AutoListCheckbox.IsEnabled = _settings.Auto;
             AutoCSVCheckbox.IsEnabled = _settings.Auto;
             AutoAddCheckbox.IsEnabled = _settings.Auto;
+
+            FixedAutoDelayBox.Text = _settings.FixedAutoDelay.ToString();
+            AutoDelayBox.Text = _settings.AutoDelay.ToString();
 
         }
 
@@ -255,6 +268,22 @@ namespace WFInfo.Linux.Views
         private void OnTextBoxLostFocus(object sender, RoutedEventArgs e)
         {
             if (_loading) return;
+            SaveSettings();
+        }
+
+        private void OnDelayBoxLostFocus(object sender, RoutedEventArgs e)
+        {
+            if (_loading) return;
+            if (long.TryParse(FixedAutoDelayBox.Text, out long fixedDelay) && fixedDelay >= 0)
+                _settings.FixedAutoDelay = fixedDelay;
+            else
+                FixedAutoDelayBox.Text = _settings.FixedAutoDelay.ToString();
+
+            if (long.TryParse(AutoDelayBox.Text, out long autoDelay) && autoDelay > 0)
+                _settings.AutoDelay = autoDelay;
+            else
+                AutoDelayBox.Text = _settings.AutoDelay.ToString();
+
             SaveSettings();
         }
 
@@ -447,6 +476,37 @@ namespace WFInfo.Linux.Views
             SaveSettings();
         }
 
+        private void OnWhisperNotifChanged(object sender, RoutedEventArgs e)
+        {
+            if (_loading) return;
+            _settings.WhisperNotifications = WhisperNotifCheckbox.IsChecked == true;
+            WhisperSoundPanel.IsVisible = _settings.WhisperNotifications;
+            SaveSettings();
+        }
+
+        private void OnWhisperSoundChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_loading) return;
+            if (WhisperSoundCombo.SelectedItem is string selected)
+            {
+                _settings.WhisperSound = selected;
+                SaveSettings();
+            }
+        }
+
+        private void OnWhisperSoundPreview(object sender, RoutedEventArgs e)
+        {
+            var sound = App.Services?.GetService(typeof(WFInfo.Services.ISoundPlayer)) as CrossPlatformSoundPlayer;
+            sound?.PlayWhisper(_settings.WhisperSound);
+        }
+
+        private void OnAutoTradeDoneChanged(object sender, RoutedEventArgs e)
+        {
+            if (_loading) return;
+            _settings.AutoTradeDone = AutoTradeDoneCheckbox.IsChecked == true;
+            SaveSettings();
+        }
+
         private void OnCheckUpdateClick(object sender, RoutedEventArgs e)
         {
             CheckUpdateBtn.IsEnabled = false;
@@ -472,20 +532,30 @@ namespace WFInfo.Linux.Views
             _settings.Locale = selectedLocale;
             SaveSettings();
 
-            _ = OCR.updateEngineAsync();
+            _localeRefreshCts?.Cancel();
+            _localeRefreshCts?.Dispose();
+            _localeRefreshCts = new CancellationTokenSource();
+            var token = _localeRefreshCts.Token;
+
             Task.Run(async () =>
             {
                 try
                 {
-                    await AppMain.dataBase.ReloadItems();
+                    await OCR.updateEngineAsync().ConfigureAwait(false);
+                    token.ThrowIfCancellationRequested();
+                    await AppMain.dataBase.ReloadItems().ConfigureAwait(false);
                     AppMain.AddLog($"Locale changed to {selectedLocale}, data reloaded");
+                }
+                catch (OperationCanceledException)
+                {
+                    // Superseded by newer locale change
                 }
                 catch (Exception ex)
                 {
                     AppMain.AddLog($"Locale change reload failed: {ex.Message}");
                     AppMain.StatusUpdate("Locale change failed", 2);
                 }
-            });
+            }, token);
         }
 
         private void ActivationKey_Click(object sender, RoutedEventArgs e)

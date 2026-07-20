@@ -138,6 +138,7 @@ namespace WFInfo.Linux
         private static int _nextSnapItPanelId = 4; // 0-3 reserved for reward panels
 
         private static volatile bool _nativeRewardsDisplaying;
+        private static CancellationTokenSource _rewardDisplayCts;
 
         private const int MinutesTillAfk = 7; // minutes idle before setting market status to invisible
         private static DateTime _latestActive = DateTime.UtcNow;
@@ -149,7 +150,6 @@ namespace WFInfo.Linux
             ? (ApplicationSettings.GlobalSettings.MarketStatus ?? "ingame") : "invisible";
         private static System.Threading.Timer _afkTimer;
 
-        // Cache reward data from OnRewardDisplay so OnOverlayDisplay can use it
         private static readonly Dictionary<int, (string name, string plat, string setPlat, string ducats, string volume, string owned, bool vaulted, bool mastered, bool hideInfo, bool warning, string highlight)> _rewardData = new();
 
         public override void Initialize()
@@ -187,6 +187,8 @@ namespace WFInfo.Linux
                 new FileLogCapture(sp.GetRequiredService<ILogger>(), sp.GetRequiredService<IProcessFinder>()));
 
             services.AddSingleton<ITesseractService, TesseractService>();
+            services.AddSingleton(sp =>
+                new DesktopNotificationService(sp.GetRequiredService<ILogger>()));
 
             services.AddSingleton<Data>(sp =>
             {
@@ -199,18 +201,254 @@ namespace WFInfo.Linux
 
             Services = services.BuildServiceProvider();
 
-            // Install Vulkan layer for future game launches
             var logger = Services.GetRequiredService<ILogger>();
             InstallVulkanLayer(logger);
 
-            // Connects lazily, works regardless
-            // of whether Warframe or WFInfo starts first.
             _vulkanLayer = Services.GetRequiredService<VulkanLayerService>();
             _vulkanLayer.OnSnapItResult += HandleNativeSnapItResult;
             if (_vulkanLayer.Connect())
                 logger.AddLog("VulkanLayerService: connected at startup");
             else
                 logger.AddLog("VulkanLayerService: layer socket not yet available, will retry on use");
+
+            var fileLogCapture = Services.GetService<ILogCapture>() as FileLogCapture;
+            if (fileLogCapture != null)
+            {
+                var notifier = Services.GetRequiredService<DesktopNotificationService>();
+                fileLogCapture.OnWhisperDetected += playerName =>
+                {
+                    var settings = Services.GetRequiredService<IReadOnlyApplicationSettings>();
+                    if (!settings.WhisperNotifications) return;
+
+                    bool? focused = fileLogCapture.QueryFocusState();
+                    // If game is focused, user can see the whisper in-game
+                    if (focused == true) return;
+
+                    notifier.SendWhisperNotification(playerName);
+                    var sound = Services.GetRequiredService<ISoundPlayer>() as CrossPlatformSoundPlayer;
+                    sound?.PlayWhisper(settings.WhisperSound);
+                };
+
+                fileLogCapture.OnTradeCompleted += tradeInfo =>
+                {
+                    var settings = Services.GetRequiredService<IReadOnlyApplicationSettings>();
+                    if (!settings.AutoTradeDone || !tradeInfo.IsSale) return;
+
+                    Task.Run(async () =>
+                    {
+                        var orders = await AppMain.dataBase.GetAllMyOrders();
+                        if (orders == null) return;
+
+                        var entries = new List<TradeDoneEntry>();
+
+                        // Parse all given items, derive set names
+                        var parsed = new List<(string Name, int? Rank, int Count, string SetName)>();
+                        foreach (var given in tradeInfo.Given)
+                        {
+                            string givenName = given.Name;
+                            int? givenRank = given.Rank;
+                            int parenIdx = givenName.IndexOf(" (");
+                            if (parenIdx > 0)
+                            {
+                                string suffix = givenName.Substring(parenIdx + 2).TrimEnd(')');
+                                givenName = givenName.Substring(0, parenIdx);
+                                if (!givenRank.HasValue)
+                                {
+                                    int rankIdx = suffix.IndexOf("RANK ", StringComparison.OrdinalIgnoreCase);
+                                    if (rankIdx >= 0 && int.TryParse(suffix.Substring(rankIdx + 5).Trim(), out int r))
+                                        givenRank = r;
+                                }
+                            }
+
+                            string setName = null;
+                            {
+                                string stripped = givenName;
+                                foreach (var sfx in new[] {
+                                    " Avionics Blueprint", " Engines Blueprint", " Fuselage Blueprint",
+                                    " Lower Limb Blueprint", " Upper Limb Blueprint",
+                                    " Grip Blueprint", " String Blueprint",
+                                    " Barrel Blueprint", " Receiver Blueprint", " Stock Blueprint",
+                                    " Blade Blueprint", " Handle Blueprint",
+                                    " Weapon Barrel", " Weapon Receiver", " Weapon Stock", " Weapon Pod",
+                                    " Left Gauntlet", " Right Gauntlet",
+                                    " Lower Limb", " Upper Limb",
+                                    " Blueprint", " Neuroptics", " Chassis", " Systems",
+                                    " Harness", " Wings", " Blade", " Barrel", " Receiver", " Stock",
+                                    " Grip", " String", " Handle", " Ornament", " Blades", " Hilt",
+                                    " Link", " Head", " Disc", " Pouch", " Carapace", " Cerebrum",
+                                    " Guard", " Gauntlet", " Motor", " Aegis", " Limbs", " Engine",
+                                    " Pod", " Casing", " Capsule", " Rivet", " Subcortex", " Conclusion" })
+                                {
+                                    if (stripped.EndsWith(sfx, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        stripped = stripped.Substring(0, stripped.Length - sfx.Length);
+                                        break;
+                                    }
+                                }
+                                if (stripped != givenName)
+                                    setName = stripped + " Set";
+                            }
+                            parsed.Add((givenName, givenRank, given.Count, setName));
+                        }
+
+                        var individuallyMatched = new HashSet<int>();
+                        for (int i = 0; i < parsed.Count; i++)
+                        {
+                            var (givenName, givenRank, count, _) = parsed[i];
+
+                            string bestOrderId = null;
+                            string bestItemName = null;
+                            int bestPlat = 0;
+                            int bestQty = 0;
+                            int bestScore = int.MaxValue;
+
+                            foreach (var order in orders)
+                            {
+                                if ((string)order["type"] != "sell") continue;
+                                string itemId = (string)order["itemId"];
+                                if (itemId == null) continue;
+                                string displayName = AppMain.dataBase.ItemIdToDisplayName(itemId);
+                                if (displayName == null) continue;
+                                if (!displayName.Equals(givenName, StringComparison.OrdinalIgnoreCase))
+                                    continue;
+
+                                int orderRank = order["rank"]?.ToObject<int?>() ?? -1;
+                                int rankPenalty = 0;
+                                if (givenRank.HasValue && orderRank >= 0 && orderRank != givenRank.Value)
+                                    rankPenalty = 100_000;
+
+                                int plat = order["platinum"]?.ToObject<int>() ?? 0;
+                                int score = rankPenalty + Math.Abs(plat - tradeInfo.PlatinumReceived);
+                                if (score < bestScore)
+                                {
+                                    bestScore = score;
+                                    bestOrderId = (string)order["id"];
+                                    bestItemName = displayName;
+                                    bestPlat = plat;
+                                    bestQty = order["quantity"]?.ToObject<int>() ?? 1;
+                                }
+                            }
+
+                            if (bestOrderId != null)
+                            {
+                                individuallyMatched.Add(i);
+                                string displayItemName = givenRank.HasValue
+                                    ? $"{givenName} (Rank {givenRank.Value})"
+                                    : givenName;
+                                entries.Add(new TradeDoneEntry
+                                {
+                                    ItemName = displayItemName,
+                                    Count = count,
+                                    Partner = tradeInfo.Partner,
+                                    MatchedOrderId = bestOrderId,
+                                    MatchedItemName = bestItemName,
+                                    MatchedPlatinum = bestPlat,
+                                    MatchedQuantity = bestQty
+                                });
+                            }
+                        }
+
+                        var unmatchedBySet = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
+                        for (int i = 0; i < parsed.Count; i++)
+                        {
+                            if (individuallyMatched.Contains(i)) continue;
+                            if (parsed[i].SetName != null)
+                            {
+                                if (!unmatchedBySet.ContainsKey(parsed[i].SetName))
+                                    unmatchedBySet[parsed[i].SetName] = new List<int>();
+                                unmatchedBySet[parsed[i].SetName].Add(i);
+                            }
+                            else
+                            {
+                                // No individual or set match
+                                entries.Add(new TradeDoneEntry
+                                {
+                                    ItemName = parsed[i].Name,
+                                    Count = parsed[i].Count,
+                                    Partner = tradeInfo.Partner
+                                });
+                                individuallyMatched.Add(i);
+                            }
+                        }
+
+                        foreach (var (setName, indices) in unmatchedBySet)
+                        {
+                            int expectedParts = AppMain.dataBase.GetSetPartCount(setName);
+                            int tradedTotal = 0;
+                            foreach (int idx in indices)
+                                tradedTotal += parsed[idx].Count;
+                            bool fullSet = expectedParts > 0 && tradedTotal == expectedParts;
+
+                            string bestOrderId = null;
+                            string bestItemName = null;
+                            int bestPlat = 0;
+                            int bestQty = 0;
+                            int bestScore = int.MaxValue;
+
+                            if (fullSet)
+                            {
+                                foreach (var order in orders)
+                                {
+                                    if ((string)order["type"] != "sell") continue;
+                                    string itemId = (string)order["itemId"];
+                                    if (itemId == null) continue;
+                                    string displayName = AppMain.dataBase.ItemIdToDisplayName(itemId);
+                                    if (displayName == null) continue;
+                                    if (!displayName.Equals(setName, StringComparison.OrdinalIgnoreCase))
+                                        continue;
+
+                                    int plat = order["platinum"]?.ToObject<int>() ?? 0;
+                                    int score = Math.Abs(plat - tradeInfo.PlatinumReceived);
+                                    if (score < bestScore)
+                                    {
+                                        bestScore = score;
+                                        bestOrderId = (string)order["id"];
+                                        bestItemName = displayName;
+                                        bestPlat = plat;
+                                        bestQty = order["quantity"]?.ToObject<int>() ?? 1;
+                                    }
+                                }
+                            }
+
+                            if (bestOrderId != null)
+                            {
+                                entries.Add(new TradeDoneEntry
+                                {
+                                    ItemName = setName,
+                                    Count = 1,
+                                    Partner = tradeInfo.Partner,
+                                    MatchedOrderId = bestOrderId,
+                                    MatchedItemName = bestItemName,
+                                    MatchedPlatinum = bestPlat,
+                                    MatchedQuantity = bestQty
+                                });
+                            }
+                            else
+                            {
+                                foreach (int idx in indices)
+                                {
+                                    entries.Add(new TradeDoneEntry
+                                    {
+                                        ItemName = parsed[idx].Name,
+                                        Count = parsed[idx].Count,
+                                        Partner = tradeInfo.Partner
+                                    });
+                                }
+                            }
+                        }
+
+                        foreach (var entry in entries)
+                        {
+                            Dispatcher.UIThread.Post(() =>
+                            {
+                                if (_tradeDoneWindow == null)
+                                    _tradeDoneWindow = new TradeDoneWindow();
+                                _tradeDoneWindow.AddEntry(entry);
+                            });
+                        }
+                    });
+                };
+            }
 
             _socketServer = new SocketCommandServer(Services.GetRequiredService<ILogger>());
             _socketServer.OnCommand += HandleSocketCommand;
@@ -380,6 +618,12 @@ namespace WFInfo.Linux
             OCR.OnOverlayDisplay += (partNumber, width, x, y, delay) =>
             {
                 _nativeRewardsDisplaying = true;
+                _rewardDisplayCts?.Cancel();
+                _rewardDisplayCts = new CancellationTokenSource();
+                var token = _rewardDisplayCts.Token;
+                Task.Delay(delay + 2000, token).ContinueWith(_ =>
+                    _nativeRewardsDisplaying = false,
+                    TaskContinuationOptions.OnlyOnRanToCompletion);
 
                 if (settings.Display != Display.Overlay)
                     return;
@@ -614,6 +858,14 @@ namespace WFInfo.Linux
                         {
                             try
                             {
+                                var capture = Services?.GetService<ILogCapture>() as FileLogCapture;
+                                bool? focused = capture?.QueryFocusState();
+                                if (focused != true)
+                                {
+                                    AppMain.AddLog("Reward selection skipped: game not focused");
+                                    return;
+                                }
+
                                 var cursorPos = GetCursorPosition();
                                 if (cursorPos == null) return;
                                 int index = OCR.GetSelectedReward(cursorPos.Value.X, cursorPos.Value.Y);
@@ -746,6 +998,15 @@ namespace WFInfo.Linux
 
         private static AutoCountWindow _autoCountWindow;
         private static ListingHelperWindow _listingHelperWindow;
+        private static TradeDoneWindow _tradeDoneWindow;
+
+        public static void ShowTradeDoneWindow()
+        {
+            if (_tradeDoneWindow == null)
+                _tradeDoneWindow = new TradeDoneWindow();
+            _tradeDoneWindow.Show();
+            _tradeDoneWindow.Activate();
+        }
         private static readonly CultureInfo _csvCulture = CultureInfo.InvariantCulture;
 
         private void WireSessionEndEvents()
@@ -1194,6 +1455,8 @@ namespace WFInfo.Linux
             AppMain.AddLog("AFK timer started");
         }
 
+        private static ColorblindWarningWindow _colorblindWarning;
+
         private static async void OnWarframeProcessChanged(Process proc)
         {
             try
@@ -1208,6 +1471,23 @@ namespace WFInfo.Linux
                             (_lastStatusMessage.Contains("WFINFO=1") || _lastStatusMessage.Contains("outdated")))
                             AppMain.StatusUpdate("WFInfo Initialization Complete", 0);
                     }
+                }
+
+                if (proc != null)
+                {
+                    _ = Task.Run(() =>
+                    {
+                        if (OCR.IsColorblindFilterActive())
+                        {
+                            Dispatcher.UIThread.Post(() =>
+                            {
+                                if (_colorblindWarning is { IsVisible: true }) return;
+                                _colorblindWarning = new ColorblindWarningWindow();
+                                _colorblindWarning.Show();
+                                _colorblindWarning.Focus();
+                            });
+                        }
+                    });
                 }
 
                 if (proc != null && AppMain.dataBase != null && AppMain.dataBase.IsJwtLoggedIn())

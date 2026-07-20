@@ -78,5 +78,9 @@ namespace WFInfo.Settings
         long FixedAutoDelay { get; }
         bool ManualMarketStatus { get; }
         string MarketStatus { get; }
+        bool WhisperNotifications { get; }
+        string WhisperSound { get; }
+        bool AutoTradeDone { get; }
+        bool TradeDecrementInventory { get; }
     }
 }

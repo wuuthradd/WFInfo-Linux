@@ -14,6 +14,7 @@
  *   stderr: "DBMON_ERROR: ...\n" on fatal error
  *   stdout: one line per OutputDebugString message (flushed immediately)
  *   stdin:  "CURSOR\n" -> stdout: "CURSOR x y\n" (GetCursorPos response)
+ *   stdin:  "FOCUS\n"  -> stdout: "FOCUS 1\n" or "FOCUS 0\n" (is Warframe focused?)
  *
  * Cursor file (for native overlay to read directly):
  *   Writes to Z:\tmp\wfinfo_cursor (/tmp/wfinfo_cursor on Linux).
@@ -24,6 +25,7 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <tlhelp32.h>
 
 /* DBWIN_BUFFER layout: DWORD pid @ offset 0, char data[4092] @ offset 4 */
 #define BUFFER_SIZE 4096
@@ -51,8 +53,77 @@ static void Die(const char *msg)
     ExitProcess(1);
 }
 
-/* Event signaled by stdin reader thread when a CURSOR query arrives */
+/* Event signaled by stdin reader thread when a CURSOR or FOCUS query arrives */
 static HANDLE hCursorRequest;
+static HANDLE hFocusRequest;
+
+static void HandleFocusQuery(void)
+{
+    /* Find Warframe.x64.exe among running processes, compare its PID
+     * to the PID that owns the foreground window. */
+    HWND fg = GetForegroundWindow();
+    if (fg == NULL)
+    {
+        DWORD written;
+        WriteFile(hStdout, "FOCUS 1\n", 8, &written, NULL);
+        FlushFileBuffers(hStdout);
+        return;
+    }
+
+    DWORD fgPid = 0;
+    GetWindowThreadProcessId(fg, &fgPid);
+
+    /* Walk all top-level windows to find Warframe's PID.
+     * We check if the foreground window's PID matches the PID of any
+     * window whose title contains "Warframe". */
+    DWORD wfPid = 0;
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snap != INVALID_HANDLE_VALUE)
+    {
+        PROCESSENTRY32 pe;
+        pe.dwSize = sizeof(pe);
+        if (Process32First(snap, &pe))
+        {
+            do
+            {
+                /* Compare executable name case-insensitively */
+                const char *exe = pe.szExeFile;
+                if ((exe[0] == 'W' || exe[0] == 'w') &&
+                    (exe[1] == 'a' || exe[1] == 'A') &&
+                    (exe[2] == 'r' || exe[2] == 'R'))
+                {
+                    /* Check full name: Warframe.x64.exe */
+                    int match = 1;
+                    const char *expect = "Warframe.x64.exe";
+                    for (int i = 0; expect[i]; i++)
+                    {
+                        char c = exe[i];
+                        char e = expect[i];
+                        if (c >= 'A' && c <= 'Z') c += 32;
+                        if (e >= 'A' && e <= 'Z') e += 32;
+                        if (c != e) { match = 0; break; }
+                    }
+                    if (match)
+                    {
+                        wfPid = pe.th32ProcessID;
+                        break;
+                    }
+                }
+            } while (Process32Next(snap, &pe));
+        }
+        CloseHandle(snap);
+    }
+
+    int focused = (wfPid != 0 && fgPid == wfPid) ? 1 : 0;
+    char resp[16];
+    resp[0] = 'F'; resp[1] = 'O'; resp[2] = 'C';
+    resp[3] = 'U'; resp[4] = 'S'; resp[5] = ' ';
+    resp[6] = '0' + (char)focused;
+    resp[7] = '\n';
+    DWORD written;
+    WriteFile(hStdout, resp, 8, &written, NULL);
+    FlushFileBuffers(hStdout);
+}
 
 static void HandleCursorQuery(void)
 {
@@ -191,6 +262,11 @@ static DWORD WINAPI StdinReaderThread(LPVOID param)
         {
             SetEvent(hCursorRequest);
         }
+        else if (nRead >= 5 && buf[0] == 'F' && buf[1] == 'O' && buf[2] == 'C'
+            && buf[3] == 'U' && buf[4] == 'S')
+        {
+            SetEvent(hFocusRequest);
+        }
     }
     return 0;
 }
@@ -220,8 +296,9 @@ int main(void)
     if (!hDataReady)
         Die("CreateEvent DBWIN_DATA_READY failed");
 
-    /* Stdin reader thread for cursor queries */
+    /* Stdin reader thread for cursor and focus queries */
     hCursorRequest = CreateEventA(NULL, FALSE, FALSE, NULL);
+    hFocusRequest = CreateEventA(NULL, FALSE, FALSE, NULL);
     CreateThread(NULL, 0, StdinReaderThread, NULL, 0, NULL);
 
     /* Cursor file writer thread for native overlay */
@@ -232,11 +309,11 @@ int main(void)
 
     SetEvent(hBufferReady);
 
-    HANDLE waitHandles[2] = { hDataReady, hCursorRequest };
+    HANDLE waitHandles[3] = { hDataReady, hCursorRequest, hFocusRequest };
 
     for (;;)
     {
-        DWORD wait = WaitForMultipleObjects(2, waitHandles, FALSE, 2000);
+        DWORD wait = WaitForMultipleObjects(3, waitHandles, FALSE, 2000);
 
         if (wait == WAIT_OBJECT_0)
         {
@@ -269,6 +346,10 @@ int main(void)
         else if (wait == WAIT_OBJECT_0 + 1)
         {
             HandleCursorQuery();
+        }
+        else if (wait == WAIT_OBJECT_0 + 2)
+        {
+            HandleFocusQuery();
         }
     }
 

@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
+using WFInfo.Models;
 using WFInfo.Services;
 using WFInfo.Services.WarframeProcess;
 
@@ -19,6 +22,34 @@ namespace WFInfo.Linux.Services
         private Process _dbmonProcess;
         private ManualResetEventSlim _cursorEvent;
         private PixelPoint? _cursorResult;
+        private ManualResetEventSlim _focusEvent;
+        private bool? _focusResult;
+        private readonly object _queryLock = new object();
+
+        // Trade detection state machine
+        private enum TradeState { Idle, ParsingItems, WaitingConfirm }
+        private TradeState _tradeState = TradeState.Idle;
+        private List<TradeItem> _tradeTxItems = new();
+        private List<TradeItem> _tradeRxItems = new();
+        private string _tradePartner;
+        private DateTime _tradeTimestamp;
+        private bool _tradeParsingRx; // false=parsing TX (giving), true=parsing RX (receiving)
+
+        private const string TradeDetectLine = "Are you sure you want to accept this trade? You are offering";
+        private const string WillReceivePart1 = "and will receive from ";
+        private const string WillReceivePart2 = " the following:";
+        private const string TradeSuccessLine = "The trade was successful!";
+
+        /// <summary>
+        /// Fired when a new whisper/conversation tab is detected in game chat.
+        /// The string argument is the player name.
+        /// </summary>
+        public event Action<string> OnWhisperDetected;
+
+        /// <summary>
+        /// Fired when a trade is successfully completed.
+        /// </summary>
+        public event Action<TradeInfo> OnTradeCompleted;
 
         public event LogWatcherEventHandler TextChanged;
 
@@ -222,8 +253,19 @@ namespace WFInfo.Linux.Services
                             ParseCursorResponse(line);
                             continue;
                         }
+                        if (line.StartsWith("FOCUS "))
+                        {
+                            ParseFocusResponse(line);
+                            continue;
+                        }
                         if (line.Contains("Got rewards"))
                             _logger.AddLog("DBMON: trigger line detected");
+
+                        if (line.Contains("ChatRedux::AddTab: Adding tab with channel name"))
+                            HandleWhisperLine(line);
+
+                        ProcessTradeLine(line);
+
                         TextChanged?.Invoke(this, line);
                     }
                 }
@@ -237,7 +279,6 @@ namespace WFInfo.Linux.Services
 
         private void ParseCursorResponse(string line)
         {
-            // Format: "CURSOR x y"
             var parts = line.Split(' ');
             if (parts.Length >= 3
                 && int.TryParse(parts[1], out int x)
@@ -253,6 +294,202 @@ namespace WFInfo.Linux.Services
             catch (ObjectDisposedException) { }
         }
 
+        private void ParseFocusResponse(string line)
+        {
+            _focusResult = line.Length >= 7 && line[6] == '1';
+            try { _focusEvent?.Set(); }
+            catch (ObjectDisposedException) { }
+        }
+
+        private void HandleWhisperLine(string line)
+        {
+            try
+            {
+                int idx = line.IndexOf("channel name: ");
+                if (idx < 0) return;
+                string name = line.Substring(idx + 14);
+                int toIdx = name.IndexOf(" to index");
+                if (toIdx < 0) return;
+                name = name.Substring(0, toIdx);
+                if (!name.StartsWith("F")) return;
+
+                if (name.Length > 0 && IsPlatformSymbol(name[name.Length - 1]))
+                    name = name.Substring(0, name.Length - 1);
+
+                string playerName = name.Substring(1);
+                if (string.IsNullOrEmpty(playerName)) return;
+
+                Task.Run(() => OnWhisperDetected?.Invoke(playerName));
+            }
+            catch (Exception ex)
+            {
+                _logger.AddLog($"FileLogCapture: Failed to parse whisper line: {ex.Message}");
+            }
+        }
+
+        private void ProcessTradeLine(string line)
+        {
+            if (line.Contains(TradeDetectLine))
+            {
+                _tradeTxItems.Clear();
+                _tradeRxItems.Clear();
+                _tradePartner = null;
+                _tradeParsingRx = false;
+                _tradeTimestamp = DateTime.UtcNow;
+                _tradeState = TradeState.ParsingItems;
+
+                ParseTradeItemsFromLine(line);
+                return;
+            }
+
+            if (_tradeState == TradeState.ParsingItems)
+            {
+                if (line.Contains("[Info]") || line.Contains("[Error]") || line.Contains("[Warning]"))
+                {
+                    _tradeState = TradeState.WaitingConfirm;
+                    if (line.Contains(TradeSuccessLine))
+                    {
+                        FinalizeTrade();
+                        return;
+                    }
+                    return;
+                }
+                ParseTradeItemsFromLine(line);
+                return;
+            }
+
+            if (_tradeState == TradeState.WaitingConfirm)
+            {
+                if (line.Contains(TradeSuccessLine))
+                {
+                    FinalizeTrade();
+                    return;
+                }
+                if ((DateTime.UtcNow - _tradeTimestamp).TotalMinutes > 15)
+                    _tradeState = TradeState.Idle;
+            }
+        }
+
+        private void ParseTradeItemsFromLine(string line)
+        {
+            if (line.Contains(WillReceivePart1) && line.Contains(WillReceivePart2))
+            {
+                int start = line.IndexOf(WillReceivePart1) + WillReceivePart1.Length;
+                int end = line.IndexOf(WillReceivePart2, start);
+                if (end > start)
+                {
+                    string name = line.Substring(start, end - start).Trim();
+                    if (name.Length > 0 && IsPlatformSymbol(name[name.Length - 1]))
+                        name = name.Substring(0, name.Length - 1);
+                    _tradePartner = name;
+                }
+                _tradeParsingRx = true;
+                return;
+            }
+
+            if (line.Contains(TradeDetectLine) || string.IsNullOrWhiteSpace(line))
+                return;
+
+            string text = line;
+
+            int titleIdx = text.IndexOf(", title= leftItem=/");
+            if (titleIdx >= 0)
+                text = text.Substring(0, titleIdx);
+
+            text = text.Replace("\r", "").Replace("\n", "").Trim();
+            if (string.IsNullOrEmpty(text)) return;
+
+            string itemName;
+            int count = 1;
+            int xIdx = text.IndexOf(" x ");
+            if (xIdx >= 0)
+            {
+                itemName = text.Substring(0, xIdx).Trim();
+                int.TryParse(text.Substring(xIdx + 3).Trim(), out count);
+                if (count < 1) count = 1;
+            }
+            else
+            {
+                itemName = text;
+            }
+
+            int? rank = null;
+            int filledPips = 0;
+            foreach (char c in itemName)
+                if (c == '\uE0B6') filledPips++;
+            if (filledPips > 0)
+                rank = filledPips;
+
+            int end2 = itemName.Length;
+            while (end2 > 0 && (itemName[end2 - 1] > 127 || itemName[end2 - 1] == '\\' || itemName[end2 - 1] == ' '))
+                end2--;
+            itemName = end2 > 0 ? itemName.Substring(0, end2) : itemName;
+
+            if (string.IsNullOrEmpty(itemName)) return;
+
+            var targetList = _tradeParsingRx ? _tradeRxItems : _tradeTxItems;
+            targetList.Add(new TradeItem(itemName, count, rank));
+        }
+
+        private void FinalizeTrade()
+        {
+            _tradeState = TradeState.Idle;
+
+            if (_tradeTxItems.Count == 0 && _tradeRxItems.Count == 0)
+                return;
+
+            var trade = new TradeInfo
+            {
+                Given = new List<TradeItem>(_tradeTxItems),
+                Received = new List<TradeItem>(_tradeRxItems),
+                Partner = _tradePartner ?? "Unknown",
+                Timestamp = _tradeTimestamp
+            };
+
+            _tradeTxItems.Clear();
+            _tradeRxItems.Clear();
+
+            Task.Run(() => OnTradeCompleted?.Invoke(trade));
+        }
+
+        /// <summary>
+        /// Query whether Warframe is the foreground window via DBMON's
+        /// GetForegroundWindow + GetWindowThreadProcessId (Wine-translated).
+        /// Returns null if DBMON is not running or the query times out.
+        /// </summary>
+        public bool? QueryFocusState()
+        {
+            if (_dbmonProcess == null || _dbmonProcess.HasExited)
+                return null;
+
+            lock (_queryLock)
+            {
+                _focusResult = null;
+                _focusEvent = new ManualResetEventSlim(false);
+                try
+                {
+                    _dbmonProcess.StandardInput.WriteLine("FOCUS");
+                    _dbmonProcess.StandardInput.Flush();
+                    if (!_focusEvent.Wait(200))
+                    {
+                        _logger.AddLog("FileLogCapture: DBMON focus query timeout");
+                        return null;
+                    }
+                    return _focusResult;
+                }
+                catch (Exception ex)
+                {
+                    _logger.AddLog($"FileLogCapture: DBMON focus query failed: {ex.Message}");
+                    return null;
+                }
+                finally
+                {
+                    _focusEvent.Dispose();
+                    _focusEvent = null;
+                }
+            }
+        }
+
         /// <summary>
         /// Query cursor position via DBMON's GetCursorPos.
         /// Returns null if DBMON is not running or the query times out.
@@ -262,29 +499,38 @@ namespace WFInfo.Linux.Services
             if (_dbmonProcess == null || _dbmonProcess.HasExited)
                 return null;
 
-            _cursorResult = null;
-            _cursorEvent = new ManualResetEventSlim(false);
-            try
+            lock (_queryLock)
             {
-                _dbmonProcess.StandardInput.WriteLine("CURSOR");
-                _dbmonProcess.StandardInput.Flush();
-                if (!_cursorEvent.Wait(200))
+                _cursorResult = null;
+                _cursorEvent = new ManualResetEventSlim(false);
+                try
                 {
-                    _logger.AddLog("FileLogCapture: DBMON cursor query timeout");
+                    _dbmonProcess.StandardInput.WriteLine("CURSOR");
+                    _dbmonProcess.StandardInput.Flush();
+                    if (!_cursorEvent.Wait(200))
+                    {
+                        _logger.AddLog("FileLogCapture: DBMON cursor query timeout");
+                        return null;
+                    }
+                    return _cursorResult;
+                }
+                catch (Exception ex)
+                {
+                    _logger.AddLog($"FileLogCapture: DBMON cursor query failed: {ex.Message}");
                     return null;
                 }
-                return _cursorResult;
+                finally
+                {
+                    _cursorEvent.Dispose();
+                    _cursorEvent = null;
+                }
             }
-            catch (Exception ex)
-            {
-                _logger.AddLog($"FileLogCapture: DBMON cursor query failed: {ex.Message}");
-                return null;
-            }
-            finally
-            {
-                _cursorEvent.Dispose();
-                _cursorEvent = null;
-            }
+        }
+
+        private static bool IsPlatformSymbol(char c)
+        {
+            // Warframe appends a PUA char after player names in log output.
+            return c >= '\uE000' && c <= '\uE004';
         }
 
         private string FindWinePrefix()

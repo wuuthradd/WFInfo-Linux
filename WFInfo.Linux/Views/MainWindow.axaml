@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="WFInfo.Linux.Views.MainWindow"
-        Title="WFInfo" Height="110" Width="334"
+        Title="WFInfo-Linux" Height="110" Width="334"
         CanResize="False"
         SystemDecorations="None"
         TransparencyLevelHint="None"
@@ -25,6 +25,10 @@
         <Style Selector="Button.iconBtn:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="Transparent" />
         </Style>
+        <!-- Tooltips should not block clicks on nearby buttons -->
+        <Style Selector="ToolTip">
+            <Setter Property="IsHitTestVisible" Value="False" />
+        </Style>
     </Window.Styles>
 
     <Border BorderBrush="#FF707070" BorderThickness="1">
@@ -45,11 +49,11 @@
 
         <Image Margin="1,0,0,0" Source="avares://WFInfo.Linux/Resources/WFLogo.png"
                Height="23" VerticalAlignment="Top" HorizontalAlignment="Left" Width="19" />
-        <TextBlock Text="WFInfo" Margin="25,1,0,0" HorizontalAlignment="Left"
+        <TextBlock Text="WFInfo-Linux" Margin="25,1,0,0" HorizontalAlignment="Left"
                    VerticalAlignment="Top" FontSize="16" FontWeight="Bold"
                    FontFamily="{StaticResource RobotoBlack}" />
         <TextBlock x:Name="Version" Text="vX.X.X" HorizontalAlignment="Left"
-                   VerticalAlignment="Top" Margin="80,4,0,0" FontSize="11" FontWeight="Bold" />
+                   VerticalAlignment="Top" Margin="127,5,0,0" FontSize="11" FontWeight="Bold" />
 
         <Button x:Name="MinimiseBtn" Click="Minimise" Content="_" Classes="linkButton"
                 Margin="0,0,21,0" Height="22" VerticalAlignment="Top" HorizontalAlignment="Right" Width="22"
@@ -180,10 +184,21 @@
             </Panel>
         </Button>
 
+        <!-- My Listings button (visible after login) -->
+        <Button x:Name="MyListingsBtn" Classes="iconBtn" IsVisible="False"
+                ToolTip.Tip="Orders - see your wfmarket orders" Click="MyListings_Click"
+                Margin="0,82,22,0" Padding="3" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Width="20"
+                Background="Transparent" BorderThickness="0">
+            <Panel>
+                <Image Classes="normal" Source="avares://WFInfo.Linux/Resources/listings.png" Stretch="Uniform" />
+                <Image Classes="hover" Source="avares://WFInfo.Linux/Resources/listings_h.png" Stretch="Uniform" />
+            </Panel>
+        </Button>
+
         <!-- PlusOne button (visible after login) -->
         <Button x:Name="PlusOneBtn" Classes="iconBtn" IsVisible="False"
                 ToolTip.Tip="Post a review for the developers" Click="PlusOne_Click"
-                Margin="0,82,22,0" Padding="3" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Width="20"
+                Margin="0,82,1,0" Padding="3" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Width="20"
                 Background="Transparent" BorderThickness="0">
             <Panel>
                 <Image Classes="normal" Source="avares://WFInfo.Linux/Resources/plusone.png" Stretch="Uniform" />
