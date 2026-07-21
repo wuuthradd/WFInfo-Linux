@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -295,6 +296,32 @@ namespace WFInfo.Linux.Views
                 tb.Foreground = visible ? NormalFg : DimmedFg;
         }
         private TransactionHistoryWindow _historyWindow;
+        private CancellationTokenSource _historyRefreshCts;
+        private bool _historyRefreshedOnce;
+
+        private void ScheduleHistoryRefresh()
+        {
+            if (_historyWindow is not { IsVisible: true }) return;
+
+            if (!_historyRefreshedOnce)
+            {
+                _historyRefreshedOnce = true;
+                _historyWindow.LoadTransactions();
+                return;
+            }
+
+            _historyRefreshCts?.Cancel();
+            _historyRefreshCts = new CancellationTokenSource();
+            var token = _historyRefreshCts.Token;
+            Task.Delay(3000, token).ContinueWith(_ =>
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (_historyWindow is { IsVisible: true })
+                        _historyWindow.LoadTransactions();
+                });
+            }, TaskContinuationOptions.OnlyOnRanToCompletion);
+        }
 
         private void History_Click(object sender, RoutedEventArgs e)
         {
@@ -306,7 +333,8 @@ namespace WFInfo.Linux.Views
                 return;
             }
             _historyWindow = new TransactionHistoryWindow { Height = Height };
-            _historyWindow.Closed += (_, _) => _historyWindow = null;
+            _historyRefreshedOnce = false;
+            _historyWindow.Closed += (_, _) => { _historyWindow = null; _historyRefreshedOnce = false; };
             _historyWindow.Show();
             _historyWindow.Position = new PixelPoint(Position.X + (int)Width, Position.Y);
         }
@@ -343,8 +371,7 @@ namespace WFInfo.Linux.Views
                             _filteredOrders.Remove(vm);
                             CountText.Text = $"{_allOrders.Count} orders";
                         }
-                        if (_historyWindow is { IsVisible: true })
-                            _historyWindow.LoadTransactions();
+                        ScheduleHistoryRefresh();
                     }
                     else
                     {

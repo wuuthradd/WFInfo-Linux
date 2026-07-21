@@ -263,6 +263,7 @@
                         <CheckBox x:Name="AutoTradeDoneCheckbox" Content="Auto trade done"
                                   ToolTip.Tip="When a trade completes, show a window to mark the matching WFMarket order as sold and optionally decrement inventory."
                                   IsCheckedChanged="OnAutoTradeDoneChanged" />
+
                     </StackPanel>
                 </Border>
 

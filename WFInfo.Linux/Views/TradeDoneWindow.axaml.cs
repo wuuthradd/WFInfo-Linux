@@ -31,8 +31,17 @@ namespace WFInfo.Linux.Views
         {
             _queue.Add(entry);
             if (_queue.Count == 1)
+            {
                 _currentIndex = 0;
-            UpdateDisplay();
+                UpdateDisplay();
+            }
+            else
+            {
+                // Only update page counter and nav buttons, don't reset current entry's fields
+                PageText.Text = $"{_currentIndex + 1} of {_queue.Count}";
+                NextBtn.IsEnabled = _currentIndex < _queue.Count - 1;
+            }
+            SizeToContent = SizeToContent.Height;
             Show();
             Activate();
         }
@@ -45,6 +54,7 @@ namespace WFInfo.Linux.Views
                 PartnerText.Text = "-";
                 CountText.Text = "-";
                 MatchedOrderText.Text = "No trades in queue";
+                OrderEditGrid.IsVisible = false;
                 StatusText.Text = "";
                 PageText.Text = "0 of 0";
                 MarkSoldBtn.IsEnabled = false;
@@ -60,9 +70,18 @@ namespace WFInfo.Linux.Views
             CountText.Text = entry.Count.ToString();
 
             if (!string.IsNullOrEmpty(entry.MatchedOrderId))
-                MatchedOrderText.Text = $"{entry.MatchedItemName} - {entry.MatchedPlatinum:N0}p x{entry.MatchedQuantity}";
+            {
+                string rankSuffix = entry.MatchedRank.HasValue ? $" (Rank {entry.MatchedRank.Value})" : "";
+                MatchedOrderText.Text = $"{entry.MatchedItemName}{rankSuffix}";
+                PriceBox.Text = entry.MatchedPlatinum.ToString();
+                CountBox.Text = entry.Count.ToString();
+                OrderEditGrid.IsVisible = true;
+            }
             else
+            {
                 MatchedOrderText.Text = "No matching order found";
+                OrderEditGrid.IsVisible = false;
+            }
 
             StatusText.Text = entry.Status;
             StatusText.Foreground = entry.Status.Contains("Failed")
@@ -112,12 +131,61 @@ namespace WFInfo.Linux.Views
             var entry = _queue[_currentIndex];
             if (string.IsNullOrEmpty(entry.MatchedOrderId)) return;
 
+            if (!int.TryParse(PriceBox.Text, out int newPrice) || newPrice < 1)
+            {
+                StatusText.Text = "Invalid price";
+                StatusText.Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#FFFF5252"));
+                return;
+            }
+            if (!int.TryParse(CountBox.Text, out int newCount) || newCount < 1)
+            {
+                StatusText.Text = "Invalid count";
+                StatusText.Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#FFFF5252"));
+                return;
+            }
+
+            // Clamp count to order quantity so we close all instead of failing
+            int closeCount = Math.Min(newCount, entry.MatchedQuantity);
+
             MarkSoldBtn.IsEnabled = false;
             MarkSoldBtn.Content = "...";
 
+            bool priceChanged = newPrice != entry.MatchedPlatinum;
+
+            int originalPrice = entry.MatchedPlatinum;
+            int remainingQty = entry.MatchedQuantity - closeCount;
+
             Task.Run(async () =>
             {
-                bool success = await AppMain.dataBase.CloseOrder(entry.MatchedOrderId, entry.Count);
+                // If price changed, edit the order to the new price before closing
+                if (priceChanged)
+                {
+                    bool edited = await AppMain.dataBase.UpdateListing(
+                        entry.MatchedOrderId, newPrice, entry.MatchedQuantity,
+                        rank: entry.MatchedRank);
+                    if (!edited)
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            entry.Status = "Failed to update price";
+                            MarkSoldBtn.Content = "Mark Sold";
+                            UpdateDisplay();
+                        });
+                        return;
+                    }
+                    await Task.Delay(100);
+                }
+
+                bool success = await AppMain.dataBase.CloseOrder(entry.MatchedOrderId, closeCount);
+
+                // If price was changed and order still has remaining quantity, restore original price
+                if (success && priceChanged && remainingQty > 0)
+                {
+                    await Task.Delay(100);
+                    await AppMain.dataBase.UpdateListing(
+                        entry.MatchedOrderId, originalPrice, remainingQty,
+                        rank: entry.MatchedRank);
+                }
 
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
@@ -126,9 +194,9 @@ namespace WFInfo.Linux.Views
                         entry.Status = "Marked as sold";
 
                         if (DecrementCheckbox.IsChecked == true)
-                            DecrementInventory(entry.ItemName, entry.Count);
+                            DecrementInventory(entry.ItemName, closeCount);
 
-                        MyListingsWindow.DecrementOrderIfOpen(entry.MatchedOrderId, entry.Count);
+                        MyListingsWindow.DecrementOrderIfOpen(entry.MatchedOrderId, closeCount);
                         TransactionHistoryWindow.ReloadIfOpen();
                         AdvanceQueue();
                     }
@@ -180,6 +248,7 @@ namespace WFInfo.Linux.Views
                 _currentIndex = Math.Max(0, _queue.Count - 1);
             MarkSoldBtn.Content = "Mark Sold";
             UpdateDisplay();
+            SizeToContent = SizeToContent.Height;
         }
 
         private void Back_Click(object sender, RoutedEventArgs e)
@@ -198,6 +267,30 @@ namespace WFInfo.Linux.Views
                 _currentIndex++;
                 UpdateDisplay();
             }
+        }
+
+        private void PricePlus_Click(object sender, RoutedEventArgs e)
+        {
+            if (int.TryParse(PriceBox.Text, out int val))
+                PriceBox.Text = (val + 1).ToString();
+        }
+
+        private void PriceMinus_Click(object sender, RoutedEventArgs e)
+        {
+            if (int.TryParse(PriceBox.Text, out int val) && val > 1)
+                PriceBox.Text = (val - 1).ToString();
+        }
+
+        private void CountPlus_Click(object sender, RoutedEventArgs e)
+        {
+            if (int.TryParse(CountBox.Text, out int val))
+                CountBox.Text = (val + 1).ToString();
+        }
+
+        private void CountMinus_Click(object sender, RoutedEventArgs e)
+        {
+            if (int.TryParse(CountBox.Text, out int val) && val > 1)
+                CountBox.Text = (val - 1).ToString();
         }
 
         private void OnDecrementChanged(object sender, RoutedEventArgs e)

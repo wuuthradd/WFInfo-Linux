@@ -81,6 +81,7 @@ namespace WFInfo.Settings
         bool WhisperNotifications { get; }
         string WhisperSound { get; }
         bool AutoTradeDone { get; }
+
         bool TradeDecrementInventory { get; }
     }
 }

@@ -70,16 +70,16 @@
                     BorderBrush="#FF444444" BorderThickness="1" CornerRadius="2">
                 <StackPanel>
                     <TextBlock x:Name="ItemNameText" Text="-" FontSize="14" FontWeight="Bold"
-                               Foreground="#FF00BFFF" TextWrapping="Wrap" />
+                               Foreground="#FF5BC0DE" TextWrapping="Wrap" />
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <TextBlock Text="Traded with: " FontSize="12" Foreground="#FF888888" />
-                        <TextBlock x:Name="PartnerText" Text="-" FontSize="12" Foreground="#FFB1D0D9" />
-                        <TextBlock x:Name="PlatformText" Text="" FontSize="10" Foreground="#FF888888"
+                        <TextBlock Text="Traded with: " FontSize="14" Foreground="#FFB1D0D9" />
+                        <TextBlock x:Name="PartnerText" Text="-" FontSize="14" Foreground="#FFD4A76A" />
+                        <TextBlock x:Name="PlatformText" Text="" FontSize="11" Foreground="#FF888888"
                                    Margin="4,2,0,0" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                        <TextBlock Text="Count: " FontSize="12" Foreground="#FF888888" />
-                        <TextBlock x:Name="CountText" Text="-" FontSize="12" Foreground="#FFB1D0D9" />
+                        <TextBlock Text="Count: " FontSize="14" Foreground="#FFB1D0D9" />
+                        <TextBlock x:Name="CountText" Text="-" FontSize="14" Foreground="#FFD4A76A" />
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -88,9 +88,64 @@
             <Border Grid.Row="2" Background="#FF222222" Margin="10,6,10,0" Padding="10,8"
                     BorderBrush="#FF444444" BorderThickness="1" CornerRadius="2">
                 <StackPanel>
-                    <TextBlock Text="Matched WFMarket order:" FontSize="11" Foreground="#FF888888" Margin="0,0,0,4" />
-                    <TextBlock x:Name="MatchedOrderText" Text="No matching order found" FontSize="12"
-                               Foreground="#FFB1D0D9" TextWrapping="Wrap" />
+                    <TextBlock Text="Matched WFMarket order:" FontSize="14" Foreground="#FFB1D0D9" Margin="0,0,0,4" />
+                    <TextBlock x:Name="MatchedOrderText" Text="No matching order found" FontSize="13"
+                               Foreground="#FF5BC0DE" FontWeight="Bold" TextWrapping="Wrap" />
+                    <Grid x:Name="OrderEditGrid" ColumnDefinitions="Auto,Auto,Auto,Auto" Margin="0,6,0,0"
+                          IsVisible="False">
+                        <!-- Price spinner -->
+                        <TextBlock Text="Price:" FontSize="14" Foreground="#FFB1D0D9"
+                                   VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <Border Grid.Column="1" Background="#FF2A2A2A" BorderBrush="#FF444444"
+                                BorderThickness="1" CornerRadius="0" Width="80">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox x:Name="PriceBox" Background="Transparent"
+                                         Foreground="#FFB1D0D9" Padding="6,3" FontSize="12"
+                                         VerticalContentAlignment="Center"
+                                         BorderThickness="0" Watermark="0" />
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="0">
+                                    <RepeatButton Classes="spin" Click="PricePlus_Click" Interval="30" Delay="150"
+                                                  Width="14" Height="15" Padding="0" Background="#FF333333"
+                                                  BorderBrush="#FF555555" BorderThickness="1" CornerRadius="1">
+                                        <Path Data="M 0,6 L 5,0 L 10,6 Z" Fill="#FFB1D0D9" Stretch="Uniform"
+                                              Width="9" Height="6" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </RepeatButton>
+                                    <RepeatButton Classes="spin" Click="PriceMinus_Click" Interval="30" Delay="150"
+                                                  Width="14" Height="15" Padding="0" Background="#FF333333"
+                                                  BorderBrush="#FF555555" BorderThickness="1" CornerRadius="1">
+                                        <Path Data="M 0,0 L 5,6 L 10,0 Z" Fill="#FFB1D0D9" Stretch="Uniform"
+                                              Width="9" Height="6" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </RepeatButton>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <!-- Count spinner -->
+                        <TextBlock Grid.Column="2" Text="Count:" FontSize="14" Foreground="#FFB1D0D9"
+                                   VerticalAlignment="Center" Margin="12,0,6,0" />
+                        <Border Grid.Column="3" Background="#FF2A2A2A" BorderBrush="#FF444444"
+                                BorderThickness="1" CornerRadius="0" Width="80">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox x:Name="CountBox" Background="Transparent"
+                                         Foreground="#FFB1D0D9" Padding="6,3" FontSize="12"
+                                         VerticalContentAlignment="Center"
+                                         BorderThickness="0" Watermark="1" />
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="0">
+                                    <RepeatButton Classes="spin" Click="CountPlus_Click" Interval="30" Delay="150"
+                                                  Width="14" Height="15" Padding="0" Background="#FF333333"
+                                                  BorderBrush="#FF555555" BorderThickness="1" CornerRadius="1">
+                                        <Path Data="M 0,6 L 5,0 L 10,6 Z" Fill="#FFB1D0D9" Stretch="Uniform"
+                                              Width="9" Height="6" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </RepeatButton>
+                                    <RepeatButton Classes="spin" Click="CountMinus_Click" Interval="30" Delay="150"
+                                                  Width="14" Height="15" Padding="0" Background="#FF333333"
+                                                  BorderBrush="#FF555555" BorderThickness="1" CornerRadius="1">
+                                        <Path Data="M 0,0 L 5,6 L 10,0 Z" Fill="#FFB1D0D9" Stretch="Uniform"
+                                              Width="9" Height="6" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </RepeatButton>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
                 </StackPanel>
             </Border>
 

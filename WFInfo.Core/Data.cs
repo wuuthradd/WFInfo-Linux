@@ -2304,6 +2304,8 @@ namespace WFInfo
                 if (!response.IsSuccessStatusCode)
                 {
                     AppMain.AddLog($"CreateOrder: {(int)response.StatusCode} {responseBody}");
+                    if (responseBody.Contains("exceededOrderLimitSamePrice"))
+                        return (null, "The order you're trying to create already exists.");
                     return (null, $"{(int)response.StatusCode}: {response.ReasonPhrase}");
                 }
                 var parsed = JsonConvert.DeserializeObject<JObject>(responseBody);

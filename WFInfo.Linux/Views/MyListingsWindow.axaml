@@ -3,7 +3,7 @@
         xmlns:vm="using:WFInfo.Linux.Views"
 
         x:Class="WFInfo.Linux.Views.MyListingsWindow"
-        Title="WFMarket Orders" Width="1125" Height="530"
+        Title="WFMarket Orders" Width="1125" Height="546"
         MinWidth="680" MinHeight="300"
         WindowStartupLocation="CenterScreen"
         SystemDecorations="None"
@@ -16,8 +16,8 @@
             <Setter Property="BorderBrush" Value="#FF555555" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="4,2" />
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="MinHeight" Value="24" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="MinHeight" Value="30" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
@@ -47,8 +47,8 @@
 
         <Style Selector="Button.confirmYes">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#FFA52F31" />
-            <Setter Property="BorderBrush" Value="#40A52F31" />
+            <Setter Property="Foreground" Value="#FFCF4345" />
+            <Setter Property="BorderBrush" Value="#60CF4345" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="14,4" />
             <Setter Property="MinHeight" Value="30" />
@@ -246,7 +246,7 @@
 
                                 <!-- Right: action buttons or delete confirmation -->
                                 <Panel Grid.Column="1" Margin="6,0,0,0" Width="200">
-                                    <StackPanel Spacing="3" VerticalAlignment="Top">
+                                    <StackPanel Spacing="3" VerticalAlignment="Center">
                                         <!-- Top row: Sold/Bought + Edit -->
                                         <Grid ColumnDefinitions="*,3,*">
                                             <Button Grid.Column="0" Classes="cardBtn"
@@ -255,7 +255,7 @@
                                                 <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
                                                     <PathIcon Width="12" Height="12" Data="{StaticResource IconCheck}"
                                                                Foreground="#FFB1D0D9" />
-                                                    <TextBlock Text="{Binding SoldButtonText}" VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding SoldButtonText}" FontSize="15" VerticalAlignment="Center" />
                                                 </StackPanel>
                                             </Button>
                                             <Button Grid.Column="2" Classes="cardBtn"
@@ -264,7 +264,7 @@
                                                 <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
                                                     <PathIcon Width="12" Height="12" Data="{StaticResource IconEdit}"
                                                                Foreground="#FFB1D0D9" />
-                                                    <TextBlock Text="Edit" VerticalAlignment="Center" />
+                                                    <TextBlock Text="Edit" FontSize="15" VerticalAlignment="Center" />
                                                 </StackPanel>
                                             </Button>
                                         </Grid>
@@ -280,13 +280,13 @@
                                                     <PathIcon Width="12" Height="12" Tag="{Binding}"
                                                               Loaded="VisibilityIcon_Loaded"
                                                               Foreground="#FFB1D0D9" />
-                                                    <TextBlock Text="{Binding VisibilityText}" VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding VisibilityText}" FontSize="15" VerticalAlignment="Center" />
                                                 </StackPanel>
                                             </Button>
                                             <Button Grid.Column="4" Classes="deleteBtn"
                                                     HorizontalAlignment="Stretch"
                                                     Padding="4,2"
-                                                    BorderThickness="1" MinHeight="24"
+                                                    BorderThickness="1" MinHeight="30"
                                                     HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                                     Click="DeleteAsk_Click" Tag="{Binding}">
                                                 <PathIcon Width="12" Height="12" Data="{StaticResource IconTrash}"

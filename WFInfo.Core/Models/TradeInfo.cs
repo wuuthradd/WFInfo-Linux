@@ -44,6 +44,7 @@ namespace WFInfo.Models
         public string MatchedItemName { get; set; }
         public int MatchedPlatinum { get; set; }
         public int MatchedQuantity { get; set; }
+        public int? MatchedRank { get; set; }
         public string Partner { get; set; }
         public string Status { get; set; } = "";
     }

@@ -115,6 +115,7 @@ namespace WFInfo.Settings
         public bool WhisperNotifications { get; set; } = true;
         public string WhisperSound { get; set; } = "Time Is Now";
         public bool AutoTradeDone { get; set; } = false;
+
         public bool TradeDecrementInventory { get; set; } = true;
         public void Load()
         {

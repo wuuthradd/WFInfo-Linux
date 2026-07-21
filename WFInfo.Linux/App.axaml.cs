@@ -263,18 +263,20 @@ namespace WFInfo.Linux
                             string setName = null;
                             {
                                 string stripped = givenName;
+                                // Strip trailing " Blueprint" first so compound suffixes work
+                                // e.g. "Octavia Prime Chassis Blueprint" -> "Octavia Prime Chassis" -> strip " Chassis"
+                                if (stripped.EndsWith(" Blueprint", StringComparison.OrdinalIgnoreCase))
+                                    stripped = stripped.Substring(0, stripped.Length - " Blueprint".Length);
                                 foreach (var sfx in new[] {
-                                    " Avionics Blueprint", " Engines Blueprint", " Fuselage Blueprint",
-                                    " Lower Limb Blueprint", " Upper Limb Blueprint",
-                                    " Grip Blueprint", " String Blueprint",
-                                    " Barrel Blueprint", " Receiver Blueprint", " Stock Blueprint",
-                                    " Blade Blueprint", " Handle Blueprint",
+                                    " Avionics", " Engines", " Fuselage",
+                                    " Lower Limb", " Upper Limb",
+                                    " Grip", " String",
+                                    " Barrel", " Receiver", " Stock",
+                                    " Blade", " Handle",
                                     " Weapon Barrel", " Weapon Receiver", " Weapon Stock", " Weapon Pod",
                                     " Left Gauntlet", " Right Gauntlet",
-                                    " Lower Limb", " Upper Limb",
-                                    " Blueprint", " Neuroptics", " Chassis", " Systems",
-                                    " Harness", " Wings", " Blade", " Barrel", " Receiver", " Stock",
-                                    " Grip", " String", " Handle", " Ornament", " Blades", " Hilt",
+                                    " Neuroptics", " Chassis", " Systems",
+                                    " Harness", " Wings", " Ornament", " Blades", " Hilt",
                                     " Link", " Head", " Disc", " Pouch", " Carapace", " Cerebrum",
                                     " Guard", " Gauntlet", " Motor", " Aegis", " Limbs", " Engine",
                                     " Pod", " Casing", " Capsule", " Rivet", " Subcortex", " Conclusion" })
@@ -291,15 +293,128 @@ namespace WFInfo.Linux
                             parsed.Add((givenName, givenRank, given.Count, setName));
                         }
 
-                        var individuallyMatched = new HashSet<int>();
+                        // Group items by set name for potential set matching
+                        var setMatched = new HashSet<int>();
+                        var setGroups = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
                         for (int i = 0; i < parsed.Count; i++)
                         {
+                            if (parsed[i].SetName != null)
+                            {
+                                if (!setGroups.ContainsKey(parsed[i].SetName))
+                                    setGroups[parsed[i].SetName] = new List<int>();
+                                setGroups[parsed[i].SetName].Add(i);
+                            }
+                        }
+
+                        // For full sets, compare set order price vs sum of individual prices
+                        // to decide which matching approach is closer to actual plat received
+                        foreach (var (setName, indices) in setGroups)
+                        {
+                            int expectedParts = AppMain.dataBase.GetSetPartCount(setName);
+                            int tradedTotal = 0;
+                            foreach (int idx in indices)
+                                tradedTotal += parsed[idx].Count;
+                            if (expectedParts <= 0 || tradedTotal != expectedParts)
+                                continue;
+
+                            // Find best set order
+                            string setOrderId = null;
+                            string setItemName = null;
+                            int setPlat = 0;
+                            int setQty = 0;
+                            int setScore = int.MaxValue;
+                            foreach (var order in orders)
+                            {
+                                if ((string)order["type"] != "sell") continue;
+                                string itemId = (string)order["itemId"];
+                                if (itemId == null) continue;
+                                string displayName = AppMain.dataBase.ItemIdToDisplayName(itemId);
+                                if (displayName == null) continue;
+                                if (!displayName.Equals(setName, StringComparison.OrdinalIgnoreCase))
+                                    continue;
+                                int plat = order["platinum"]?.ToObject<int>() ?? 0;
+                                int diff = Math.Abs(plat - tradeInfo.PlatinumReceived);
+                                if (diff < setScore)
+                                {
+                                    setScore = diff;
+                                    setOrderId = (string)order["id"];
+                                    setItemName = displayName;
+                                    setPlat = plat;
+                                    setQty = order["quantity"]?.ToObject<int>() ?? 1;
+                                }
+                            }
+
+                            if (setOrderId == null) continue;
+
+                            // Find sum of best individual order prices for these parts
+                            int individualSum = 0;
+                            bool allIndividualFound = true;
+                            foreach (int idx in indices)
+                            {
+                                var (partName, partRank, _, _) = parsed[idx];
+                                int bestPartPlat = -1;
+                                foreach (var order in orders)
+                                {
+                                    if ((string)order["type"] != "sell") continue;
+                                    string itemId = (string)order["itemId"];
+                                    if (itemId == null) continue;
+                                    string displayName = AppMain.dataBase.ItemIdToDisplayName(itemId);
+                                    if (displayName == null) continue;
+                                    if (!displayName.Equals(partName, StringComparison.OrdinalIgnoreCase))
+                                        continue;
+                                    int orderRank = order["rank"]?.ToObject<int?>() ?? -1;
+                                    if (orderRank >= 0 && partRank.HasValue && orderRank != partRank.Value)
+                                        continue;
+                                    int plat = order["platinum"]?.ToObject<int>() ?? 0;
+                                    if (bestPartPlat < 0 || Math.Abs(plat - tradeInfo.PlatinumReceived) < Math.Abs(bestPartPlat - tradeInfo.PlatinumReceived))
+                                        bestPartPlat = plat;
+                                }
+                                if (bestPartPlat < 0)
+                                    allIndividualFound = false;
+                                else
+                                    individualSum += bestPartPlat;
+                            }
+
+                            int individualScore = allIndividualFound
+                                ? Math.Abs(individualSum - tradeInfo.PlatinumReceived)
+                                : int.MaxValue;
+
+                            // Set wins on tie
+                            if (setScore <= individualScore)
+                            {
+                                AppMain.AddLog($"Trade match: set \"{setName}\" -> order {setOrderId} ({setItemName} {setPlat}p x{setQty}) [set={setPlat}p vs individual={individualSum}p, received={tradeInfo.PlatinumReceived}p]");
+                                entries.Add(new TradeDoneEntry
+                                {
+                                    ItemName = setName,
+                                    Count = 1,
+                                    Partner = tradeInfo.Partner,
+                                    MatchedOrderId = setOrderId,
+                                    MatchedItemName = setItemName,
+                                    MatchedPlatinum = setPlat,
+                                    MatchedQuantity = setQty
+                                });
+                                foreach (int idx in indices)
+                                    setMatched.Add(idx);
+                            }
+                            else
+                            {
+                                AppMain.AddLog($"Trade match: set \"{setName}\" skipped, individual closer [set={setPlat}p vs individual={individualSum}p, received={tradeInfo.PlatinumReceived}p]");
+                            }
+                        }
+
+                        // Individually match remaining items
+                        for (int i = 0; i < parsed.Count; i++)
+                        {
+                            if (setMatched.Contains(i)) continue;
+
                             var (givenName, givenRank, count, _) = parsed[i];
+                            AppMain.AddLog($"Trade match: looking for \"{givenName}\"" + (givenRank.HasValue ? $" rank={givenRank.Value}" : " rank=unknown"));
 
                             string bestOrderId = null;
                             string bestItemName = null;
                             int bestPlat = 0;
                             int bestQty = 0;
+                            int? bestRank = null;
                             int bestScore = int.MaxValue;
 
                             foreach (var order in orders)
@@ -314,7 +429,7 @@ namespace WFInfo.Linux
 
                                 int orderRank = order["rank"]?.ToObject<int?>() ?? -1;
                                 int rankPenalty = 0;
-                                if (givenRank.HasValue && orderRank >= 0 && orderRank != givenRank.Value)
+                                if (orderRank >= 0 && givenRank.HasValue && orderRank != givenRank.Value)
                                     rankPenalty = 100_000;
 
                                 int plat = order["platinum"]?.ToObject<int>() ?? 0;
@@ -326,15 +441,17 @@ namespace WFInfo.Linux
                                     bestItemName = displayName;
                                     bestPlat = plat;
                                     bestQty = order["quantity"]?.ToObject<int>() ?? 1;
+                                    bestRank = orderRank >= 0 ? orderRank : null;
                                 }
                             }
 
                             if (bestOrderId != null)
                             {
-                                individuallyMatched.Add(i);
-                                string displayItemName = givenRank.HasValue
-                                    ? $"{givenName} (Rank {givenRank.Value})"
+                                int? displayRank = givenRank ?? bestRank;
+                                string displayItemName = displayRank.HasValue
+                                    ? $"{givenName} (Rank {displayRank.Value})"
                                     : givenName;
+                                AppMain.AddLog($"Trade match: \"{displayItemName}\" -> order {bestOrderId} ({bestItemName} rank={bestRank?.ToString() ?? "none"} {bestPlat}p x{bestQty})");
                                 entries.Add(new TradeDoneEntry
                                 {
                                     ItemName = displayItemName,
@@ -343,101 +460,36 @@ namespace WFInfo.Linux
                                     MatchedOrderId = bestOrderId,
                                     MatchedItemName = bestItemName,
                                     MatchedPlatinum = bestPlat,
-                                    MatchedQuantity = bestQty
+                                    MatchedQuantity = bestQty,
+                                    MatchedRank = bestRank
                                 });
-                            }
-                        }
-
-                        var unmatchedBySet = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
-                        for (int i = 0; i < parsed.Count; i++)
-                        {
-                            if (individuallyMatched.Contains(i)) continue;
-                            if (parsed[i].SetName != null)
-                            {
-                                if (!unmatchedBySet.ContainsKey(parsed[i].SetName))
-                                    unmatchedBySet[parsed[i].SetName] = new List<int>();
-                                unmatchedBySet[parsed[i].SetName].Add(i);
                             }
                             else
                             {
-                                // No individual or set match
+                                AppMain.AddLog($"Trade match: \"{givenName}\" -> no matching order found");
                                 entries.Add(new TradeDoneEntry
                                 {
-                                    ItemName = parsed[i].Name,
-                                    Count = parsed[i].Count,
+                                    ItemName = givenName,
+                                    Count = count,
                                     Partner = tradeInfo.Partner
                                 });
-                                individuallyMatched.Add(i);
                             }
                         }
 
-                        foreach (var (setName, indices) in unmatchedBySet)
-                        {
-                            int expectedParts = AppMain.dataBase.GetSetPartCount(setName);
-                            int tradedTotal = 0;
-                            foreach (int idx in indices)
-                                tradedTotal += parsed[idx].Count;
-                            bool fullSet = expectedParts > 0 && tradedTotal == expectedParts;
-
-                            string bestOrderId = null;
-                            string bestItemName = null;
-                            int bestPlat = 0;
-                            int bestQty = 0;
-                            int bestScore = int.MaxValue;
-
-                            if (fullSet)
-                            {
-                                foreach (var order in orders)
-                                {
-                                    if ((string)order["type"] != "sell") continue;
-                                    string itemId = (string)order["itemId"];
-                                    if (itemId == null) continue;
-                                    string displayName = AppMain.dataBase.ItemIdToDisplayName(itemId);
-                                    if (displayName == null) continue;
-                                    if (!displayName.Equals(setName, StringComparison.OrdinalIgnoreCase))
-                                        continue;
-
-                                    int plat = order["platinum"]?.ToObject<int>() ?? 0;
-                                    int score = Math.Abs(plat - tradeInfo.PlatinumReceived);
-                                    if (score < bestScore)
-                                    {
-                                        bestScore = score;
-                                        bestOrderId = (string)order["id"];
-                                        bestItemName = displayName;
-                                        bestPlat = plat;
-                                        bestQty = order["quantity"]?.ToObject<int>() ?? 1;
-                                    }
-                                }
-                            }
-
-                            if (bestOrderId != null)
-                            {
-                                entries.Add(new TradeDoneEntry
-                                {
-                                    ItemName = setName,
-                                    Count = 1,
-                                    Partner = tradeInfo.Partner,
-                                    MatchedOrderId = bestOrderId,
-                                    MatchedItemName = bestItemName,
-                                    MatchedPlatinum = bestPlat,
-                                    MatchedQuantity = bestQty
-                                });
-                            }
-                            else
-                            {
-                                foreach (int idx in indices)
-                                {
-                                    entries.Add(new TradeDoneEntry
-                                    {
-                                        ItemName = parsed[idx].Name,
-                                        Count = parsed[idx].Count,
-                                        Partner = tradeInfo.Partner
-                                    });
-                                }
-                            }
-                        }
-
+                        // Consolidate identical entries (same item, same matched order)
+                        var consolidated = new List<TradeDoneEntry>();
                         foreach (var entry in entries)
+                        {
+                            var existing = consolidated.Find(e =>
+                                e.ItemName == entry.ItemName &&
+                                e.MatchedOrderId == entry.MatchedOrderId);
+                            if (existing != null)
+                                existing.Count += entry.Count;
+                            else
+                                consolidated.Add(entry);
+                        }
+
+                        foreach (var entry in consolidated)
                         {
                             Dispatcher.UIThread.Post(() =>
                             {

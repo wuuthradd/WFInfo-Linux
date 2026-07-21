@@ -337,6 +337,7 @@ namespace WFInfo.Linux.Services
                 _tradeParsingRx = false;
                 _tradeTimestamp = DateTime.UtcNow;
                 _tradeState = TradeState.ParsingItems;
+                _logger.AddLog("Trade: detected trade confirmation line");
 
                 ParseTradeItemsFromLine(line);
                 return;
@@ -415,9 +416,13 @@ namespace WFInfo.Linux.Services
 
             int? rank = null;
             int filledPips = 0;
+            int emptyPips = 0;
             foreach (char c in itemName)
-                if (c == '\uE0B6') filledPips++;
-            if (filledPips > 0)
+            {
+                if (c == '\uE0FC' || c == '\uE0B6') filledPips++;
+                else if (c == '\uE0FF') emptyPips++;
+            }
+            if (filledPips + emptyPips > 0)
                 rank = filledPips;
 
             int end2 = itemName.Length;
@@ -429,6 +434,8 @@ namespace WFInfo.Linux.Services
 
             var targetList = _tradeParsingRx ? _tradeRxItems : _tradeTxItems;
             targetList.Add(new TradeItem(itemName, count, rank));
+            string side = _tradeParsingRx ? "RX" : "TX";
+            _logger.AddLog($"Trade: parsed {side} item: \"{itemName}\" x{count}" + (rank.HasValue ? $" rank={rank.Value}" : ""));
         }
 
         private void FinalizeTrade()
@@ -445,6 +452,8 @@ namespace WFInfo.Linux.Services
                 Partner = _tradePartner ?? "Unknown",
                 Timestamp = _tradeTimestamp
             };
+
+            _logger.AddLog($"Trade: finalized -- gave {trade.Given.Count} items, received {trade.Received.Count} items, isSale={trade.IsSale}");
 
             _tradeTxItems.Clear();
             _tradeRxItems.Clear();

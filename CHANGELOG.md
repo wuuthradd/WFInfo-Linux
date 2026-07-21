@@ -1,5 +1,17 @@
 # Changelog
 
+## 9.8.2.1
+
+### Some Adjustments to Trade Done
+- Trade done now allows you to change price and count while still matching the order. By default it will show the matched order and count from the trade log, but if you wanted to give more or do a discount, you can edit those amounts and then mark as sold. It will edit the price of that matched order and sell that amount, without changing the order's price.
+- Fixed some scenarios related to multi-order trades and set trades.
+- Fixed arcane ranks not being recognized.
+- Trade done window design changes for better readability.
+
+### Other & Notes
+- WFMarket Orders window action button sizes adjusted for readability.
+- Make sure to change your "Initial delay (ms)" and "Poll interval (ms)" delays accordingly. By default they are both 500 ms, but because old users have an already existing settings file, it will be 2000 and 250 ms which will delay 2 seconds to get a screenshot at the reward screen.
+
 ## 9.8.2
 
 - Ported WPF 9.8.2 changes (Full Changelog [WFInfo 9.8.2](https://github.com/WFCD/WFinfo/releases/tag/v9.8.2))
