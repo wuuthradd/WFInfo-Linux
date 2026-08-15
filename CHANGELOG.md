@@ -1,5 +1,13 @@
 # Changelog
 
+## 9.8.2.2
+
+### Fixed Vulkan Layer Mounting
+- Vulkan layer safeguards were failing for some instances, divided stub and overlay into different .so files and it wont "try to load overlay then skip" anymore.
+
+### Other
+- Small refractors with .Core folder.
+
 ## 9.8.2.1
 
 ### Some Adjustments to Trade Done

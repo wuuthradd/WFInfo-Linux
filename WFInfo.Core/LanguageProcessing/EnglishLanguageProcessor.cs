@@ -65,11 +65,6 @@ namespace WFInfo.LanguageProcessing
             return !string.IsNullOrEmpty(partName) && partName.Length >= 13;
         }
 
-        public override bool ShouldFilterWord(string word)
-        {
-            return !string.IsNullOrEmpty(word) && word.Length < 2;
-        }
-
         public override string RemoveBlueprintTerms(string localizedName)
         {
             if (string.IsNullOrEmpty(localizedName))

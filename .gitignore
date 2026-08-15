@@ -2,6 +2,7 @@ bin/
 obj/
 build-appimage/
 WFInfo.Linux/NativeOverlay/libwfinfo_vk.so
+WFInfo.Linux/NativeOverlay/libwfinfo_overlay.so
 WFInfo.Linux/NativeOverlay/*.spv
 WFInfo.Linux/NativeOverlay/*.inc
 WFInfo.Linux/DBMon/*.exe

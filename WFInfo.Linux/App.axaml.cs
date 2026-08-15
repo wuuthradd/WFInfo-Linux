@@ -1268,6 +1268,7 @@ namespace WFInfo.Linux
             try
             {
                 string layerSo = FindLayerFile("libwfinfo_vk.so");
+                string overlaySo = FindLayerFile("libwfinfo_overlay.so");
                 string layerJson = FindLayerFile("wfinfo_vk.json");
                 if (layerSo == null || layerJson == null)
                 {
@@ -1276,18 +1277,24 @@ namespace WFInfo.Linux
                 }
 
                 string installDir = PlatformPaths.AppDataPath;
-                string installedSo = Path.Combine(installDir, "libwfinfo_vk.so");
+                Directory.CreateDirectory(installDir);
 
-                if (!File.Exists(installedSo) || !FilesEqual(layerSo, installedSo))
+                void InstallSo(string src, string destName)
                 {
-                    Directory.CreateDirectory(installDir);
-                    // Atomic replace: copy to temp then rename so a running game
-                    // keeps the old inode mapped and new launches get the new file.
-                    string tmpSo = installedSo + ".tmp";
-                    File.Copy(layerSo, tmpSo, overwrite: true);
-                    File.Move(tmpSo, installedSo, overwrite: true);
-                    logger.AddLog("VulkanLayer: installed libwfinfo_vk.so");
+                    if (src == null) return;
+                    string dest = Path.Combine(installDir, destName);
+                    if (File.Exists(dest) && FilesEqual(src, dest))
+                        return;
+                    string tmp = dest + ".tmp";
+                    File.Copy(src, tmp, overwrite: true);
+                    File.Move(tmp, dest, overwrite: true);
+                    logger.AddLog("VulkanLayer: installed " + destName);
                 }
+
+                InstallSo(layerSo, "libwfinfo_vk.so");
+                InstallSo(overlaySo, "libwfinfo_overlay.so");
+
+                string installedSo = Path.Combine(installDir, "libwfinfo_vk.so");
 
                 string localDir = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -1300,7 +1307,9 @@ namespace WFInfo.Linux
 
                 if (!File.Exists(localManifest) || File.ReadAllText(localManifest) != manifest)
                 {
-                    File.WriteAllText(localManifest, manifest);
+                    string tmpManifest = localManifest + ".tmp";
+                    File.WriteAllText(tmpManifest, manifest);
+                    File.Move(tmpManifest, localManifest, overwrite: true);
                     logger.AddLog($"VulkanLayer: installed manifest to {localManifest}");
                 }
             }

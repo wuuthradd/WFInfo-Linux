@@ -71,6 +71,7 @@ jobs:
           mkdir -p WFInfo-linux-x64/lib
           cp -r publish/* WFInfo-linux-x64/lib/
           install -m 755 WFInfo.Linux/NativeOverlay/libwfinfo_vk.so WFInfo-linux-x64/lib/
+          install -m 755 WFInfo.Linux/NativeOverlay/libwfinfo_overlay.so WFInfo-linux-x64/lib/
           cp WFInfo.Linux/NativeOverlay/wfinfo_vk.json WFInfo-linux-x64/lib/
           cp WFInfo.Linux/DBMon/WFInfo.DbMon.exe WFInfo-linux-x64/lib/ 2>/dev/null || true
           chmod +x WFInfo-linux-x64/lib/WFInfo.Linux WFInfo-linux-x64/lib/wfinfo-setup-input.sh
@@ -87,6 +88,7 @@ jobs:
 
           cp -r publish/* $APPDIR/usr/bin/
           install -m 755 WFInfo.Linux/NativeOverlay/libwfinfo_vk.so $APPDIR/usr/bin/
+          install -m 755 WFInfo.Linux/NativeOverlay/libwfinfo_overlay.so $APPDIR/usr/bin/
           cp WFInfo.Linux/NativeOverlay/wfinfo_vk.json $APPDIR/usr/bin/
           cp WFInfo.Linux/DBMon/WFInfo.DbMon.exe $APPDIR/usr/bin/ 2>/dev/null || true
 

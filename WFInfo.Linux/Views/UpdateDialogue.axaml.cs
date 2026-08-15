@@ -20,10 +20,14 @@ namespace WFInfo.Linux.Views
         private static UpdateDialogue _current;
         private readonly string _latestVersion;
 
-        public UpdateDialogue(string latestVersion, JArray releases)
+        public UpdateDialogue()
         {
             InitializeComponent();
+            _latestVersion = null;
+        }
 
+        public UpdateDialogue(string latestVersion, JArray releases) : this()
+        {
             _latestVersion = latestVersion;
             NewVersionText.Text = $"WFInfo version {latestVersion} has been released!";
             OldVersionText.Text = $"You have version {AppMain.BuildVersion} installed.";

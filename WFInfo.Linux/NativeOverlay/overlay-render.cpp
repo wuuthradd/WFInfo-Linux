@@ -626,7 +626,7 @@ void handle_rw_button_press(double px, double py)
     double cx = px - rw.offset_x;
     double cy = py - rw.offset_y;
     if (cx >= rw.total_w - 30 && cy >= 0 && cy <= RW_TITLE_H) {
-        backend->hide_rw();
+        if (backend) backend->hide_rw();
         rw.visible = 0;
         rw.configured = 0;
         rw.dragging = 0;
@@ -636,7 +636,7 @@ void handle_rw_button_press(double px, double py)
         rw.drag_start_py = py;
         rw.drag_start_ox = rw.offset_x;
         rw.drag_start_oy = rw.offset_y;
-        backend->rw_set_input_region(1);
+        if (backend) backend->rw_set_input_region(1);
     }
 }
 
@@ -644,8 +644,10 @@ void handle_rw_button_release(void)
 {
     if (!rw.dragging) return;
     rw.dragging = 0;
-    backend->rw_set_input_region(0);
-    backend->rw_redraw();
+    if (backend) {
+        backend->rw_set_input_region(0);
+        backend->rw_redraw();
+    }
 }
 
 void handle_rw_motion(double px, double py)
@@ -655,7 +657,7 @@ void handle_rw_motion(double px, double py)
     if (rw.dragging && rw.configured) {
         rw.offset_x = rw.drag_start_ox + (int)(px - rw.drag_start_px);
         rw.offset_y = rw.drag_start_oy + (int)(py - rw.drag_start_py);
-        backend->rw_redraw();
+        if (backend) backend->rw_redraw();
     }
 }
 
@@ -672,7 +674,7 @@ static void send_overlay_event(const char *json)
 
 static void snapit_teardown(void)
 {
-    backend->close_snapit();
+    if (backend) backend->close_snapit();
     snapit.active = 0;
     snapit.configured = 0;
     snapit.dragging = 0;
@@ -758,7 +760,7 @@ static void show_panel(int id, int x, int y, int w, int h,
     p->hide_delay = hide_delay;
     p->configured = 0;
 
-    backend->show_panel(id);
+    if (backend) backend->show_panel(id);
     if (composite_mark_panel_dirty)
         composite_mark_panel_dirty(id);
     p->visible = 1;
@@ -774,7 +776,7 @@ void hide_panel_by_id(int id)
     Panel *p = &panels[id];
     if (!p->visible) return;
 
-    backend->hide_panel(id);
+    if (backend) backend->hide_panel(id);
     p->visible = 0;
     p->configured = 0;
     p->hide_at = 0;
@@ -783,7 +785,7 @@ void hide_panel_by_id(int id)
 static void hide_rw_internal(void)
 {
     if (!rw.visible) return;
-    backend->hide_rw();
+    if (backend) backend->hide_rw();
     pointer_on_rw = 0;
     rw.visible = 0;
     rw.configured = 0;
@@ -833,7 +835,7 @@ static void highlight_rw_part(int idx, const char *type)
 
     snprintf(rw.parts[idx].highlight, sizeof(rw.parts[idx].highlight), "%s", type);
 
-    if (rw.visible && rw.configured)
+    if (rw.visible && rw.configured && backend)
         backend->rw_redraw();
 }
 
@@ -842,7 +844,7 @@ static void commit_rw(void)
     if (rw.count <= 0) return;
     rw.configured = 0;
     rw.dragging = 0;
-    backend->show_rw();
+    if (backend) backend->show_rw();
     rw.visible = 1;
 }
 
@@ -886,7 +888,7 @@ void process_line(const char *line)
         json_get_string(line, "type", hl, sizeof(hl));
         if (id >= 0 && static_cast<size_t>(id) < panels.size() && panels[id].visible) {
             snprintf(panels[id].highlight, sizeof(panels[id].highlight), "%s", hl);
-            backend->rerender_panel(id);
+            if (backend) backend->rerender_panel(id);
         }
     } else if (strcmp(cmd, "hide") == 0) {
         hide_panel_by_id(json_get_int(line, "id", 0));
@@ -898,9 +900,10 @@ void process_line(const char *line)
         snapit.dash_offset = 0;
         snapit.start_x = snapit.start_y = 0;
         snapit.cur_x = snapit.cur_y = 0;
-        backend->start_snapit(
-            json_get_int(line, "w", 1920),
-            json_get_int(line, "h", 1080));
+        if (backend)
+            backend->start_snapit(
+                json_get_int(line, "w", 1920),
+                json_get_int(line, "h", 1080));
         snapit.active = 1;
     } else if (strcmp(cmd, "cancel_snapit") == 0) {
         if (snapit.active) {

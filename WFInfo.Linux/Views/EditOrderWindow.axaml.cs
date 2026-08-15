@@ -51,9 +51,14 @@ namespace WFInfo.Linux.Views
         public string OrderId => _vm.OrderId;
         public event Action<OrderViewModel> OrderUpdated;
 
-        public EditOrderWindow(OrderViewModel vm)
+        public EditOrderWindow()
         {
             InitializeComponent();
+            _vm = null;
+        }
+
+        public EditOrderWindow(OrderViewModel vm) : this()
+        {
             _vm = vm;
             _visible = vm.Visible;
 

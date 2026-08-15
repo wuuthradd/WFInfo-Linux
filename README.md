@@ -8,7 +8,7 @@ The original is a Windows only WPF/.NET Framework 4.8 app. This port replaces WP
 
 - **Process detection**: Scans `/proc` for `Warframe.x64.exe` running under Proton.
 - **Log capture**: A tiny Win32 exe (DBMON bridge) runs under Proton's Wine to capture `OutputDebugString` in real time, same mechanism as the Windows version.
-- **Screenshots + Overlay**: A Vulkan layer hooks the game's swapchain to capture frames and composite overlay panels directly onto the rendered image before present. Works in fullscreen, borderless and windowed modes on any display server and any compositor without needing specific protocols.
+- **Screenshots + Overlay**: A thin Vulkan layer hooks the game's swapchain to capture frames. Overlay panels are drawn by a separate plugin (Cairo/Pango) and composited onto the rendered image before present. Works in fullscreen, borderless and windowed modes on any display server and any compositor without needing specific protocols.
 - **OCR**: System-installed Tesseract via the managed NuGet wrapper.
 - **Input listening**: Reads keyboard and mouse events directly from `/dev/input/event*` via evdev. Requires a one-time setup to grant read access (see [Setup](#setup)). Also listens on a Unix domain socket (`$XDG_RUNTIME_DIR/wfinfo.sock`) for commands, allowing desktop environment shortcuts to trigger actions without evdev access.
 
@@ -44,7 +44,7 @@ WFInfo.Linux needs Tesseract OCR and a few graphics libraries at runtime. Most a
 | Library | What for |
 |---|---|
 | `tesseract` + `leptonica` | OCR engine |
-| `cairo`, `pango`, `fontconfig` | Overlay panel rendering (used by the Vulkan layer) |
+| `cairo`, `pango`, `fontconfig` | Overlay panel rendering (used by the overlay plugin, not the layer stub) |
 | Vulkan loader (`libvulkan`) | Already present if you're running Proton games |
 
 **Install commands** :
@@ -154,7 +154,7 @@ dotnet build
 # Or build a specific project
 dotnet build WFInfo.Linux/WFInfo.Linux.csproj
 
-# Build the Vulkan layer (libwfinfo_vk.so)
+# Build the Vulkan layer (libwfinfo_vk.so + libwfinfo_overlay.so)
 make -C WFInfo.Linux/NativeOverlay
 
 # Build the DBMON bridge (Win32 exe for game log capture via Wine)
@@ -173,6 +173,6 @@ dotnet run --project WFInfo.Linux
 ### Build dependencies
 
 - **.NET app**: .NET 10+ SDK. At runtime, requires `tesseract` and `leptonica` (see [Dependencies](#dependencies)).
-- **Vulkan layer**: `pkg-config`, Vulkan headers (`vulkan-headers`), `glslangValidator` (shader compilation, from `glslang`), `xxd` (from `vim` or `xxd`), and development packages for `cairo`, `pangocairo`, `fontconfig`.
+- **Vulkan layer**: `pkg-config`, Vulkan headers (`vulkan-headers`), `glslangValidator` (shader compilation, from `glslang`), `xxd` (from `vim` or `xxd`). Overlay plugin also needs development packages for `cairo`, `pangocairo`, `fontconfig`.
 - **DBMON bridge**: A C cross-compiler targeting Windows. The Makefile uses `zig cc -target x86_64-windows-gnu` by default. Alternatively, `x86_64-w64-mingw32-gcc` works.
 - **AppImage**: `appimagetool` (auto-downloaded if not found).

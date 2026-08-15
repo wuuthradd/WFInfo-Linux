@@ -1,24 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using WFInfo.Settings;
 
 namespace WFInfo.LanguageProcessing
 {
-    /// <summary>
-    /// Factory class for managing language processors
-    /// Provides centralized access to language-specific OCR text processing
-    /// </summary>
     public class LanguageProcessorFactory
     {
         private static readonly Dictionary<string, LanguageProcessor> _processors = new Dictionary<string, LanguageProcessor>();
         private static readonly object _lock = new object();
         private static IReadOnlyApplicationSettings _settings;
 
-        /// <summary>
-        /// Initializes the factory with application settings
-        /// </summary>
-        /// <param name="settings">Application settings</param>
         public static void Initialize(IReadOnlyApplicationSettings settings)
         {
             if (settings == null)
@@ -28,11 +19,6 @@ namespace WFInfo.LanguageProcessing
             ClearCache();
         }
 
-        /// <summary>
-        /// Gets the language processor for the specified locale
-        /// </summary>
-        /// <param name="locale">Locale code (e.g., "en", "ko", "ja")</param>
-        /// <returns>Language processor for the locale</returns>
         public static LanguageProcessor GetProcessor(string locale)
         {
             if (string.IsNullOrEmpty(locale))
@@ -49,10 +35,6 @@ namespace WFInfo.LanguageProcessing
             }
         }
 
-        /// <summary>
-        /// Gets the current language processor based on settings
-        /// </summary>
-        /// <returns>Current language processor</returns>
         public static LanguageProcessor GetCurrentProcessor()
         {
             if (_settings == null)
@@ -61,33 +43,6 @@ namespace WFInfo.LanguageProcessing
             return GetProcessor(_settings.Locale);
         }
 
-        public static string[] GetSupportedLocales()
-        {
-            return new[]
-            {
-                "en",        // English
-                "ko",        // Korean
-                "ja",        // Japanese
-                "zh-hans",   // Simplified Chinese
-                "zh-hant",   // Traditional Chinese
-                "th",        // Thai
-                "ru",        // Russian
-                "uk",        // Ukrainian
-                "tr",        // Turkish
-                "pl",        // Polish
-                "fr",        // French
-                "de",        // German
-                "es",        // Spanish
-                "pt",        // Portuguese
-                "it"         // Italian
-            };
-        }
-
-        /// <summary>
-        /// Creates a language processor for the specified locale
-        /// </summary>
-        /// <param name="locale">Locale code</param>
-        /// <returns>New language processor instance</returns>
         private static LanguageProcessor CreateProcessor(string locale)
         {
             if (_settings == null)
@@ -127,7 +82,7 @@ namespace WFInfo.LanguageProcessing
                 case "it":
                     return new ItalianLanguageProcessor(_settings);
                 default:
-                    return new EnglishLanguageProcessor(_settings); // Default to English
+                    return new EnglishLanguageProcessor(_settings);
             }
         }
 
@@ -137,14 +92,6 @@ namespace WFInfo.LanguageProcessing
             {
                 _processors.Clear();
             }
-        }
-
-        public static bool IsLocaleSupported(string locale)
-        {
-            if (string.IsNullOrEmpty(locale))
-                return false;
-
-            return GetSupportedLocales().Contains(locale, StringComparer.OrdinalIgnoreCase);
         }
     }
 }

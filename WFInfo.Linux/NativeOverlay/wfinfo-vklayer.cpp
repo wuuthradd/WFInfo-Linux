@@ -7,9 +7,7 @@
  * Hooks: vkCreateInstance, vkCreateDevice, vkCreateSwapchainKHR,
  *        vkQueuePresentKHR, and corresponding destroy functions.
  *
- * Build: compiled as a shared library (libwfinfo_vk.so) with -fPIC,
- *        linked against pangocairo for overlay rendering.
- *        Does NOT link libvulkan.so (uses dispatch chain).
+ * Build: libwfinfo_vk.so (stub) + libwfinfo_overlay.so. No libvulkan link.
  */
 
 #ifndef _GNU_SOURCE
@@ -30,6 +28,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <alloca.h>
+#include <dlfcn.h>
 
 #include <mutex>
 #include <thread>
@@ -41,7 +40,7 @@
 #include <vulkan/vk_layer.h>
 
 #include "vklayer-composite.hpp"
-#include "overlay.hpp"
+#include "overlay-plugin.hpp"
 
 /* ---- diagnostics ---- */
 
@@ -160,10 +159,9 @@ std::unordered_map<void*, InstanceData> g_instance_map;
 /* When true, layer is a zero-cost passthrough (not a Wine/Proton process) */
 static int g_passthrough = 0;
 
-/* Pointer to the active renderer DeviceData in g_device_map.
- * Set during CreateDevice, cleared during DestroyDevice.
- * Used by IPC callbacks and stub backend that lack a DeviceData parameter. */
-static DeviceData *g_active_dd = nullptr;
+DeviceData *g_active_dd = nullptr;
+
+static OverlayPlugin *g_overlay;
 
 /* Passthrough dispatch (non-Warframe processes) */
 static PFN_vkGetInstanceProcAddr g_passthrough_gipa = nullptr;
@@ -234,6 +232,117 @@ static int is_warframe(void)
         return 1;
 
     return 0;
+}
+
+/* Loader maps this .so RTLD_LOCAL; overlay.so needs our symbols global. */
+static int promote_stub_global(char *out_path, size_t out_sz)
+{
+    Dl_info info{};
+    if (dladdr(reinterpret_cast<void *>(layer_log), &info) && info.dli_fname) {
+        if (out_path && out_sz)
+            snprintf(out_path, out_sz, "%s", info.dli_fname);
+        if (dlopen(info.dli_fname, RTLD_NOW | RTLD_NOLOAD | RTLD_GLOBAL) != nullptr)
+            return 1;
+        layer_log("overlay plugin: dladdr promote failed: %s", dlerror());
+    }
+
+    uintptr_t self = reinterpret_cast<uintptr_t>(reinterpret_cast<void *>(layer_log));
+    FILE *f = fopen("/proc/self/maps", "r");
+    if (!f)
+        return 0;
+    char line[768];
+    int ok = 0;
+    while (fgets(line, sizeof(line), f)) {
+        unsigned long start = 0, end = 0;
+        char path[512] = {};
+        if (sscanf(line, "%lx-%lx %*s %*s %*s %*s %511[^\n]", &start, &end, path) < 3)
+            continue;
+        if (self < start || self >= end || path[0] != '/')
+            continue;
+        if (out_path && out_sz)
+            snprintf(out_path, out_sz, "%s", path);
+        if (dlopen(path, RTLD_NOW | RTLD_NOLOAD | RTLD_GLOBAL) != nullptr)
+            ok = 1;
+        else
+            layer_log("overlay plugin: maps promote failed: %s", dlerror());
+        break;
+    }
+    fclose(f);
+    return ok;
+}
+
+static OverlayPlugin *load_overlay_plugin(void)
+{
+    if (g_overlay)
+        return g_overlay;
+
+    char stub_path[512] = {};
+    char overlay_path[512] = {};
+    promote_stub_global(stub_path, sizeof(stub_path));
+    if (stub_path[0]) {
+        snprintf(overlay_path, sizeof(overlay_path), "%s", stub_path);
+        char *slash = strrchr(overlay_path, '/');
+        if (slash)
+            snprintf(slash + 1, sizeof(overlay_path) - static_cast<size_t>(slash + 1 - overlay_path),
+                     "libwfinfo_overlay.so");
+        else
+            overlay_path[0] = '\0';
+    }
+
+    char home_path[512] = {};
+    const char *home = getenv("HOME");
+    if (home && home[0])
+        snprintf(home_path, sizeof(home_path),
+                 "%s/.local/share/WFInfo/libwfinfo_overlay.so", home);
+
+    const char *candidates[] = {
+        overlay_path[0] ? overlay_path : nullptr,
+        home_path[0] ? home_path : nullptr,
+    };
+    for (const char *cand : candidates) {
+        if (!cand) continue;
+        void *h = dlopen(cand, RTLD_NOW | RTLD_GLOBAL);
+        if (!h) {
+            layer_log("overlay plugin: dlopen(%s) failed: %s", cand, dlerror());
+            continue;
+        }
+        auto get = reinterpret_cast<OverlayPlugin *(*)()>(dlsym(h, "wfinfo_overlay_get"));
+        if (!get) {
+            layer_log("overlay plugin: missing wfinfo_overlay_get in %s", cand);
+            dlclose(h);
+            continue;
+        }
+        g_overlay = get();
+        layer_log("overlay plugin: loaded %s", cand);
+        return g_overlay;
+    }
+    layer_log("overlay plugin: not available");
+    return nullptr;
+}
+
+static void ensure_overlay_ready(DeviceData *dd)
+{
+    if (!dd || !g_overlay || dd->sc.images.empty())
+        return;
+    if (!dd->blend_pipeline)
+        g_overlay->composite_init_pipeline(dd);
+    if (!dd->render_pass)
+        return;
+    if (dd->sc.framebuffers.size() != dd->sc.images.size())
+        dd->sc.framebuffers.resize(dd->sc.images.size(), VK_NULL_HANDLE);
+    for (size_t i = 0; i < dd->sc.images.size(); i++) {
+        if (dd->sc.framebuffers[i] || !dd->sc.image_views[i])
+            continue;
+        VkFramebufferCreateInfo fbci{};
+        fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        fbci.renderPass = dd->render_pass;
+        fbci.attachmentCount = 1;
+        fbci.pAttachments = &dd->sc.image_views[i];
+        fbci.width = dd->sc.width;
+        fbci.height = dd->sc.height;
+        fbci.layers = 1;
+        dd->dt.CreateFramebuffer(dd->device, &fbci, nullptr, &dd->sc.framebuffers[i]);
+    }
 }
 
 /* ---- find memory type ---- */
@@ -354,13 +463,19 @@ static void ipc_process_line(const char *line)
             sock_client_fd = -1;
         }
     } else {
-        layer_log("ipc_process_line: forwarding cmd, snapit.active=%d", snapit.active);
-        process_line(line);
-        for (size_t pi = 0; pi < panels.size(); pi++) {
-            if (panels[pi].visible)
-                layer_log("  panel[%zu] vis=1 pos=(%d,%d) %dx%d snapit=%d",
-                          pi, panels[pi].x, panels[pi].y,
-                          panels[pi].w, panels[pi].h, panels[pi].snapit);
+        if (!g_overlay) {
+            OverlayPlugin *ov = load_overlay_plugin();
+            if (ov && ov->on_warframe_instance)
+                ov->on_warframe_instance();
+            if (ov)
+                ensure_overlay_ready(g_active_dd);
+        }
+        if (g_overlay) {
+            layer_log("ipc_process_line: forwarding cmd");
+            g_overlay->process_line(line);
+            g_overlay->log_visible_panels();
+        } else {
+            layer_log("ipc_process_line: dropped, overlay plugin not loaded: %s", line);
         }
     }
 }
@@ -985,68 +1100,6 @@ static void capture_worker(DeviceData *dd)
     dd->capture_pending.store(0, std::memory_order_release);
 }
 
-/* ---- stub backend callbacks ---- */
-
-static void stub_show_rw(void) {
-    if (!rw.visible && g_active_dd) {
-        int sw = static_cast<int>(g_active_dd->sc.width);
-        int sh = static_cast<int>(g_active_dd->sc.height);
-        if (sw > 0 && sh > 0) {
-            rw.offset_x = (sw - rw.total_w) / 2;
-            rw.offset_y = (sh - RW_TOTAL_H) / 2;
-            if (rw.offset_x < 0) rw.offset_x = 0;
-            if (rw.offset_y < 0) rw.offset_y = 0;
-        }
-        rw.dragging = 0;
-    }
-    rw.visible = 1;
-    composite_mark_rw_dirty();
-}
-static void stub_hide_rw(void) { rw.visible = 0; rw.configured = 0; }
-static void stub_rw_redraw(void) {}
-static void stub_rw_set_input_region(int fs) { (void)fs; }
-static void stub_show_panel(int id) { ensure_panel_capacity(id); panels[id].visible = 1; panels[id].configured = 1; }
-static void stub_hide_panel(int id) { if (id >= 0 && static_cast<size_t>(id) < panels.size()) { panels[id].visible = 0; panels[id].configured = 0; } }
-static void stub_rerender_panel(int id) { (void)id; }
-static void stub_start_snapit(int w, int h) {
-    (void)w; (void)h;
-    snapit.active = 1;
-    snapit_cache_hint();
-    extern int snap_btn_prev;
-    snap_btn_prev = -1;
-    extern int snapit_tint_ready;
-    extern int snapit_cursor_ready;
-    snapit_tint_ready = 0;
-    snapit_cursor_ready = 0;
-}
-static void stub_close_snapit(void) { snapit.active = 0; }
-static void stub_snapit_redraw(void) {}
-static int  stub_init(void) { return 0; }
-static void stub_destroy(void) {}
-static int  stub_get_fd(void) { return -1; }
-static int  stub_dispatch(void) { return 0; }
-static void stub_flush(void) {}
-static void stub_rw_tick(void) {}
-
-static OverlayBackend stub_backend = {
-    stub_init,
-    stub_destroy,
-    stub_get_fd,
-    stub_dispatch,
-    stub_flush,
-    stub_show_panel,
-    stub_hide_panel,
-    stub_rerender_panel,
-    stub_show_rw,
-    stub_hide_rw,
-    stub_rw_redraw,
-    stub_rw_set_input_region,
-    stub_start_snapit,
-    stub_close_snapit,
-    stub_snapit_redraw,
-    stub_rw_tick,
-};
-
 /* ---- Vulkan layer dispatch chain ---- */
 
 static VKAPI_ATTR VkResult VKAPI_CALL
@@ -1078,15 +1131,6 @@ layer_CreateInstance(const VkInstanceCreateInfo *pCreateInfo,
     layer_log("  XDG_RUNTIME_DIR=%s", getenv("XDG_RUNTIME_DIR") ?: "(unset)");
     layer_log("  HOME=%s", getenv("HOME") ?: "(unset)");
 
-    if (!is_warframe()) {
-        layer_log("  not Warframe, passthrough");
-        g_passthrough = 1;
-        g_passthrough_gipa = next_gipa;
-        g_passthrough_destroy_instance =
-            reinterpret_cast<PFN_vkDestroyInstance>(next_gipa(*pInstance, "vkDestroyInstance"));
-        return VK_SUCCESS;
-    }
-
     void *key = dispatch_key(*pInstance);
     {
         std::lock_guard<std::mutex> lk(g_lock);
@@ -1111,7 +1155,18 @@ layer_CreateInstance(const VkInstanceCreateInfo *pCreateInfo,
                 next_gipa(*pInstance, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR"));
     }
 
-    backend = &stub_backend;
+    if (!is_warframe()) {
+        layer_log("  not Warframe, passthrough");
+        g_passthrough = 1;
+        g_passthrough_gipa = next_gipa;
+        g_passthrough_destroy_instance =
+            reinterpret_cast<PFN_vkDestroyInstance>(next_gipa(*pInstance, "vkDestroyInstance"));
+        return VK_SUCCESS;
+    }
+
+    OverlayPlugin *ov = load_overlay_plugin();
+    if (ov && ov->on_warframe_instance)
+        ov->on_warframe_instance();
 
     layer_log("  Warframe detected, IPC deferred to swapchain creation");
     fprintf(stderr, "wfinfo-vklayer: instance created (Warframe detected)\n");
@@ -1306,7 +1361,7 @@ layer_CreateDevice(VkPhysicalDevice physDev, const VkDeviceCreateInfo *pCreateIn
     dd.dt.GetDeviceQueue(dd.device, dd.gfx_queue_family, 0, &dd.gfx_queue);
     g_active_dd = &dd;
 
-    load_icons();
+
 
     fprintf(stderr, "wfinfo-vklayer: device created, queue family=%u\n",
             dd.gfx_queue_family);
@@ -1335,7 +1390,8 @@ layer_DestroyDevice(VkDevice device, const VkAllocationCallbacks *pAllocator)
         dd.capture_thread_valid = false;
     }
 
-    composite_cleanup(&dd);
+    if (g_overlay)
+        g_overlay->composite_cleanup(&dd);
 
     if (dd.staging_mapped)
         dd.dt.UnmapMemory(dd.device, dd.staging_mem);
@@ -1487,24 +1543,8 @@ layer_CreateSwapchainKHR(VkDevice device,
         }
     }
 
-    if (can_color_attachment && !dd->blend_pipeline)
-        composite_init_pipeline(dd);
-
-    /* Create framebuffers per swapchain image (requires render_pass from pipeline init) */
-    if (dd->render_pass) {
-        for (uint32_t i = 0; i < img_count; i++) {
-            if (!dd->sc.image_views[i]) continue;
-            VkFramebufferCreateInfo fbci{};
-            fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            fbci.renderPass = dd->render_pass;
-            fbci.attachmentCount = 1;
-            fbci.pAttachments = &dd->sc.image_views[i];
-            fbci.width = dd->sc.width;
-            fbci.height = dd->sc.height;
-            fbci.layers = 1;
-            dd->dt.CreateFramebuffer(dd->device, &fbci, nullptr, &dd->sc.framebuffers[i]);
-        }
-    }
+    if (can_color_attachment)
+        ensure_overlay_ready(dd);
 
 sc_done:
     if (sock_listen_fd < 0) {
@@ -1597,7 +1637,8 @@ layer_QueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPresentInfo)
         overlay_sc_idx = pPresentInfo->pImageIndices[i];
         if (overlay_sc_idx >= dd->sc.images.size())
             break;
-        overlay_cmd = composite_record_overlays(dd,
+        if (g_overlay)
+            overlay_cmd = g_overlay->composite_record_overlays(dd,
             dd->sc.images[overlay_sc_idx], overlay_sc_idx);
         break;
     }
@@ -1674,16 +1715,16 @@ passthrough_present:
 static VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL
 layer_GetDeviceProcAddr(VkDevice device, const char *pName)
 {
+    #define INTERCEPT(fn) if (strcmp(pName, "vk" #fn) == 0) \
+        return reinterpret_cast<PFN_vkVoidFunction>(layer_##fn)
+    INTERCEPT(DestroyDevice);
+    INTERCEPT(GetDeviceProcAddr);
     if (!g_passthrough) {
-        #define INTERCEPT(fn) if (strcmp(pName, "vk" #fn) == 0) \
-            return reinterpret_cast<PFN_vkVoidFunction>(layer_##fn)
-        INTERCEPT(DestroyDevice);
         INTERCEPT(CreateSwapchainKHR);
         INTERCEPT(DestroySwapchainKHR);
         INTERCEPT(QueuePresentKHR);
-        INTERCEPT(GetDeviceProcAddr);
-        #undef INTERCEPT
     }
+    #undef INTERCEPT
 
     DeviceData *dd = get_device_data(device);
     if (dd && dd->dt.GetDeviceProcAddr)
@@ -1700,13 +1741,12 @@ layer_GetInstanceProcAddr(VkInstance instance, const char *pName)
     INTERCEPT(DestroyInstance);
     INTERCEPT(GetInstanceProcAddr);
     INTERCEPT(CreateDevice);
-
+    INTERCEPT(DestroyDevice);
+    INTERCEPT(GetDeviceProcAddr);
     if (!g_passthrough) {
-        INTERCEPT(DestroyDevice);
         INTERCEPT(CreateSwapchainKHR);
         INTERCEPT(DestroySwapchainKHR);
         INTERCEPT(QueuePresentKHR);
-        INTERCEPT(GetDeviceProcAddr);
     }
     #undef INTERCEPT
 

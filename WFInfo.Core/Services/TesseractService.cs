@@ -11,19 +11,6 @@ using WFInfo.LanguageProcessing;
 
 namespace WFInfo.Services
 {
-    public interface ITesseractService
-    {
-        TesseractEngine FirstEngine { get; }
-        TesseractEngine[] Engines { get; }
-        TesseractEngine NumbersOnlyEngine { get; }
-        void Init();
-        void ReloadEngines();
-    }
-
-    /// <summary>
-    /// Cross-platform TesseractService. On Linux, uses system-installed libtesseract
-    /// or downloads traineddata to ~/.local/share/WFInfo/tessdata/
-    /// </summary>
     public class TesseractService : ITesseractService, IDisposable
     {
         public TesseractEngine FirstEngine { get; private set; }

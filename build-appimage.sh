@@ -45,6 +45,7 @@ if pkg-config --exists cairo pangocairo fontconfig 2>/dev/null; then
     make -C "${PROJECT_DIR}/NativeOverlay" clean
     make -C "${PROJECT_DIR}/NativeOverlay"
     install -m 755 "${PROJECT_DIR}/NativeOverlay/libwfinfo_vk.so" "${APPDIR}/usr/bin/"
+    install -m 755 "${PROJECT_DIR}/NativeOverlay/libwfinfo_overlay.so" "${APPDIR}/usr/bin/"
     cp "${PROJECT_DIR}/NativeOverlay/wfinfo_vk.json" "${APPDIR}/usr/bin/"
     echo "  Built and bundled libwfinfo_vk.so + wfinfo_vk.json"
 else

@@ -72,11 +72,6 @@ namespace WFInfo.LanguageProcessing
             return !string.IsNullOrEmpty(partName) && partName.Replace(" ", "").Length >= 6;
         }
 
-        public override bool ShouldFilterWord(string word)
-        {
-            return !string.IsNullOrEmpty(word) && word.Length < 2;
-        }
-
         public override string RemoveBlueprintTerms(string localizedName)
         {
             if (string.IsNullOrEmpty(localizedName))
@@ -142,11 +137,6 @@ namespace WFInfo.LanguageProcessing
         {
             // Ukrainian requires minimum of 6 characters after removing spaces
             return !string.IsNullOrEmpty(partName) && partName.Replace(" ", "").Length >= 6;
-        }
-
-        public override bool ShouldFilterWord(string word)
-        {
-            return !string.IsNullOrEmpty(word) && word.Length < 2;
         }
 
         public override string RemoveBlueprintTerms(string localizedName)

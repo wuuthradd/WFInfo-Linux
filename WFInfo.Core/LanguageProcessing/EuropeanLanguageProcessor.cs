@@ -28,11 +28,6 @@ namespace WFInfo.LanguageProcessing
             return !string.IsNullOrEmpty(partName) && partName.Length >= 8;
         }
 
-        public override bool ShouldFilterWord(string word)
-        {
-            return !string.IsNullOrEmpty(word) && word.Length < 2;
-        }
-
         public override int CalculateLevenshteinDistance(string s, string t)
         {
             return DefaultLevenshteinDistance(s, t);

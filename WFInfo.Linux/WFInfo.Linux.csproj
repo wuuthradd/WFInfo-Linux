@@ -2,9 +2,9 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <Version>9.8.2.1</Version>
-    <AssemblyVersion>9.8.2.1</AssemblyVersion>
-    <FileVersion>9.8.2.1</FileVersion>
+    <Version>9.8.2.2</Version>
+    <AssemblyVersion>9.8.2.2</AssemblyVersion>
+    <FileVersion>9.8.2.2</FileVersion>
     <RootNamespace>WFInfo.Linux</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon>Resources/WFLogo.ico</ApplicationIcon>
