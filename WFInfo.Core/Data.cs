@@ -9,6 +9,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Sockets;
 using System.Net.WebSockets;
 
 using System.Text;
@@ -57,6 +58,7 @@ namespace WFInfo
         private const string wfmItemsUrl = "https://api.warframe.market/v2/items";
         public string inGameName { get; private set; } = string.Empty;
         readonly HttpClient client;
+        readonly HttpMessageInvoker _wsInvoker;
         public bool rememberMe { get; set; }
         private ILogCapture _logCapture;
         private Task autoThread;
@@ -241,14 +243,17 @@ namespace WFInfo
             if (proxy_string != null)
                 proxy = new WebProxy(new Uri(proxy_string));
 
-            HttpClientHandler handler = new HttpClientHandler
+            var handler = new SocketsHttpHandler
             {
                 Proxy = proxy,
+                UseProxy = proxy != null,
                 UseCookies = false,
-                AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+                ConnectCallback = ConnectPreferIpv4
             };
-            client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(15) };
+            client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("WFInfo/" + AppMain.BuildVersion);
+            _wsInvoker = new HttpMessageInvoker(handler, disposeHandler: false);
 
             OCR.OnRewardsProcessed += OnRewardsProcessed;
         }
@@ -1378,6 +1383,31 @@ namespace WFInfo
             }
         }
 
+        private static async ValueTask<Stream> ConnectPreferIpv4(SocketsHttpConnectionContext context, CancellationToken cancellationToken)
+        {
+            var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+            try
+            {
+                await socket.ConnectAsync(context.DnsEndPoint.Host, context.DnsEndPoint.Port, cancellationToken).ConfigureAwait(false);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch
+            {
+                socket.Dispose();
+                socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+                try
+                {
+                    await socket.ConnectAsync(context.DnsEndPoint, cancellationToken).ConfigureAwait(false);
+                    return new NetworkStream(socket, ownsSocket: true);
+                }
+                catch
+                {
+                    socket.Dispose();
+                    throw;
+                }
+            }
+        }
+
         public async Task GetUserLogin(string email, string password)
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.warframe.market/v1/auth/signin");
@@ -1437,8 +1467,8 @@ namespace WFInfo
                 marketSocket.Options.SetRequestHeader("Authorization", "Bearer " + JWT);
                 try { marketSocket.Options.SetRequestHeader("User-Agent", "WFInfo/" + AppMain.BuildVersion); } catch { }
 
-                using var connectCts = new CancellationTokenSource(15000);
-                await marketSocket.ConnectAsync(new Uri("wss://warframe.market/socket-v2"), connectCts.Token);
+                using var connectCts = new CancellationTokenSource(30000);
+                await marketSocket.ConnectAsync(new Uri("wss://warframe.market/socket-v2"), _wsInvoker, connectCts.Token);
 
                 if (marketSocket.State == WebSocketState.Open)
                 {
@@ -1640,7 +1670,15 @@ namespace WFInfo
         public async Task SetWebsocketStatus(string status)
         {
             if (!_isWebSocketAuthenticated)
-                return;
+            {
+                AppMain.AddLog($"WebSocket not connected, reconnecting to set status {status}");
+                if (!await OpenWebSocket())
+                {
+                    AppMain.AddLog($"Cannot set status to {status}: WebSocket offline");
+                    AppMain.StatusUpdate("warframe.market socket offline", 1);
+                    return;
+                }
+            }
 
             lock (_statusUpdateLock)
             {

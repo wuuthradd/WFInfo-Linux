@@ -126,6 +126,13 @@ namespace WFInfo.Linux.Views
 
         public bool HasInfoText => !string.IsNullOrEmpty(InfoText);
 
+        private bool _isShown = true;
+        public bool IsShown
+        {
+            get => _isShown;
+            set { if (_isShown == value) return; _isShown = value; OnPropertyChanged(); }
+        }
+
         public event PropertyChangedEventHandler PropertyChanged;
         private void OnPropertyChanged([CallerMemberName] string name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

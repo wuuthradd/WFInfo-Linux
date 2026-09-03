@@ -1,5 +1,12 @@
 # Changelog
 
+## 9.8.2.3
+
+### Some Fixes and Adjustments
+- Fixed snap-it selection tint going fully white on some setups.
+- Fixed WFMarket login and status updates failing or timing out on networks where IPv6 hangs.
+- WFMarket Orders search/filter/sort no longer rebuilds cards (brief flash / missing colors).
+
 ## 9.8.2.2
 
 ### Fixed Vulkan Layer Mounting

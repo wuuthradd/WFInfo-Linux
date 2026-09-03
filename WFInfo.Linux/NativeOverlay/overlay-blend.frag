@@ -97,6 +97,11 @@ void main()
 
     vec4 fg = texture(overlay_tex, tc);
 
+    if ((flags & 4) != 0) {
+        outColor = fg;
+        return;
+    }
+
     if ((flags & 2) != 0) {
         /* HDR PQ mode: manual blend in sRGB space */
         float a = fg.a;

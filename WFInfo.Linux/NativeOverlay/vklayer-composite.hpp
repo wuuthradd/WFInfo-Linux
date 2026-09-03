@@ -148,6 +148,7 @@ struct DeviceData {
 
     VkPipelineLayout blend_layout = VK_NULL_HANDLE;
     VkPipeline blend_pipeline = VK_NULL_HANDLE;
+    VkPipeline blend_pipeline_hw = VK_NULL_HANDLE;
 
     VkDescriptorSetLayout blend_ds_layout = VK_NULL_HANDLE;
     VkDescriptorPool blend_ds_pool = VK_NULL_HANDLE;

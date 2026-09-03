@@ -414,6 +414,18 @@ int composite_init_pipeline(DeviceData *dd)
         r = dd->dt.CreateGraphicsPipelines(dd->device, VK_NULL_HANDLE, 1, &gpci, nullptr,
                                             &dd->blend_pipeline);
         if (r != VK_SUCCESS) goto fail_shaders;
+
+        blend_att.blendEnable = VK_TRUE;
+        blend_att.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+        blend_att.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        blend_att.colorBlendOp = VK_BLEND_OP_ADD;
+        blend_att.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        blend_att.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        blend_att.alphaBlendOp = VK_BLEND_OP_ADD;
+        r = dd->dt.CreateGraphicsPipelines(dd->device, VK_NULL_HANDLE, 1, &gpci, nullptr,
+                                            &dd->blend_pipeline_hw);
+        if (r != VK_SUCCESS)
+            dd->blend_pipeline_hw = VK_NULL_HANDLE;
     }
 
     {
@@ -454,6 +466,10 @@ int composite_init_pipeline(DeviceData *dd)
 fail_shaders:
     if (vert_mod) dd->dt.DestroyShaderModule(dd->device, vert_mod, nullptr);
     if (frag_mod) dd->dt.DestroyShaderModule(dd->device, frag_mod, nullptr);
+    if (dd->blend_pipeline_hw) {
+        dd->dt.DestroyPipeline(dd->device, dd->blend_pipeline_hw, nullptr);
+        dd->blend_pipeline_hw = VK_NULL_HANDLE;
+    }
     return -1;
 }
 
@@ -491,6 +507,9 @@ void composite_cleanup(DeviceData *dd)
     if (dd->blend_sampler) dd->dt.DestroySampler(dd->device, dd->blend_sampler, nullptr);
     if (dd->blend_ds_pool) dd->dt.DestroyDescriptorPool(dd->device, dd->blend_ds_pool, nullptr);
     if (dd->blend_pipeline) dd->dt.DestroyPipeline(dd->device, dd->blend_pipeline, nullptr);
+    if (dd->blend_pipeline_hw) dd->dt.DestroyPipeline(dd->device, dd->blend_pipeline_hw, nullptr);
+    dd->blend_pipeline = VK_NULL_HANDLE;
+    dd->blend_pipeline_hw = VK_NULL_HANDLE;
     if (dd->blend_layout) dd->dt.DestroyPipelineLayout(dd->device, dd->blend_layout, nullptr);
     if (dd->blend_ds_layout) dd->dt.DestroyDescriptorSetLayout(dd->device, dd->blend_ds_layout, nullptr);
     if (dd->render_pass) dd->dt.DestroyRenderPass(dd->device, dd->render_pass, nullptr);
@@ -1032,9 +1051,17 @@ VkCommandBuffer composite_record_overlays(DeviceData *dd,
     if (snapit.active && snapit_tint_tex.valid) {
         if (any_drawn)
             emit_draw_barrier(dd, cmd);
-        /* Fullscreen tint */
-        draw_overlay(dd, cmd, sc_view, &snapit_tint_tex,
-                     0, 0, static_cast<int>(dd->sc.width), static_cast<int>(dd->sc.height), 0, 0);
+        /* Fullscreen tint. Hardware blend so a broken subpassLoad cannot
+         * turn the light veil into an opaque white sheet. */
+        if (!blend_hdr_flag(dd) && dd->blend_pipeline_hw) {
+            dd->dt.CmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, dd->blend_pipeline_hw);
+            draw_overlay(dd, cmd, sc_view, &snapit_tint_tex,
+                         0, 0, static_cast<int>(dd->sc.width), static_cast<int>(dd->sc.height), 4, 0);
+            dd->dt.CmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, dd->blend_pipeline);
+        } else {
+            draw_overlay(dd, cmd, sc_view, &snapit_tint_tex,
+                         0, 0, static_cast<int>(dd->sc.width), static_cast<int>(dd->sc.height), 0, 0);
+        }
 
         /* Selection rectangle: fill + marching ants border */
         if (snapit.dragging && snapit_sel_tex.valid) {

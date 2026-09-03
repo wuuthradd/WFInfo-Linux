@@ -22,7 +22,6 @@ namespace WFInfo.Linux.Views
     {
         private static MyListingsWindow _instance;
         private readonly ObservableCollection<OrderViewModel> _allOrders = new();
-        private readonly ObservableCollection<OrderViewModel> _filteredOrders = new();
 
         public static void ReloadIfOpen()
         {
@@ -41,7 +40,6 @@ namespace WFInfo.Linux.Views
                 else
                 {
                     _instance._allOrders.Remove(vm);
-                    _instance._filteredOrders.Remove(vm);
                     _instance.CountText.Text = $"{_instance._allOrders.Count} orders";
                 }
                 break;
@@ -52,7 +50,7 @@ namespace WFInfo.Linux.Views
         {
             _instance = this;
             InitializeComponent();
-            ListingsPanel.ItemsSource = _filteredOrders;
+            ListingsPanel.ItemsSource = _allOrders;
             UpdateSortButtons();
         }
 
@@ -180,7 +178,6 @@ namespace WFInfo.Linux.Views
 
         private void ApplyFilter()
         {
-            _filteredOrders.Clear();
             string typeFilter = TypeFilter.SelectedIndex switch
             {
                 1 => "sell",
@@ -194,33 +191,19 @@ namespace WFInfo.Linux.Views
             if (MaxPriceBox != null && int.TryParse(MaxPriceBox.Text, out int mp) && mp > 0)
                 maxPrice = mp;
 
-            var filtered = new List<OrderViewModel>();
+            int shownCount = 0;
             foreach (var order in _allOrders)
             {
-                if (typeFilter != null && order.Type != typeFilter) continue;
-                if (search.Length > 0 && !(order.ItemName?.ToLower(CultureInfo.InvariantCulture).Contains(search) ?? false)) continue;
-                if (order.Platinum < minPrice || order.Platinum > maxPrice) continue;
-                filtered.Add(order);
+                bool match = (typeFilter == null || order.Type == typeFilter)
+                    && (search.Length == 0 || (order.ItemName?.ToLower(CultureInfo.InvariantCulture).Contains(search) ?? false))
+                    && order.Platinum >= minPrice && order.Platinum <= maxPrice;
+                order.IsShown = match;
+                if (match) shownCount++;
             }
 
-            IEnumerable<OrderViewModel> sorted = _sortField switch
-            {
-                "name" => _sortAsc ? filtered.OrderBy(v => v.ItemName, StringComparer.OrdinalIgnoreCase)
-                                   : filtered.OrderByDescending(v => v.ItemName, StringComparer.OrdinalIgnoreCase),
-                "price" => _sortAsc ? filtered.OrderBy(v => v.Platinum) : filtered.OrderByDescending(v => v.Platinum),
-                "quantity" => _sortAsc ? filtered.OrderBy(v => v.Quantity) : filtered.OrderByDescending(v => v.Quantity),
-                "updated" => _sortAsc ? filtered.OrderBy(v => v.UpdatedAt) : filtered.OrderByDescending(v => v.UpdatedAt),
-                "created" => _sortAsc ? filtered.OrderBy(v => v.CreatedAt) : filtered.OrderByDescending(v => v.CreatedAt),
-                _ => filtered.OrderBy(v => v.CreatedAt), // default: creation date ascending
-            };
-
-            foreach (var vm in sorted)
-                _filteredOrders.Add(vm);
-
-            EmptyOverlay.IsVisible = _filteredOrders.Count == 0 && _allOrders.Count > 0;
-
+            EmptyOverlay.IsVisible = shownCount == 0 && _allOrders.Count > 0;
             CountText.Text = typeFilter != null || search.Length > 0 || minPrice > 0 || maxPrice < int.MaxValue
-                ? $"{_filteredOrders.Count} / {_allOrders.Count} orders"
+                ? $"{shownCount} / {_allOrders.Count} orders"
                 : $"{_allOrders.Count} orders";
         }
 
@@ -258,7 +241,38 @@ namespace WFInfo.Linux.Views
                 _sortAsc = true;
             }
             UpdateSortButtons();
-            ApplyFilter();
+            ReorderCards();
+        }
+
+        private void ReorderCards()
+        {
+            IEnumerable<OrderViewModel> sorted = _sortField switch
+            {
+                "name" => _sortAsc ? _allOrders.OrderBy(v => v.ItemName, StringComparer.OrdinalIgnoreCase)
+                                   : _allOrders.OrderByDescending(v => v.ItemName, StringComparer.OrdinalIgnoreCase),
+                "price" => _sortAsc ? _allOrders.OrderBy(v => v.Platinum) : _allOrders.OrderByDescending(v => v.Platinum),
+                "quantity" => _sortAsc ? _allOrders.OrderBy(v => v.Quantity) : _allOrders.OrderByDescending(v => v.Quantity),
+                "updated" => _sortAsc ? _allOrders.OrderBy(v => v.UpdatedAt) : _allOrders.OrderByDescending(v => v.UpdatedAt),
+                "created" => _sortAsc ? _allOrders.OrderBy(v => v.CreatedAt) : _allOrders.OrderByDescending(v => v.CreatedAt),
+                _ => _allOrders.OrderBy(v => v.CreatedAt),
+            };
+            var ordered = sorted.ToList();
+            if (ListingsPanel.ItemsPanelRoot is not Panel panel)
+                return;
+            for (int i = 0; i < ordered.Count; i++)
+            {
+                int j = -1;
+                for (int k = 0; k < panel.Children.Count; k++)
+                {
+                    if (ReferenceEquals(panel.Children[k].DataContext, ordered[i]))
+                    {
+                        j = k;
+                        break;
+                    }
+                }
+                if (j >= 0 && j != i)
+                    panel.Children.Move(j, i);
+            }
         }
 
         private void TypeFilter_Changed(object sender, SelectionChangedEventArgs e)
@@ -368,7 +382,6 @@ namespace WFInfo.Linux.Views
                         else
                         {
                             _allOrders.Remove(vm);
-                            _filteredOrders.Remove(vm);
                             CountText.Text = $"{_allOrders.Count} orders";
                         }
                         ScheduleHistoryRefresh();
@@ -526,7 +539,6 @@ namespace WFInfo.Linux.Views
                         if (_editWindow != null && _editWindow.OrderId == vm.OrderId)
                             _editWindow.Close();
                         _allOrders.Remove(vm);
-                        _filteredOrders.Remove(vm);
                         CountText.Text = $"{_allOrders.Count} orders";
                     }
                     else

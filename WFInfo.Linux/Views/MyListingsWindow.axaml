@@ -191,7 +191,8 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="vm:OrderViewModel">
                         <Border Background="#FF222222" CornerRadius="4" Margin="4"
-                                Padding="10,8" Width="545">
+                                Padding="10,8" Width="545"
+                                IsVisible="{Binding IsShown}">
                             <Grid ColumnDefinitions="*,Auto">
                                 <!-- Left: text content -->
                                 <StackPanel Grid.Column="0" Spacing="3">
