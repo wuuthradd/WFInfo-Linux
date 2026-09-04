@@ -1449,10 +1449,9 @@ namespace WFInfo
             int B = byteArr[idx];
             int G = byteArr[idx + 1];
             int R = byteArr[idx + 2];
-            int A = byteArr[idx + 3];
             if (lowSensitivity)
-                return A > 80 && R > 80 && G > 80 && B > 80;
-            return A > 240 && R > 200 && G > 200 && B > 200;
+                return R > 80 && G > 80 && B > 80;
+            return R > 200 && G > 200 && B > 200;
         }
 
         private static List<InventoryItem> FindOwnedItems(SKBitmap profileImage, string ts, long start, Stopwatch watch)

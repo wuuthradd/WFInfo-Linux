@@ -5,7 +5,8 @@
  * SDR: manual premultiplied alpha blend via input attachment readback.
  * HDR PQ: manual blend in sRGB space via input attachment readback.
  * Tile mode (flags bit 0): texture wraps with animated offset.
- * flags bit 1: HDR PQ path. */
+ * flags bit 1: HDR PQ path.
+ * flags bit 4: write premul fg; hardware color-blend composites. */
 
 layout(location = 0) in vec2 vUV;
 layout(location = 0) out vec4 outColor;

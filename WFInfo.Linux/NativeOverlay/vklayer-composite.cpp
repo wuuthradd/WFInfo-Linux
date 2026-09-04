@@ -539,6 +539,11 @@ static int blend_hdr_flag(DeviceData *dd)
     return (dd->sc.colorspace == VK_COLOR_SPACE_HDR10_ST2084_EXT) ? 2 : 0;
 }
 
+static int sdr_hw_ok(DeviceData *dd)
+{
+    return !blend_hdr_flag(dd) && dd->blend_pipeline_hw;
+}
+
 static void draw_overlay(DeviceData *dd, VkCommandBuffer cmd, VkImageView sc_view,
                           OverlayTex *tex, int ox, int oy, int w, int h,
                           int flags_extra, int tex_off)
@@ -1038,30 +1043,30 @@ VkCommandBuffer composite_record_overlays(DeviceData *dd,
         any_drawn = 1;
         if (rw_cursor_over && rw_cursor_tex.valid) {
             emit_draw_barrier(dd, cmd);
+            const int hw = sdr_hw_ok(dd);
+            if (hw)
+                dd->dt.CmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, dd->blend_pipeline_hw);
             draw_overlay(dd, cmd, sc_view, &rw_cursor_tex,
                          rw.offset_x + rw_cursor_lx,
                          rw.offset_y + rw_cursor_ly,
-                         rw_cursor_tex.width, rw_cursor_tex.height, 0, 0);
+                         rw_cursor_tex.width, rw_cursor_tex.height, hw ? 4 : 0, 0);
+            if (hw)
+                dd->dt.CmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, dd->blend_pipeline);
         }
     }
 
-    /* Draw snapit overlay: tint, selection rect, crosshair, hint.
-     * Each layer reads the framebuffer modified by the previous one,
-     * so we need a barrier between overlapping draws. */
+    /* Draw snapit overlay: tint, selection rect, crosshair, hint. */
     if (snapit.active && snapit_tint_tex.valid) {
         if (any_drawn)
             emit_draw_barrier(dd, cmd);
-        /* Fullscreen tint. Hardware blend so a broken subpassLoad cannot
-         * turn the light veil into an opaque white sheet. */
-        if (!blend_hdr_flag(dd) && dd->blend_pipeline_hw) {
+
+        const int hw = sdr_hw_ok(dd);
+        const int pass = hw ? 4 : 0;
+        if (hw)
             dd->dt.CmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, dd->blend_pipeline_hw);
-            draw_overlay(dd, cmd, sc_view, &snapit_tint_tex,
-                         0, 0, static_cast<int>(dd->sc.width), static_cast<int>(dd->sc.height), 4, 0);
-            dd->dt.CmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, dd->blend_pipeline);
-        } else {
-            draw_overlay(dd, cmd, sc_view, &snapit_tint_tex,
-                         0, 0, static_cast<int>(dd->sc.width), static_cast<int>(dd->sc.height), 0, 0);
-        }
+
+        draw_overlay(dd, cmd, sc_view, &snapit_tint_tex,
+                     0, 0, static_cast<int>(dd->sc.width), static_cast<int>(dd->sc.height), pass, 0);
 
         /* Selection rectangle: fill + marching ants border */
         if (snapit.dragging && snapit_sel_tex.valid) {
@@ -1072,42 +1077,49 @@ VkCommandBuffer composite_record_overlays(DeviceData *dd,
             if (sw < 0) sw = -sw;
             if (sh < 0) sh = -sh;
             if (sw > 1 && sh > 1) {
-                emit_draw_barrier(dd, cmd);
-                draw_overlay(dd, cmd, sc_view, &snapit_sel_tex, sx, sy, sw, sh, 0, 0);
+                if (!hw)
+                    emit_draw_barrier(dd, cmd);
+                draw_overlay(dd, cmd, sc_view, &snapit_sel_tex, sx, sy, sw, sh, pass, 0);
                 int doff = static_cast<int>(snapit.dash_offset);
-                emit_draw_barrier(dd, cmd);
+                if (!hw)
+                    emit_draw_barrier(dd, cmd);
                 if (snapit_hdash_tex.valid) {
                     draw_overlay(dd, cmd, sc_view, &snapit_hdash_tex,
-                                 sx, sy, sw, BORDER_W, 1, doff);
+                                 sx, sy, sw, BORDER_W, pass | 1, doff);
                     draw_overlay(dd, cmd, sc_view, &snapit_hdash_tex,
-                                 sx, sy + sh - BORDER_W, sw, BORDER_W, 1, doff);
+                                 sx, sy + sh - BORDER_W, sw, BORDER_W, pass | 1, doff);
                 }
                 if (snapit_vdash_tex.valid) {
                     draw_overlay(dd, cmd, sc_view, &snapit_vdash_tex,
-                                 sx, sy, BORDER_W, sh, 1, doff);
+                                 sx, sy, BORDER_W, sh, pass | 1, doff);
                     draw_overlay(dd, cmd, sc_view, &snapit_vdash_tex,
-                                 sx + sw - BORDER_W, sy, BORDER_W, sh, 1, doff);
+                                 sx + sw - BORDER_W, sy, BORDER_W, sh, pass | 1, doff);
                 }
             }
         }
 
         /* Crosshair cursor at current mouse position */
         if (snapit_cursor_tex.valid) {
-            emit_draw_barrier(dd, cmd);
+            if (!hw)
+                emit_draw_barrier(dd, cmd);
             int mx = static_cast<int>(snapit.cur_x) - snapit_cursor_tex.width / 2;
             int my = static_cast<int>(snapit.cur_y) - snapit_cursor_tex.height / 2;
             draw_overlay(dd, cmd, sc_view, &snapit_cursor_tex,
-                         mx, my, snapit_cursor_tex.width, snapit_cursor_tex.height, 0, 0);
+                         mx, my, snapit_cursor_tex.width, snapit_cursor_tex.height, pass, 0);
         }
 
         /* Hint text at bottom center */
         if (snapit_texture.valid) {
-            emit_draw_barrier(dd, cmd);
+            if (!hw)
+                emit_draw_barrier(dd, cmd);
             int hx = (static_cast<int>(dd->sc.width) - snapit_texture.width) / 2;
             int hy = static_cast<int>(dd->sc.height) - snapit_texture.height - 10;
             draw_overlay(dd, cmd, sc_view, &snapit_texture,
-                         hx, hy, snapit_texture.width, snapit_texture.height, 0, 0);
+                         hx, hy, snapit_texture.width, snapit_texture.height, pass, 0);
         }
+
+        if (hw)
+            dd->dt.CmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, dd->blend_pipeline);
     }
 
     dd->dt.CmdEndRenderPass(cmd);
