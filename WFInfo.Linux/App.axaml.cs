@@ -589,16 +589,28 @@ namespace WFInfo.Linux
                                 if (AppMain.dataBase.IsJwtLoggedIn())
                                 {
                                     bool connected = await AppMain.dataBase.OpenWebSocket();
-                                    AppMain.AddLog(connected
-                                        ? "Restored JWT and connected to warframe.market WebSocket"
-                                        : "Restored JWT but WebSocket connection failed");
-
-                                    Dispatcher.UIThread.Post(() =>
+                                    if (!AppMain.dataBase.IsJwtLoggedIn())
                                     {
-                                        if (MainWindowInstance is MainWindow mw)
-                                            mw.LoggedIn();
-                                    });
-                                    StartAfkTimer();
+                                        AppMain.AddLog("Stored warframe.market login expired");
+                                        Dispatcher.UIThread.Post(() =>
+                                        {
+                                            if (MainWindowInstance is MainWindow mw)
+                                                mw.SignOut();
+                                        });
+                                    }
+                                    else
+                                    {
+                                        AppMain.AddLog(connected
+                                            ? "Restored JWT and connected to warframe.market WebSocket"
+                                            : "Restored JWT but WebSocket connection failed");
+
+                                        Dispatcher.UIThread.Post(() =>
+                                        {
+                                            if (MainWindowInstance is MainWindow mw)
+                                                mw.LoggedIn();
+                                        });
+                                        StartAfkTimer();
+                                    }
                                 }
                             }
                         }

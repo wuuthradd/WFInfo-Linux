@@ -210,6 +210,8 @@ namespace WFInfo
         public void FireReloadEnabled(bool enabled) => OnReloadEnabled?.Invoke(enabled);
         public event Action<List<List<string>>, short> OnSessionEnd;
         public event Action<string> OnWebSocketStatusChanged;
+        public event Action OnJwtExpired;
+        private int _jwtExpired;
 
         public Data(IReadOnlyApplicationSettings settings, IProcessFinder process, IWindowInfoService window, ILogCapture logCapture = null)
         {
@@ -343,6 +345,30 @@ namespace WFInfo
         {
             // WFM JWT tokens are >300 chars
             return JWT != null && JWT.Length > 300;
+        }
+
+        private void ExpireJwt()
+        {
+            if (Interlocked.Exchange(ref _jwtExpired, 1) == 1)
+                return;
+            AppMain.AddLog("warframe.market session expired");
+            AppMain.StatusUpdate("warframe.market session expired, log in again", 1);
+            _intentionalDisconnect = true;
+            _isWebSocketAuthenticated = false;
+            JWT = null;
+            rememberMe = false;
+            inGameName = string.Empty;
+            try
+            {
+                var path = Path.Combine(PlatformPaths.AppDataPath, "jwt_encrypted");
+                if (File.Exists(path)) File.Delete(path);
+            }
+            catch (Exception ex)
+            {
+                AppMain.AddLog($"Failed to delete stored JWT: {ex.Message}");
+            }
+            try { marketSocket?.Abort(); } catch { }
+            OnJwtExpired?.Invoke();
         }
 
         public async Task<bool> ReloadItems()
@@ -1468,7 +1494,7 @@ namespace WFInfo
                 try { marketSocket.Options.SetRequestHeader("User-Agent", "WFInfo/" + AppMain.BuildVersion); } catch { }
 
                 using var connectCts = new CancellationTokenSource(30000);
-                await marketSocket.ConnectAsync(new Uri("wss://warframe.market/socket-v2"), _wsInvoker, connectCts.Token);
+                await marketSocket.ConnectAsync(new Uri("wss://ws.warframe.market/socket"), _wsInvoker, connectCts.Token);
 
                 if (marketSocket.State == WebSocketState.Open)
                 {
@@ -1607,6 +1633,14 @@ namespace WFInfo
         {
             try
             {
+                if (message.Contains("app.jwt.expired"))
+                {
+                    AppMain.AddLog("WebSocket authentication failed: app.jwt.expired");
+                    _authenticationCompletionSource?.TrySetResult(false);
+                    ExpireJwt();
+                    return;
+                }
+
                 var msg = JsonConvert.DeserializeObject<JObject>(message);
                 var route = msg["route"]?.ToString();
                 var payload = msg["payload"] as JObject;
@@ -2054,7 +2088,15 @@ namespace WFInfo
                     var response = await client.SendAsync(request);
                     var body = await response.Content.ReadAsStringAsync();
                     var payload = JsonConvert.DeserializeObject<JObject>(body);
-                    return (JArray)payload?["data"];
+                    if (payload?["data"] is JArray orders)
+                        return orders;
+                    if (body.Contains("app.jwt.expired"))
+                    {
+                        ExpireJwt();
+                        return null;
+                    }
+                    AppMain.AddLog($"GetAllMyOrders: {(int)response.StatusCode}");
+                    return null;
                 }
             }
             catch (Exception e)

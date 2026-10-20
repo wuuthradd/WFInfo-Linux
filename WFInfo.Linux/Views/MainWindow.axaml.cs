@@ -72,6 +72,8 @@ namespace WFInfo.Linux.Views
                 App.OnMarketStatusChanged(status);
                 Dispatcher.UIThread.Post(() => UpdateMarketStatus(status));
             };
+            AppMain.dataBase.OnJwtExpired += () =>
+                Dispatcher.UIThread.Post(SignOut);
 
             Dispatcher.UIThread.Post(() => LoginBtn.IsEnabled = true);
 

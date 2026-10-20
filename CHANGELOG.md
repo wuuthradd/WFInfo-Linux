@@ -1,5 +1,11 @@
 # Changelog
 
+## 9.8.2.4
+
+### Market login and status
+- warframe.market socket address change, settings status works again.
+- Expired market login signs you out now.
+
 ## 9.8.2.3
 
 ### Some Fixes and Adjustments
